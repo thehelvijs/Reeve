@@ -181,5 +181,5 @@ func (a *app) routes() http.Handler {
 	mux.Handle("PUT /api/v1/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handlePutHostThresholds)))
 	mux.Handle("DELETE /api/v1/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handleResetHostThresholds)))
 
-	return a.resolvePrincipal(a.logRequests(mux))
+	return a.resolvePrincipal(a.logRequests(gzipResponses(mux)))
 }

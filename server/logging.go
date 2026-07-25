@@ -20,9 +20,11 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
-// loggableRequest reports whether a path is worth an access-log line: API calls
-// and agent-facing downloads, but not the SPA static assets or /healthz.
-func loggableRequest(path string) bool {
+// dynamicRequest reports whether a path is served by the server's own routes
+// rather than the embedded SPA bundle: API calls and agent-facing downloads.
+// Those are the requests worth an access-log line, and the only ones that can
+// carry a principal, so a static asset costs no session lookup.
+func dynamicRequest(path string) bool {
 	if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/dl/") {
 		return true
 	}
@@ -33,7 +35,7 @@ func loggableRequest(path string) bool {
 // It runs inside resolvePrincipal so the authenticated user is available.
 func (a *app) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !a.cfg.LogRequests || !loggableRequest(r.URL.Path) {
+		if !a.cfg.LogRequests || !dynamicRequest(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

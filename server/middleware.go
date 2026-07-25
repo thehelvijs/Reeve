@@ -14,6 +14,10 @@ import (
 // RequireAuth / RequireAdmin so public routes stay open.
 func (a *app) resolvePrincipal(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !dynamicRequest(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if p, ok := a.principalFromRequest(r); ok {
 			r = r.WithContext(rbac.WithPrincipal(r.Context(), p))
 		}
