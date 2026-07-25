@@ -55,7 +55,6 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not store telemetry")
 		return
 	}
-	a.db.TouchHost(host.ID, push.AgentVersion)
 	if a.cfg.LogRequests {
 		log.Printf("ingest: host=%s agent=%s services=%d containers=%d cron=%d logs=%d cpu=%.0f%% mem=%d/%d",
 			host.Name, push.AgentVersion, len(push.Services), len(push.Containers), len(push.CronJobs),
@@ -64,23 +63,7 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// storePush persists the inventory, status, metrics, and log parts of a push.
+// storePush persists a push and the host's heartbeat in one transaction.
 func (a *app) storePush(hostID string, push contracts.Push) error {
-	if err := a.db.ReplaceServiceStatus(hostID, push.Services); err != nil {
-		return err
-	}
-	if err := a.db.ReplaceContainerStatus(hostID, push.Containers); err != nil {
-		return err
-	}
-	if err := a.db.ReplaceCronJobs(hostID, push.CronJobs); err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	if err := a.db.InsertHostMetric(hostID, push.Metrics, now); err != nil {
-		return err
-	}
-	if err := a.db.InsertContainerStats(hostID, push.ContainerStats, now); err != nil {
-		return err
-	}
-	return a.db.InsertLogEvents(hostID, push.LogEvents)
+	return a.db.ApplyPush(hostID, push, time.Now().UTC())
 }

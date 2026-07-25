@@ -78,11 +78,16 @@ func (a *app) handleListHosts(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list hosts")
 		return
 	}
+	latest, err := a.db.LatestHostMetrics()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not read metrics")
+		return
+	}
 	now := time.Now().UTC()
 	out := make([]hostView, 0, len(hosts))
 	for _, h := range hosts {
 		v := hostToView(h, now)
-		if m, ok := a.db.LatestHostMetric(h.ID); ok {
+		if m, ok := latest[h.ID]; ok {
 			v.Metrics = &hostMetricsView{
 				CPUPct: m.CPUPct, MemUsed: m.MemUsed, MemTotal: m.MemTotal,
 				DiskUsed: m.DiskUsed, DiskTotal: m.DiskTotal, At: m.TS.Format(time.RFC3339),

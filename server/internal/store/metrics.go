@@ -45,8 +45,12 @@ const metricTimeFmt = time.RFC3339
 
 // InsertHostMetric stores a raw host metric sample from a push.
 func (db *DB) InsertHostMetric(hostID string, m contracts.HostMetrics, ts time.Time) error {
+	return insertHostMetric(db.sql, hostID, m, ts)
+}
+
+func insertHostMetric(w writer, hostID string, m contracts.HostMetrics, ts time.Time) error {
 	temps, _ := json.Marshal(m.Temps)
-	_, err := db.sql.Exec(
+	_, err := w.Exec(
 		`INSERT OR REPLACE INTO metric_samples(host_id, ts, resolution, cpu_pct, mem_used, mem_total,
 			disk_used, disk_total, disk_read, disk_write, net_rx, net_tx, uptime_secs, temps,
 			load1, load5, load15, gpu_util, gpu_mem_used, gpu_mem_total)
@@ -57,22 +61,52 @@ func (db *DB) InsertHostMetric(hostID string, m contracts.HostMetrics, ts time.T
 	return err
 }
 
-// LatestHostMetric returns the newest raw sample for a host.
-func (db *DB) LatestHostMetric(hostID string) (MetricPoint, bool) {
+// latestMetricSelect reads the newest raw sample per host. The correlated MAX
+// rides the (host_id, resolution, ts) index, so it costs one seek per host.
+const latestMetricSelect = `SELECT host_id, ts, cpu_pct, mem_used, mem_total, disk_used, disk_total,
+		temps, load1, load5, load15, gpu_util, gpu_mem_used, gpu_mem_total
+	 FROM metric_samples m WHERE resolution = 'raw' AND ts = (
+		SELECT MAX(ts) FROM metric_samples WHERE host_id = m.host_id AND resolution = 'raw')`
+
+func scanLatestMetric(row scanner) (string, MetricPoint, error) {
+	var hostID string
 	var p MetricPoint
 	var ts, temps string
-	err := db.sql.QueryRow(
-		`SELECT ts, cpu_pct, mem_used, mem_total, disk_used, disk_total, temps, load1, load5, load15,
-			gpu_util, gpu_mem_used, gpu_mem_total
-		 FROM metric_samples WHERE host_id = ? AND resolution = 'raw' ORDER BY ts DESC LIMIT 1`, hostID).
-		Scan(&ts, &p.CPUPct, &p.MemUsed, &p.MemTotal, &p.DiskUsed, &p.DiskTotal, &temps, &p.Load1, &p.Load5, &p.Load15,
-			&p.GPUUtil, &p.GPUMemUsed, &p.GPUMemTotal)
-	if err != nil {
-		return MetricPoint{}, false
+	if err := row.Scan(&hostID, &ts, &p.CPUPct, &p.MemUsed, &p.MemTotal, &p.DiskUsed, &p.DiskTotal,
+		&temps, &p.Load1, &p.Load5, &p.Load15, &p.GPUUtil, &p.GPUMemUsed, &p.GPUMemTotal); err != nil {
+		return "", MetricPoint{}, err
 	}
 	p.TS, _ = time.Parse(metricTimeFmt, ts)
 	json.Unmarshal([]byte(temps), &p.Temps)
+	return hostID, p, nil
+}
+
+// LatestHostMetric returns the newest raw sample for a host.
+func (db *DB) LatestHostMetric(hostID string) (MetricPoint, bool) {
+	_, p, err := scanLatestMetric(db.sql.QueryRow(latestMetricSelect+` AND host_id = ?`, hostID))
+	if err != nil {
+		return MetricPoint{}, false
+	}
 	return p, true
+}
+
+// LatestHostMetrics returns the newest raw sample for every host that has one,
+// keyed by host id, so a listing does not query per host.
+func (db *DB) LatestHostMetrics() (map[string]MetricPoint, error) {
+	rows, err := db.sql.Query(latestMetricSelect)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]MetricPoint{}
+	for rows.Next() {
+		hostID, p, err := scanLatestMetric(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[hostID] = p
+	}
+	return out, rows.Err()
 }
 
 // HostNetRate returns the max(rx,tx) byte/sec rate from the two newest raw
@@ -132,12 +166,26 @@ func (db *DB) DeleteHostMetrics(hostID string) error {
 
 // InsertContainerStats stores raw per-container samples from a push.
 func (db *DB) InsertContainerStats(hostID string, stats []contracts.ContainerSample, ts time.Time) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	return db.inTx(func(tx *sql.Tx) error { return insertContainerStats(tx, hostID, stats, ts) })
+}
+
+func insertContainerStats(w writer, hostID string, stats []contracts.ContainerSample, ts time.Time) error {
+	if len(stats) == 0 {
+		return nil
+	}
+	stmt, err := w.Prepare(
+		`INSERT OR REPLACE INTO container_stats(host_id, container_id, ts, resolution, cpu_pct, mem_used, mem_limit)
+		 VALUES (?,?,?, 'raw', ?,?,?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
 	t := ts.UTC().Format(metricTimeFmt)
 	for _, s := range stats {
-		if _, err := db.sql.Exec(
-			`INSERT OR REPLACE INTO container_stats(host_id, container_id, ts, resolution, cpu_pct, mem_used, mem_limit)
-			 VALUES (?,?,?, 'raw', ?,?,?)`,
-			hostID, s.ContainerID, t, s.CPUPct, s.MemUsed, s.MemLimit); err != nil {
+		if _, err := stmt.Exec(hostID, s.ContainerID, t, s.CPUPct, s.MemUsed, s.MemLimit); err != nil {
 			return err
 		}
 	}

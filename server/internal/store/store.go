@@ -62,6 +62,19 @@ func (db *DB) SQL() *sql.DB {
 	return db.sql
 }
 
+// inTx runs fn inside a transaction, rolling back on error.
+func (db *DB) inTx(fn func(*sql.Tx) error) error {
+	tx, err := db.sql.Begin()
+	if err != nil {
+		return err
+	}
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
 // BackupTo writes a consistent copy of the database to destPath (which must not
 // exist) via VACUUM INTO. Credentials in the copy stay AES-256-GCM ciphertext;
 // the master key is never part of the database.
