@@ -21,10 +21,10 @@ test('authed portal groups tools and links to dashboard', async ({ page }) => {
   await page.click('button[type=submit]');
   await expect(page.locator('h1:has-text("PortalGrafana")')).toBeVisible();
 
-  // Portal at root shows the tool under an Unassigned group.
+  // Portal at root groups by collection; this tool is in none.
   await page.goto('/');
   await expect(page.locator('text=PortalGrafana')).toBeVisible();
-  await expect(page.locator('h2:has-text("Unassigned")')).toBeVisible();
+  await expect(page.locator('h2:has-text("Ungrouped")')).toBeVisible();
 
   // Dashboard button enters the app with its top nav.
   await page.click('button:has-text("Dashboard")');
