@@ -1,0 +1,9 @@
+.git
+bin/
+web/node_modules
+web/dist
+server/webdist/assets
+*.db
+*.db-wal
+*.db-shm
+.env

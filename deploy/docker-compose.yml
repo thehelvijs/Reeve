@@ -1,0 +1,27 @@
+# Reeve server, from the published image. LAN-only: in production bind the
+# port to a LAN interface, e.g. "192.168.1.10:8080:8080", not 0.0.0.0.
+#
+# To build from a source checkout instead, add the override:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml up -d --build
+services:
+  server:
+    image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
+    pull_policy: always
+    ports:
+      # Host port is overridable so a second instance can run alongside one that
+      # already holds 8080.
+      - "${REEVE_PORT:-8080}:8080"
+    environment:
+      # Required. Generate once: openssl rand -base64 32
+      REEVE_MASTER_KEY: ${REEVE_MASTER_KEY:?set REEVE_MASTER_KEY in .env}
+      # The URL people reach this server on. Required for Google sign-in and
+      # used in emailed links and the agent enrollment command.
+      REEVE_PUBLIC_URL: ${REEVE_PUBLIC_URL:-}
+      # Set to true when a reverse proxy terminates HTTPS in front of this.
+      REEVE_COOKIE_SECURE: ${REEVE_COOKIE_SECURE:-false}
+    volumes:
+      - reeve-data:/data
+    restart: unless-stopped
+
+volumes:
+  reeve-data: {}

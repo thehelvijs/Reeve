@@ -1,0 +1,13 @@
+# Agent image. Sees Docker via the mounted socket. For full systemd/cron/journal
+# visibility, prefer the host-binary install (see deploy/agent.service).
+FROM golang:1.25-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o /out/agent ./agent
+
+FROM alpine:3.20
+RUN apk add --no-cache docker-cli
+COPY --from=build /out/agent /usr/local/bin/agent
+ENTRYPOINT ["/usr/local/bin/agent"]

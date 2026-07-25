@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+# Build the UI, embed it into a static server binary, ship a minimal image.
+FROM node:20-alpine AS web
+WORKDIR /src
+COPY web web
+COPY theme theme
+RUN cd web && npm ci && npm run build
+
+FROM golang:1.25-alpine AS build
+ARG VERSION=docker
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=web /src/web/dist server/webdist
+RUN apk add --no-cache python3
+# The signing key is optional so a local build works; without it the embedded
+# agents are unsigned and hosts will refuse to self-update from this server.
+RUN --mount=type=secret,id=signing_key \
+    mkdir -p server/scripts && cp deploy/install.sh deploy/uninstall.sh server/scripts/ \
+    && if [ -f /run/secrets/signing_key ]; then \
+         REEVE_SIGNING_KEY="$(cat /run/secrets/signing_key)" python3 scripts/release.py --embed; \
+       else \
+         python3 scripts/release.py --embed; \
+       fi
+RUN CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION}" -o /out/server ./server
+
+FROM alpine:3.20
+RUN adduser -D -u 10001 reeve && mkdir -p /data && chown reeve:reeve /data
+COPY --from=build /out/server /usr/local/bin/server
+USER reeve
+EXPOSE 8080
+ENV REEVE_ADDR=0.0.0.0:8080 REEVE_DB=/data/reeve.db
+VOLUME /data
+# The binary probes its own /healthz, so the image needs no curl or wget.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/server", "-healthcheck"]
+ENTRYPOINT ["/usr/local/bin/server"]

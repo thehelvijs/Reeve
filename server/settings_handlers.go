@@ -1,0 +1,169 @@
+package main
+
+import (
+	"encoding/base64"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/thehelvijs/Reeve/server/internal/store"
+)
+
+// Retention bounds keep an operator from configuring a window that either
+// prunes on every tick or never prunes at all.
+const (
+	minRetentionSecs = 600
+	maxRetentionSecs = 5 * 365 * 24 * 3600
+)
+
+// sealedPrefix marks a settings value as master-key ciphertext, stored as
+// "sealed:" + base64(nonce) + "." + base64(ciphertext).
+const sealedPrefix = "sealed:"
+
+// setSealedSetting encrypts a secret setting before it touches disk.
+func (a *app) setSealedSetting(key, plain string) error {
+	ct, nonce, err := a.cipher.Seal([]byte(plain))
+	if err != nil {
+		return err
+	}
+	enc := sealedPrefix + base64.StdEncoding.EncodeToString(nonce) + "." + base64.StdEncoding.EncodeToString(ct)
+	return a.db.SetSetting(key, enc)
+}
+
+// sealedSetting decrypts a secret setting, reporting whether one is stored.
+func (a *app) sealedSetting(key string) (string, bool) {
+	v, ok := a.db.GetSetting(key)
+	if !ok || v == "" {
+		return "", false
+	}
+	body, ok := strings.CutPrefix(v, sealedPrefix)
+	if !ok {
+		return "", false
+	}
+	nonceB64, ctB64, ok := strings.Cut(body, ".")
+	if !ok {
+		return "", false
+	}
+	nonce, err := base64.StdEncoding.DecodeString(nonceB64)
+	if err != nil {
+		return "", false
+	}
+	ct, err := base64.StdEncoding.DecodeString(ctB64)
+	if err != nil {
+		return "", false
+	}
+	plain, err := a.cipher.Open(ct, nonce)
+	if err != nil {
+		return "", false
+	}
+	return string(plain), true
+}
+
+type retentionView struct {
+	RawSecs     int `json:"raw_secs"`
+	FiveMinSecs int `json:"fivemin_secs"`
+	OneHourSecs int `json:"onehour_secs"`
+}
+
+type settingsView struct {
+	SignupEnabled bool           `json:"signup_enabled"`
+	Retention     retentionView  `json:"retention"`
+	SMTP          smtpView       `json:"smtp"`
+	Google        googleAuthView `json:"google"`
+}
+
+// handleGetSettings returns every instance-wide setting an admin can change.
+func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
+	ret := a.db.EffectiveRetention()
+	writeJSON(w, http.StatusOK, settingsView{
+		SignupEnabled: a.db.GetBoolSetting(settingSignupEnabled, true),
+		Retention: retentionView{
+			RawSecs:     int(ret.Raw.Seconds()),
+			FiveMinSecs: int(ret.FiveMin.Seconds()),
+			OneHourSecs: int(ret.OneHour.Seconds()),
+		},
+		SMTP:   a.smtpView(),
+		Google: a.googleAuthView(),
+	})
+}
+
+// handlePutSettings applies a partial settings update; absent fields are left
+// as they are so one page section cannot clobber another.
+func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		SignupEnabled *bool `json:"signup_enabled"`
+		Retention     *struct {
+			RawSecs     int `json:"raw_secs"`
+			FiveMinSecs int `json:"fivemin_secs"`
+			OneHourSecs int `json:"onehour_secs"`
+		} `json:"retention"`
+		SMTP   *smtpInput   `json:"smtp"`
+		Google *googleInput `json:"google"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+
+	if in.SignupEnabled != nil {
+		if err := a.db.SetSetting(settingSignupEnabled, strconv.FormatBool(*in.SignupEnabled)); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not save signup setting")
+			return
+		}
+	}
+	if in.Retention != nil {
+		ret := store.Retention{
+			Raw:     time.Duration(in.Retention.RawSecs) * time.Second,
+			FiveMin: time.Duration(in.Retention.FiveMinSecs) * time.Second,
+			OneHour: time.Duration(in.Retention.OneHourSecs) * time.Second,
+		}
+		if err := validateRetention(ret); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_retention", err.Error())
+			return
+		}
+		for key, secs := range map[string]int{
+			"retention.raw_secs":     in.Retention.RawSecs,
+			"retention.fivemin_secs": in.Retention.FiveMinSecs,
+			"retention.onehour_secs": in.Retention.OneHourSecs,
+		} {
+			if err := a.db.SetSetting(key, strconv.Itoa(secs)); err != nil {
+				writeError(w, http.StatusInternalServerError, "internal", "could not save retention")
+				return
+			}
+		}
+	}
+	if in.SMTP != nil {
+		if err := a.saveSMTPSettings(*in.SMTP); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_smtp", err.Error())
+			return
+		}
+	}
+	if in.Google != nil {
+		if err := a.saveGoogleSettings(*in.Google); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_google", err.Error())
+			return
+		}
+	}
+	a.handleGetSettings(w, r)
+}
+
+// validateRetention keeps the tiers ordered and inside sane bounds; an
+// out-of-order set would prune a coarser tier before the finer one.
+func validateRetention(ret store.Retention) error {
+	tiers := []struct {
+		name string
+		d    time.Duration
+	}{{"raw", ret.Raw}, {"5m", ret.FiveMin}, {"1h", ret.OneHour}}
+	for _, t := range tiers {
+		secs := int(t.d.Seconds())
+		if secs < minRetentionSecs || secs > maxRetentionSecs {
+			return errors.New(t.name + " retention must be between 600 and 157680000 seconds")
+		}
+	}
+	if !(ret.Raw <= ret.FiveMin && ret.FiveMin <= ret.OneHour) {
+		return errors.New("retention must not shrink as resolution coarsens: raw <= 5m <= 1h")
+	}
+	return nil
+}

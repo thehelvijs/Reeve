@@ -1,0 +1,49 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Common build/deps (extend per stack)
+node_modules/
+dist/
+build/
+.env
+
+# Go build artifacts
+/bin/
+*.test
+*.out
+
+# TS build info
+*.tsbuildinfo
+
+# Embedded UI: keep the placeholder index.html, ignore built assets copied by
+# `make web-build`.
+/server/webdist/*
+!/server/webdist/index.html
+
+# Staged host scripts + built agent binaries: keep placeholders, ignore
+# artifacts copied by `make server-assets`.
+/server/scripts/install.sh
+/server/scripts/uninstall.sh
+/server/agentdist/agent-linux-*
+
+# SQLite data
+*.db
+*.db-wal
+*.db-shm
+.playwright-mcp/
+
+# Playwright e2e artifacts
+web/test-results/
+web/playwright-report/
+web/.playwright/
+
+# Python
+__pycache__/
+*.pyc
+.claude/worktrees/
+
+# Python
+.pytest_cache/

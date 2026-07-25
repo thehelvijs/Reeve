@@ -1,0 +1,57 @@
+@import '../../theme/theme.css';
+@import '@fontsource-variable/inter';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: var(--canvas);
+  color: var(--text);
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-feature-settings: 'cv01', 'ss03', 'zero';
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Leaflet, themed dark to match the surface ladder. */
+.leaflet-container {
+  background: var(--canvas);
+  font-family: inherit;
+}
+.leaflet-control-attribution {
+  background: rgba(15, 16, 17, 0.8) !important;
+  color: var(--text-muted) !important;
+}
+.leaflet-control-attribution a {
+  color: var(--text-muted) !important;
+}
+.leaflet-bar a {
+  background: var(--surface-2);
+  color: var(--text);
+  border-bottom-color: var(--border) !important;
+}
+.leaflet-bar a:hover {
+  background: var(--surface-3);
+}
+.reeve-pin {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--accent);
+  border: 2px solid var(--canvas);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.reeve-tip {
+  background: var(--surface-3) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 600;
+}
+.reeve-tip::before {
+  display: none !important;
+}

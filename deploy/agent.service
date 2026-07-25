@@ -1,0 +1,22 @@
+# Host install of the agent (full systemd/cron/journal + docker visibility).
+# Copy the binary to /usr/local/bin/reeve-agent, fill in the values, then:
+#   sudo cp deploy/agent.service /etc/systemd/system/reeve-agent.service
+#   sudo systemctl enable --now reeve-agent
+[Unit]
+Description=Reeve agent
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+# root is required to read all systemd units, every crontab, journald, and the
+# docker socket.
+User=root
+Environment=REEVE_SERVER_URL=http://CHANGE-ME:8080
+Environment=REEVE_AGENT_TOKEN=CHANGE-ME
+Environment=REEVE_PUSH_INTERVAL=15s
+ExecStart=/usr/local/bin/reeve-agent
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

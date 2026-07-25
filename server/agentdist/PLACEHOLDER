@@ -1,0 +1,3 @@
+Built agent binaries (agent-linux-<arch>) are placed here by
+`python3 scripts/release.py --embed` before release builds. This placeholder
+keeps go:embed and `go build` working when no binaries are present.
