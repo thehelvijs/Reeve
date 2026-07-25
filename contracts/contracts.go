@@ -93,22 +93,29 @@ const (
 	StatusUnknown      ToolStatus = "unknown"
 )
 
+// CollectionRef is the compact collection shape embedded in a tool payload.
+type CollectionRef struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	IconURL string `json:"icon_url"`
+}
+
 // ToolDTO is the catalog representation returned by the public API. It never
 // carries credentials.
 type ToolDTO struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	Description      string     `json:"description"`
-	Category         string     `json:"category"`
-	Tags             []string   `json:"tags"`
-	Scheme           string     `json:"scheme"`
-	Address          string     `json:"address"`
-	Port             int        `json:"port,omitempty"`
-	URL              string     `json:"url,omitempty"`
-	PhysicalLocation string     `json:"physical_location,omitempty"`
-	HostID           string     `json:"host_id,omitempty"`
-	SourceType       string     `json:"source_type"`
-	Status           ToolStatus `json:"status"`
+	ID               string          `json:"id"`
+	Name             string          `json:"name"`
+	Description      string          `json:"description"`
+	Collections      []CollectionRef `json:"collections"`
+	Tags             []string        `json:"tags"`
+	Scheme           string          `json:"scheme"`
+	Address          string          `json:"address"`
+	Port             int             `json:"port,omitempty"`
+	URL              string          `json:"url,omitempty"`
+	PhysicalLocation string          `json:"physical_location,omitempty"`
+	HostID           string          `json:"host_id,omitempty"`
+	SourceType       string          `json:"source_type"`
+	Status           ToolStatus      `json:"status"`
 }
 
 // ErrorResponse is the consistent error envelope for every API failure.

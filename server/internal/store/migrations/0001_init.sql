@@ -76,7 +76,6 @@ CREATE TABLE tools (
     id                TEXT PRIMARY KEY,
     name              TEXT NOT NULL,
     description       TEXT NOT NULL DEFAULT '',
-    category          TEXT NOT NULL DEFAULT '',
     tags              TEXT NOT NULL DEFAULT '[]',
     scheme            TEXT NOT NULL DEFAULT '',
     address           TEXT NOT NULL DEFAULT '',
@@ -96,7 +95,6 @@ CREATE TABLE tools (
     created_at        TEXT NOT NULL
 );
 CREATE INDEX idx_tools_creator ON tools(creator_id);
-CREATE INDEX idx_tools_category ON tools(category);
 
 CREATE TABLE collections (
     id          TEXT PRIMARY KEY,

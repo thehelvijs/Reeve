@@ -17,7 +17,6 @@ type Tool struct {
 	ID               string
 	Name             string
 	Description      string
-	Category         string
 	Tags             []string
 	Scheme           string
 	Address          string
@@ -47,10 +46,10 @@ func (db *DB) SetToolThumbnailPath(id, path string) error {
 
 // ToolFilter narrows a catalog listing. Empty fields are ignored.
 type ToolFilter struct {
-	Search     string
-	Category   string
-	HostID     string
-	SourceType string
+	Search       string
+	CollectionID string
+	HostID       string
+	SourceType   string
 }
 
 // CountTools returns the total number of tools.
@@ -72,11 +71,11 @@ func (db *DB) CreateTool(t Tool) (Tool, error) {
 	}
 	tags, _ := json.Marshal(t.Tags)
 	_, err := db.sql.Exec(
-		`INSERT INTO tools(id, name, description, category, tags, scheme, address, port, url,
+		`INSERT INTO tools(id, name, description, tags, scheme, address, port, url,
 			physical_location, host_id, source_type, source_ref, visibility, creator_id,
 			log_alert_enabled, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		t.ID, t.Name, t.Description, t.Category, string(tags), t.Scheme, t.Address, t.Port, t.URL,
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		t.ID, t.Name, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
 		t.PhysicalLocation, nullable(t.HostID), t.SourceType, t.SourceRef, t.Visibility, t.CreatorID,
 		boolToInt(t.LogAlertEnabled), t.CreatedAt.Format(time.RFC3339Nano),
 	)
@@ -90,10 +89,10 @@ func (db *DB) CreateTool(t Tool) (Tool, error) {
 func (db *DB) UpdateTool(t Tool) error {
 	tags, _ := json.Marshal(t.Tags)
 	return db.exec1(
-		`UPDATE tools SET name=?, description=?, category=?, tags=?, scheme=?, address=?, port=?, url=?,
+		`UPDATE tools SET name=?, description=?, tags=?, scheme=?, address=?, port=?, url=?,
 			physical_location=?, host_id=?, source_type=?, source_ref=?, visibility=?,
 			log_alert_enabled=? WHERE id=?`,
-		t.Name, t.Description, t.Category, string(tags), t.Scheme, t.Address, t.Port, t.URL,
+		t.Name, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
 		t.PhysicalLocation, nullable(t.HostID), t.SourceType, t.SourceRef, t.Visibility,
 		boolToInt(t.LogAlertEnabled), t.ID,
 	)
@@ -132,9 +131,9 @@ func (db *DB) ListToolsVisibleTo(userID string, isAdmin bool, f ToolFilter) ([]T
 		like := "%" + f.Search + "%"
 		args = append(args, like, like, like)
 	}
-	if f.Category != "" {
-		where = append(where, `category = ?`)
-		args = append(args, f.Category)
+	if f.CollectionID != "" {
+		where = append(where, `id IN (SELECT tool_id FROM collection_tools WHERE collection_id = ?)`)
+		args = append(args, f.CollectionID)
 	}
 	if f.HostID != "" {
 		where = append(where, `host_id = ?`)
@@ -177,9 +176,9 @@ func (db *DB) ListPublicTools(f ToolFilter) ([]Tool, error) {
 		like := "%" + f.Search + "%"
 		args = append(args, like, like, like)
 	}
-	if f.Category != "" {
-		where = append(where, `category = ?`)
-		args = append(args, f.Category)
+	if f.CollectionID != "" {
+		where = append(where, `id IN (SELECT tool_id FROM collection_tools WHERE collection_id = ?)`)
+		args = append(args, f.CollectionID)
 	}
 	if f.HostID != "" {
 		where = append(where, `host_id = ?`)
@@ -274,7 +273,7 @@ const toolVisibleClause = `(
 	)
 )`
 
-const toolSelect = `SELECT id, name, description, category, tags, scheme, address, port, url,
+const toolSelect = `SELECT id, name, description, tags, scheme, address, port, url,
 	physical_location, host_id, source_type, source_ref, visibility, creator_id,
 	log_alert_enabled, created_at, icon_path, thumbnail_path FROM tools`
 
@@ -283,7 +282,7 @@ func (db *DB) scanTool(row scanner) (Tool, error) {
 	var tags, created string
 	var hostID *string
 	var logAlert int
-	if err := row.Scan(&t.ID, &t.Name, &t.Description, &t.Category, &tags, &t.Scheme, &t.Address, &t.Port, &t.URL,
+	if err := row.Scan(&t.ID, &t.Name, &t.Description, &tags, &t.Scheme, &t.Address, &t.Port, &t.URL,
 		&t.PhysicalLocation, &hostID, &t.SourceType, &t.SourceRef, &t.Visibility,
 		&t.CreatorID, &logAlert, &created, &t.IconPath, &t.ThumbnailPath); err != nil {
 		return Tool{}, err

@@ -14,7 +14,6 @@ import (
 type toolInput struct {
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
-	Category         string   `json:"category"`
 	Tags             []string `json:"tags"`
 	Scheme           string   `json:"scheme"`
 	Address          string   `json:"address"`
@@ -43,21 +42,21 @@ type toolResponse struct {
 // publicToolResponse is the anonymous-visible tool shape per ADR-0006: no
 // creator_id, source_ref, visibility, can_edit, or log_alert_enabled.
 type publicToolResponse struct {
-	ID               string               `json:"id"`
-	Name             string               `json:"name"`
-	Description      string               `json:"description"`
-	Category         string               `json:"category"`
-	Tags             []string             `json:"tags"`
-	Scheme           string               `json:"scheme"`
-	Address          string               `json:"address"`
-	Port             int                  `json:"port,omitempty"`
-	URL              string               `json:"url,omitempty"`
-	PhysicalLocation string               `json:"physical_location,omitempty"`
-	HostID           string               `json:"host_id,omitempty"`
-	SourceType       string               `json:"source_type"`
-	Status           contracts.ToolStatus `json:"status"`
-	IconURL          string               `json:"icon_url"`
-	ThumbnailURL     string               `json:"thumbnail_url"`
+	ID               string                    `json:"id"`
+	Name             string                    `json:"name"`
+	Description      string                    `json:"description"`
+	Collections      []contracts.CollectionRef `json:"collections"`
+	Tags             []string                  `json:"tags"`
+	Scheme           string                    `json:"scheme"`
+	Address          string                    `json:"address"`
+	Port             int                       `json:"port,omitempty"`
+	URL              string                    `json:"url,omitempty"`
+	PhysicalLocation string                    `json:"physical_location,omitempty"`
+	HostID           string                    `json:"host_id,omitempty"`
+	SourceType       string                    `json:"source_type"`
+	Status           contracts.ToolStatus      `json:"status"`
+	IconURL          string                    `json:"icon_url"`
+	ThumbnailURL     string                    `json:"thumbnail_url"`
 }
 
 func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
@@ -66,7 +65,6 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 			ID:               t.ID,
 			Name:             t.Name,
 			Description:      t.Description,
-			Category:         t.Category,
 			Tags:             t.Tags,
 			Scheme:           t.Scheme,
 			Address:          t.Address,
@@ -91,10 +89,10 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 func (a *app) handleListTools(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
 	f := store.ToolFilter{
-		Search:     strings.TrimSpace(r.URL.Query().Get("search")),
-		Category:   r.URL.Query().Get("category"),
-		HostID:     r.URL.Query().Get("host"),
-		SourceType: r.URL.Query().Get("source_type"),
+		Search:       strings.TrimSpace(r.URL.Query().Get("search")),
+		CollectionID: r.URL.Query().Get("collection"),
+		HostID:       r.URL.Query().Get("host"),
+		SourceType:   r.URL.Query().Get("source_type"),
 	}
 	tools, err := a.db.ListToolsVisibleTo(p.UserID, p.IsAdmin(), f)
 	if err != nil {
@@ -114,10 +112,10 @@ func (a *app) handleListTools(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 	f := store.ToolFilter{
-		Search:     strings.TrimSpace(r.URL.Query().Get("search")),
-		Category:   r.URL.Query().Get("category"),
-		HostID:     r.URL.Query().Get("host"),
-		SourceType: r.URL.Query().Get("source_type"),
+		Search:       strings.TrimSpace(r.URL.Query().Get("search")),
+		CollectionID: r.URL.Query().Get("collection"),
+		HostID:       r.URL.Query().Get("host"),
+		SourceType:   r.URL.Query().Get("source_type"),
 	}
 	tools, err := a.db.ListPublicTools(f)
 	if err != nil {
@@ -132,7 +130,6 @@ func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 			ID:               t.ID,
 			Name:             t.Name,
 			Description:      t.Description,
-			Category:         t.Category,
 			Tags:             t.Tags,
 			Scheme:           t.Scheme,
 			Address:          t.Address,
@@ -169,7 +166,7 @@ func (a *app) handleCreateTool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, err := a.db.CreateTool(store.Tool{
-		Name: in.Name, Description: in.Description, Category: in.Category, Tags: in.Tags,
+		Name: in.Name, Description: in.Description, Tags: in.Tags,
 		Scheme: in.Scheme, Address: in.Address, Port: in.Port, URL: in.URL,
 		PhysicalLocation: in.PhysicalLocation, HostID: in.HostID, SourceType: in.SourceType,
 		SourceRef: in.SourceRef, Visibility: in.Visibility, CreatorID: p.UserID,
@@ -212,7 +209,7 @@ func (a *app) handleUpdateTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_field", "invalid source_type or visibility")
 		return
 	}
-	t.Name, t.Description, t.Category, t.Tags = in.Name, in.Description, in.Category, in.Tags
+	t.Name, t.Description, t.Tags = in.Name, in.Description, in.Tags
 	t.Scheme, t.Address, t.Port, t.URL = in.Scheme, in.Address, in.Port, in.URL
 	t.PhysicalLocation, t.HostID, t.SourceRef = in.PhysicalLocation, in.HostID, in.SourceRef
 	t.LogAlertEnabled = in.LogAlertEnabled

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 func createTool(t *testing.T, ts *testServer, c *http.Client, in toolInput) toolResponse {
@@ -145,8 +147,8 @@ func TestToolSearchFilter(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
-	createTool(t, ts, c, toolInput{Name: "Grafana", Category: "metrics"})
-	createTool(t, ts, c, toolInput{Name: "Postgres", Category: "database"})
+	createTool(t, ts, c, toolInput{Name: "Grafana"})
+	pg := createTool(t, ts, c, toolInput{Name: "Postgres"})
 
 	_, data := ts.do(t, c, http.MethodGet, "/api/v1/tools?search=graf", nil, nil)
 	var tools []toolResponse
@@ -155,9 +157,17 @@ func TestToolSearchFilter(t *testing.T) {
 		t.Errorf("search mismatch: %+v", tools)
 	}
 
-	_, data = ts.do(t, c, http.MethodGet, "/api/v1/tools?category=database", nil, nil)
+	col, err := ts.app.db.CreateCollection(store.Collection{Name: "Databases", CreatorID: tools[0].CreatorID})
+	if err != nil {
+		t.Fatalf("create collection: %v", err)
+	}
+	if err := ts.app.db.AddCollectionTool(col.ID, pg.ID); err != nil {
+		t.Fatalf("add collection tool: %v", err)
+	}
+
+	_, data = ts.do(t, c, http.MethodGet, "/api/v1/tools?collection="+col.ID, nil, nil)
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 || tools[0].Name != "Postgres" {
-		t.Errorf("category filter mismatch: %+v", tools)
+		t.Errorf("collection filter mismatch: %+v", tools)
 	}
 }
