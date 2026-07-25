@@ -53,3 +53,18 @@ func TestNewTokenPrefixAndHash(t *testing.T) {
 		t.Error("two tokens collided")
 	}
 }
+
+// The prefixes are printed to operators and pasted into installers, so pin the
+// literals: changing them is a rename, not an implementation detail.
+func TestTokenPrefixesAreReeveBranded(t *testing.T) {
+	if TokenPrefix != "rvt_" {
+		t.Errorf("TokenPrefix = %q, want rvt_", TokenPrefix)
+	}
+	if AgentTokenPrefix != "rva_" {
+		t.Errorf("AgentTokenPrefix = %q, want rva_", AgentTokenPrefix)
+	}
+	agent, _ := NewAgentToken()
+	if !strings.HasPrefix(agent, AgentTokenPrefix) {
+		t.Errorf("agent token missing prefix: %q", agent)
+	}
+}

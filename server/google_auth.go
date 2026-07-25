@@ -25,7 +25,7 @@ const (
 )
 
 // oauthStateCookie carries the CSRF state across the redirect to Google.
-const oauthStateCookie = "lv_oauth_state"
+const oauthStateCookie = "reeve_oauth_state"
 
 // oauthStateTTL is how long a started sign-in may take to come back.
 const oauthStateTTL = 10 * time.Minute

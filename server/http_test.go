@@ -95,6 +95,38 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+// The cookie name is part of the deployment's surface (proxies, browser state),
+// so pin it: renaming it signs everyone out and must be deliberate.
+func TestLoginSetsTheReeveSessionCookie(t *testing.T) {
+	ts := newTestServer(t)
+	c := ts.client(t)
+	signup(t, ts, c, "boss@example.com", "password123")
+
+	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/auth/login",
+		map[string]string{"email": "boss@example.com", "password": "password123"}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("login = %d: %s", resp.StatusCode, data)
+	}
+	var found *http.Cookie
+	for _, ck := range resp.Cookies() {
+		if ck.Name == "reeve_session" {
+			found = ck
+		}
+	}
+	if found == nil {
+		t.Fatalf("no reeve_session cookie in %v", resp.Cookies())
+	}
+	if !found.HttpOnly {
+		t.Error("session cookie is not HttpOnly")
+	}
+	if sessionCookie != "reeve_session" {
+		t.Errorf("sessionCookie = %q, want reeve_session", sessionCookie)
+	}
+	if oauthStateCookie != "reeve_oauth_state" {
+		t.Errorf("oauthStateCookie = %q, want reeve_oauth_state", oauthStateCookie)
+	}
+}
+
 func captureLog(t *testing.T) (*bytes.Buffer, func()) {
 	t.Helper()
 	buf := &bytes.Buffer{}

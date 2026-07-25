@@ -106,7 +106,7 @@ func TestIngestBadTokenRejected(t *testing.T) {
 	before := ts.app.ingestRejected.Load()
 
 	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
-		map[string]string{"Authorization": "Bearer lva_bogus"})
+		map[string]string{"Authorization": "Bearer rva_bogus"})
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("bad token ingest = %d, want 401", resp.StatusCode)
 	}

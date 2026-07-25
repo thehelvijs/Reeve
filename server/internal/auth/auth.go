@@ -88,11 +88,13 @@ func PrincipalFromUser(u store.User, viaToken bool) Principal {
 	return Principal{UserID: u.ID, Email: u.Email, Role: u.Role, ViaToken: viaToken}
 }
 
-// TokenPrefix marks a Reeve API token in Authorization headers.
-const TokenPrefix = "lvt_"
+// TokenPrefix marks a Reeve API token in Authorization headers. Tokens are
+// stored as hashes, so the prefix is a human hint only: tokens minted under an
+// older prefix keep working.
+const TokenPrefix = "rvt_"
 
 // AgentTokenPrefix marks a host agent enrollment token.
-const AgentTokenPrefix = "lva_"
+const AgentTokenPrefix = "rva_"
 
 // NewToken returns a fresh random API token (shown once) and its storage hash.
 func NewToken() (token, hash string) {

@@ -15,7 +15,7 @@ import (
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
-const sessionCookie = "lv_session"
+const sessionCookie = "reeve_session"
 
 func (a *app) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": a.cfg.Version})

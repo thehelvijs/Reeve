@@ -4,12 +4,12 @@ Base path: `/api/v1`. All responses are JSON. LAN-only; not exposed publicly.
 
 ## Authentication
 
-- **Session cookie** (`lv_session`) — set by `POST /api/v1/auth/login` or
+- **Session cookie** (`reeve_session`) — set by `POST /api/v1/auth/login` or
   `/signup`; used by the web UI. It resolves to that user's principal, never
   elevated.
 
 The agent uses a separate host **enrollment token** (`Authorization: Bearer
-lva_…`) for `POST /api/v1/ingest` only.
+rva_…`) for `POST /api/v1/ingest` only.
 
 ## Errors
 
@@ -88,6 +88,6 @@ are omitted.
 
 ## Ingest (agent → server)
 
-`POST /api/v1/ingest` with `Authorization: Bearer lva_…`. Body is the
+`POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or wrong-protocol pushes with the standard error envelope.
