@@ -4,7 +4,20 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
+
+// effectiveThreshold resolves one threshold through the same set the alerting
+// pass and the handlers use.
+func effectiveThreshold(t *testing.T, ts *testServer, hostID, metric string) (store.Threshold, bool) {
+	t.Helper()
+	set, err := ts.app.db.LoadThresholds()
+	if err != nil {
+		t.Fatalf("LoadThresholds: %v", err)
+	}
+	return set.Effective(hostID, metric)
+}
 
 func TestThresholdsAdminGetSet(t *testing.T) {
 	ts := newTestServer(t)
@@ -32,7 +45,7 @@ func TestThresholdsAdminGetSet(t *testing.T) {
 	if resp2.StatusCode != http.StatusNoContent && resp2.StatusCode != http.StatusOK {
 		t.Fatalf("put thresholds = %d", resp2.StatusCode)
 	}
-	if th, ok := ts.app.db.EffectiveThreshold("", "cpu"); !ok || th.Value != 70 {
+	if th, ok := effectiveThreshold(t, ts, "", "cpu"); !ok || th.Value != 70 {
 		t.Errorf("cpu global after PUT = %+v", th)
 	}
 
@@ -72,7 +85,7 @@ func TestHostThresholdsAdminGetSet(t *testing.T) {
 	if resp2.StatusCode != http.StatusNoContent && resp2.StatusCode != http.StatusOK {
 		t.Fatalf("put host thresholds = %d", resp2.StatusCode)
 	}
-	if th, ok := ts.app.db.EffectiveThreshold(host.ID, "cpu"); !ok || th.Value != 50 {
+	if th, ok := effectiveThreshold(t, ts, host.ID, "cpu"); !ok || th.Value != 50 {
 		t.Errorf("cpu override after PUT = %+v", th)
 	}
 
@@ -102,7 +115,7 @@ func TestHostThresholdsReset(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		t.Fatalf("put host thresholds = %d", resp.StatusCode)
 	}
-	if th, ok := ts.app.db.EffectiveThreshold(host.ID, "cpu"); !ok || th.Value != 50 {
+	if th, ok := effectiveThreshold(t, ts, host.ID, "cpu"); !ok || th.Value != 50 {
 		t.Errorf("cpu override after PUT = %+v", th)
 	}
 
@@ -117,7 +130,7 @@ func TestHostThresholdsReset(t *testing.T) {
 	if respDel.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete host thresholds = %d, want 204", respDel.StatusCode)
 	}
-	if th, ok := ts.app.db.EffectiveThreshold(host.ID, "cpu"); !ok || th.Value != 90 {
+	if th, ok := effectiveThreshold(t, ts, host.ID, "cpu"); !ok || th.Value != 90 {
 		t.Errorf("cpu after reset = %+v, want fallback to global 90", th)
 	}
 }

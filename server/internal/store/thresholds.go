@@ -55,27 +55,6 @@ func (db *DB) SetThreshold(hostID, metric string, enabled bool, value float64) e
 	return err
 }
 
-// EffectiveThreshold returns the per-host row if present, else the global row.
-func (db *DB) EffectiveThreshold(hostID, metric string) (Threshold, bool) {
-	var t Threshold
-	var en int
-	err := db.sql.QueryRow(
-		`SELECT host_id, metric, enabled, threshold FROM alert_thresholds WHERE host_id = ? AND metric = ?`,
-		hostID, metric).Scan(&t.HostID, &t.Metric, &en, &t.Value)
-	if err == nil {
-		t.Enabled = en == 1
-		return t, true
-	}
-	err = db.sql.QueryRow(
-		`SELECT host_id, metric, enabled, threshold FROM alert_thresholds WHERE host_id = '' AND metric = ?`,
-		metric).Scan(&t.HostID, &t.Metric, &en, &t.Value)
-	if err != nil {
-		return Threshold{}, false
-	}
-	t.Enabled = en == 1
-	return t, true
-}
-
 // DeleteHostThresholds removes a host's per-host overrides (used on host delete).
 func (db *DB) DeleteHostThresholds(hostID string) error {
 	_, err := db.sql.Exec(`DELETE FROM alert_thresholds WHERE host_id = ?`, hostID)

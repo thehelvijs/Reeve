@@ -159,40 +159,40 @@ func TestCountToolsAndHosts(t *testing.T) {
 	}
 }
 
-func TestEffectiveThresholdOverride(t *testing.T) {
+func TestThresholdSetOverrideAndFallback(t *testing.T) {
 	db := openTemp(t)
-	// migration seeds global cpu=90
-	if got, ok := db.EffectiveThreshold("host-x", "cpu"); !ok || got.Value != 90 {
-		t.Fatalf("global cpu default = %+v ok=%v, want 90", got, ok)
+	loadSet := func() ThresholdSet {
+		t.Helper()
+		set, err := db.LoadThresholds()
+		if err != nil {
+			t.Fatalf("LoadThresholds: %v", err)
+		}
+		return set
 	}
+
+	// migration seeds global cpu=90 and load disabled at 4
+	set := loadSet()
+	if got, ok := set.Effective("host-x", "cpu"); !ok || got.Value != 90 || !got.Enabled {
+		t.Fatalf("global cpu default = %+v ok=%v, want 90 enabled", got, ok)
+	}
+	if got, ok := set.Effective("host-x", "load"); !ok || got.Enabled {
+		t.Errorf("global load = %+v ok=%v, want present and disabled", got, ok)
+	}
+	if got, ok := set.Effective("host-x", "nosuch"); ok {
+		t.Errorf("unknown metric = %+v ok=%v, want absent", got, ok)
+	}
+
 	if err := db.SetThreshold("host-x", "cpu", true, 55); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := db.EffectiveThreshold("host-x", "cpu")
+	set = loadSet()
+	got, ok := set.Effective("host-x", "cpu")
 	if !ok || got.Value != 55 || !got.Enabled {
 		t.Fatalf("override cpu = %+v ok=%v, want 55 enabled", got, ok)
 	}
-}
-
-// The bulk-loaded set an alerting pass uses must resolve exactly like the
-// per-metric query it replaced, override and fallback alike.
-func TestLoadThresholdsMatchesEffectiveThreshold(t *testing.T) {
-	db := openTemp(t)
-	if err := db.SetThreshold("host-x", "cpu", false, 55); err != nil {
-		t.Fatal(err)
-	}
-	set, err := db.LoadThresholds()
-	if err != nil {
-		t.Fatalf("LoadThresholds: %v", err)
-	}
-	for _, hostID := range []string{"", "host-x", "host-unset"} {
-		for _, metric := range []string{"cpu", "mem", "disk", "temp", "load", "net", "nosuch"} {
-			want, wantOK := db.EffectiveThreshold(hostID, metric)
-			got, gotOK := set.Effective(hostID, metric)
-			if gotOK != wantOK || got != want {
-				t.Errorf("Effective(%q, %q) = %+v ok=%v, want %+v ok=%v", hostID, metric, got, gotOK, want, wantOK)
-			}
-		}
+	// The override belongs to that host only.
+	if other, ok := set.Effective("host-y", "cpu"); !ok || other.Value != 90 {
+		t.Errorf("other host cpu = %+v ok=%v, want the global 90", other, ok)
 	}
 }
 
