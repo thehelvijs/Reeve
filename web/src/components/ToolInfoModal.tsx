@@ -37,7 +37,9 @@ export default function ToolInfoModal({
       {tool.description && <p className="mt-4 text-sm text-muted">{tool.description}</p>}
 
       <div className="mt-4 flex flex-wrap gap-1.5">
-        {tool.category && <Pill>{tool.category}</Pill>}
+        {tool.collections.map((c) => (
+          <Pill key={c.id}>{c.name}</Pill>
+        ))}
         {hostName && <Pill>host: {hostName}</Pill>}
         {tool.tags.map((t) => (
           <Pill key={t}>{t}</Pill>

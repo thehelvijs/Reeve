@@ -145,13 +145,41 @@ export interface Group {
   members: string[];
 }
 
+// The compact collection shape embedded in a tool payload.
+export interface CollectionRef {
+  id: string;
+  name: string;
+  icon_url: string;
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  description: string;
+  visibility: 'public' | 'restricted';
+  creator_id: string;
+  icon_url: string;
+  tool_count: number;
+  can_edit: boolean;
+  created_at: string;
+}
+
+export interface CollectionDetail extends Collection {
+  tool_ids: string[];
+}
+
+export interface Principals {
+  users: { id: string; display_name: string; email: string }[];
+  groups: { id: string; name: string }[];
+}
+
 export type ToolStatus = 'up' | 'down' | 'agent_offline' | 'unknown';
 
 export interface Tool {
   id: string;
   name: string;
   description: string;
-  category: string;
+  collections: CollectionRef[];
   tags: string[];
   scheme: string;
   address: string;

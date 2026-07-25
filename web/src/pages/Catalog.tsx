@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, endpointString, type Tool } from '../api';
+import { api, endpointString, type Collection, type Tool } from '../api';
 import { Button, Input, Pill } from '../components/ui';
 import StatusPill from '../components/StatusPill';
 import EntityIcon from '../components/EntityIcon';
@@ -14,11 +14,19 @@ export default function Catalog() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [search, setSearch] = useState(params.get('q') ?? '');
-  const [category, setCategory] = useState('');
+  const [collectionID, setCollectionID] = useState('');
+  const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
     setSearch(params.get('q') ?? '');
   }, [params]);
+
+  useEffect(() => {
+    api
+      .get<Collection[]>('/api/v1/collections')
+      .then((c) => setCollections(c ?? []))
+      .catch(() => setCollections([]));
+  }, []);
 
   const { data, loading } = useResource<Tool[]>(
     '/api/v1/tools',
@@ -27,16 +35,11 @@ export default function Catalog() {
   );
   const tools = useMemo(() => data ?? [], [data]);
 
-  const categories = useMemo(
-    () => Array.from(new Set(tools.map((t) => t.category).filter(Boolean))),
-    [tools],
-  );
-
   // Filtering is client-side so search is instant and never blanks the list.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tools.filter((t) => {
-      if (category && t.category !== category) {
+      if (collectionID && !t.collections.some((c) => c.id === collectionID)) {
         return false;
       }
       if (!q) {
@@ -48,7 +51,7 @@ export default function Catalog() {
         t.tags.some((tag) => tag.toLowerCase().includes(q))
       );
     });
-  }, [tools, search, category]);
+  }, [tools, search, collectionID]);
 
   return (
     <div>
@@ -66,14 +69,14 @@ export default function Catalog() {
           className="max-w-xs"
         />
         <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={collectionID}
+          onChange={(e) => setCollectionID(e.target.value)}
           className="rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
+          <option value="">All collections</option>
+          {collections.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
             </option>
           ))}
         </select>
@@ -96,9 +99,11 @@ export default function Catalog() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-content">{t.name}</p>
                   <p className="truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
-                  {(t.category || t.visibility === 'restricted') && (
+                  {(t.collections.length > 0 || t.visibility === 'restricted') && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {t.category && <Pill>{t.category}</Pill>}
+                      {t.collections.map((c) => (
+                        <Pill key={c.id}>{c.name}</Pill>
+                      ))}
                       {t.visibility === 'restricted' && <Pill tone="down">restricted</Pill>}
                     </div>
                   )}
@@ -130,7 +135,7 @@ export default function Catalog() {
                   action={<Button onClick={() => navigate('/catalog/new')}>Add for monitoring</Button>}
                 />
               ) : (
-                <EmptyState title="No matches" description="No services match your search or category." />
+                <EmptyState title="No matches" description="No services match your search or collection." />
               )}
             </div>
           )}

@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api, type Tool } from '../api';
+import { api, type Collection, type Tool } from '../api';
 import { Button, ErrorText, Field, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import BackLink from '../components/BackLink';
+import EntityIcon from '../components/EntityIcon';
 import IconUploader from '../components/IconUploader';
 import ThumbnailUploader from '../components/ThumbnailUploader';
 
@@ -26,7 +27,6 @@ export default function ToolFormPage() {
   const [f, setF] = useState({
     name: params.get('name') ?? '',
     description: '',
-    category: '',
     tags: '',
     scheme: 'https',
     address: '',
@@ -37,11 +37,20 @@ export default function ToolFormPage() {
   });
   const [endpoint, setEndpoint] = useState<EndpointMode>('hostport');
   const [logAlert, setLogAlert] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionIDs, setCollectionIDs] = useState<string[]>([]);
   const hostId = tool?.host_id ?? params.get('host_id') ?? '';
   const sourceRef = tool?.source_ref ?? params.get('source_ref') ?? '';
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    api
+      .get<Collection[]>('/api/v1/collections')
+      .then((c) => setCollections(c ?? []))
+      .catch(() => setCollections([]));
+  }, []);
 
   useEffect(() => {
     if (!editing) {
@@ -51,10 +60,10 @@ export default function ToolFormPage() {
       .get<Tool>(`/api/v1/tools/${id}`)
       .then((t) => {
         setTool(t);
+        setCollectionIDs(t.collections.map((c) => c.id));
         setF({
           name: t.name,
           description: t.description,
-          category: t.category,
           tags: t.tags.join(', '),
           scheme: t.scheme || 'https',
           address: t.address,
@@ -70,6 +79,19 @@ export default function ToolFormPage() {
       .catch(() => setLoadErr('Tool not found.'));
   }, [editing, id]);
 
+  const toggleCollection = (cid: string) => {
+    setCollectionIDs((p) => {
+      if (p.includes(cid)) {
+        return p.filter((x) => x !== cid);
+      }
+      return [...p, cid];
+    });
+  };
+  const addCollection = (c: Collection) => {
+    setCollections((p) => [...p, c]);
+    setCollectionIDs((p) => [...p, c.id]);
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -84,6 +106,7 @@ export default function ToolFormPage() {
       host_id: hostId,
       source_ref: sourceRef,
       log_alert_enabled: logAlert,
+      collection_ids: collectionIDs,
       tags: f.tags
         .split(',')
         .map((t) => t.trim())
@@ -192,10 +215,13 @@ export default function ToolFormPage() {
         </Section>
 
         <Section title="Organize" hint="Optional metadata for the catalog.">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Category">
-              <Input value={f.category} onChange={(e) => set('category', e.target.value)} placeholder="metrics" />
-            </Field>
+          <div className="grid grid-cols-2 items-start gap-3">
+            <CollectionPicker
+              collections={collections}
+              selected={collectionIDs}
+              onToggle={toggleCollection}
+              onCreated={addCollection}
+            />
             <Field label="Tags" hint="Comma-separated.">
               <Input value={f.tags} onChange={(e) => set('tags', e.target.value)} placeholder="prod, web" />
             </Field>
@@ -230,6 +256,58 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
       </div>
       {children}
     </section>
+  );
+}
+
+function CollectionPicker({
+  collections,
+  selected,
+  onToggle,
+  onCreated,
+}: {
+  collections: Collection[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  onCreated: (c: Collection) => void;
+}) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      onCreated(await api.post<Collection>('/api/v1/collections', { name: name.trim() }));
+      setName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-muted">Collections</span>
+      <div className="max-h-48 space-y-0.5 overflow-y-auto rounded-button border border-hairline bg-surface-1 p-2">
+        {collections.length === 0 && <p className="px-1 py-0.5 text-xs text-muted">No collections yet.</p>}
+        {collections.map((c) => (
+          <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-button px-1 py-1 text-sm text-content">
+            <input type="checkbox" checked={selected.includes(c.id)} onChange={() => onToggle(c.id)} />
+            <EntityIcon url={c.icon_url} name={c.name} size={18} />
+            <span className="truncate">{c.name}</span>
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New collection" />
+        <Button type="button" variant="secondary" onClick={create} disabled={busy || !name.trim()}>
+          Add
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   api,
   endpointString,
@@ -109,7 +109,19 @@ export default function ToolDetail() {
       </Card>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <Detail label="Category" value={tool.category} />
+        <div>
+          <p className="text-xs text-muted">Collections</p>
+          {tool.collections.length === 0 && <p className="text-sm text-content">—</p>}
+          {tool.collections.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {tool.collections.map((c) => (
+                <Link key={c.id} to={`/collections/${c.id}`}>
+                  <Pill>{c.name}</Pill>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
         <Detail label="Source" value={`${tool.source_type}${tool.source_ref ? ` · ${tool.source_ref}` : ''}`} />
         <Detail label="Tags" value={tool.tags.join(', ')} />
       </div>

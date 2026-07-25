@@ -1,7 +1,12 @@
-import type { Host, Tool } from '../api';
+import type { CollectionRef, Host, Tool } from '../api';
 
 export interface HostGroup {
   host: Host | null;
+  tools: Tool[];
+}
+
+export interface CollectionGroup {
+  collection: CollectionRef | null;
   tools: Tool[];
 }
 
@@ -26,6 +31,33 @@ export function groupToolsByHost(tools: Tool[], hosts: Host[]): HostGroup[] {
   }
   if (unassigned.length > 0) {
     groups.push({ host: null, tools: unassigned });
+  }
+  return groups;
+}
+
+// A tool in two visible collections is listed under both, deliberately.
+export function groupToolsByCollection(tools: Tool[]): CollectionGroup[] {
+  const byCollection = new Map<string, { collection: CollectionRef; tools: Tool[] }>();
+  const ungrouped: Tool[] = [];
+  for (const t of tools) {
+    if (t.collections.length === 0) {
+      ungrouped.push(t);
+      continue;
+    }
+    for (const c of t.collections) {
+      const entry = byCollection.get(c.id);
+      if (entry) {
+        entry.tools.push(t);
+      } else {
+        byCollection.set(c.id, { collection: c, tools: [t] });
+      }
+    }
+  }
+  const groups: CollectionGroup[] = Array.from(byCollection.values()).sort((a, b) =>
+    a.collection.name.localeCompare(b.collection.name),
+  );
+  if (ungrouped.length > 0) {
+    groups.push({ collection: null, tools: ungrouped });
   }
   return groups;
 }
