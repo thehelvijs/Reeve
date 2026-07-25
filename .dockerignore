@@ -6,4 +6,4 @@ server/webdist/assets
 *.db
 *.db-wal
 *.db-shm
-.env
+**/.env

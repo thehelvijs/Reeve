@@ -5,11 +5,14 @@ LAN-only. Nothing here should be exposed to the public internet.
 ## Server (Docker Compose)
 
 ```sh
-cp .env.example .env
+cp deploy/.env.example deploy/.env
 # set REEVE_MASTER_KEY (openssl rand -base64 32) and
 # REEVE_PUBLIC_URL=http://<lan-ip>:8080
 docker compose -f deploy/docker-compose.yml up -d
 ```
+
+`.env` lives beside the compose file, not at the repo root: Compose reads it
+from the compose file's directory.
 
 That pulls the published image (`ghcr.io/thehelvijs/reeve`, tag from
 `REEVE_IMAGE`, default `latest`); no source checkout or toolchain is needed

@@ -20,7 +20,7 @@ external account.
 ## Run it
 
 ```sh
-cp .env.example .env
+cp deploy/.env.example deploy/.env
 # set REEVE_MASTER_KEY (openssl rand -base64 32) and
 # REEVE_PUBLIC_URL=http://<lan-ip>:8080
 docker compose -f deploy/docker-compose.yml up -d
