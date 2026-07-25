@@ -20,11 +20,17 @@ external account.
 ## Run it
 
 ```sh
+git clone https://github.com/thehelvijs/Reeve && cd Reeve
 cp deploy/.env.example deploy/.env
 # set REEVE_MASTER_KEY (openssl rand -base64 32) and
 # REEVE_PUBLIC_URL=http://<lan-ip>:8080
 docker compose -f deploy/docker-compose.yml up -d
 ```
+
+That builds everything from the checkout — UI, embedded agents, server — and
+needs nothing but Docker. No registry, no login, no toolchain. Add `--build`
+after changing code; the `docker-compose.pull.yml` override in
+[deploy/README.md](deploy/README.md) runs a published image instead.
 
 The first account created becomes the admin. Add a host in the UI and it gives
 you the one-line installer for that host's agent, or pushes the agent over SSH

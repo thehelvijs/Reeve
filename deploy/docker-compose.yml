@@ -1,12 +1,15 @@
-# Reeve server, from the published image. LAN-only: in production bind the
-# port to a LAN interface, e.g. "192.168.1.10:8080:8080", not 0.0.0.0.
+# Reeve server, built from this checkout. Nothing is pulled from a registry.
+# LAN-only: in production bind the port to a LAN interface, e.g.
+# "192.168.1.10:8080:8080", not 0.0.0.0.
 #
-# To build from a source checkout instead, add the override:
-#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml up -d --build
+# To run a published image instead of building, use the pull override:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
 services:
   server:
-    image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
-    pull_policy: always
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    image: reeve:source
     ports:
       # Host port is overridable so a second instance can run alongside one that
       # already holds 8080.

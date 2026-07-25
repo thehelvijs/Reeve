@@ -14,19 +14,31 @@ docker compose -f deploy/docker-compose.yml up -d
 `.env` lives beside the compose file, not at the repo root: Compose reads it
 from the compose file's directory.
 
-That pulls the published image (`ghcr.io/thehelvijs/reeve`, tag from
-`REEVE_IMAGE`, default `latest`); no source checkout or toolchain is needed
-beyond this compose file and `.env`. Pin a version in production.
+That builds the image from this checkout and tags it `reeve:source`. Nothing is
+pulled from a registry, so no login, no published package and no network access
+to ghcr is involved. The build needs only Docker: `deploy/Dockerfile.server`
+installs the web dependencies, builds the UI, embeds the agent binaries and
+compiles the server itself, so no local Go, Node or Python toolchain is
+required.
 
 One container serves everything: the web UI is built and embedded into the server
 binary, so the SPA, the REST API, the agent installer, and the agent binaries all
 come off the same port. There is no separate frontend container or dev server to
 run.
 
-To build from a source checkout instead:
+`up -d` reuses the existing `reeve:source` image. After changing code, rebuild:
 
 ```sh
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml up -d --build
+docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+To run a published image instead of building, add the pull override. The
+package is private, so log in first; `REEVE_IMAGE` picks the tag and should be
+pinned to a version in production:
+
+```sh
+docker login ghcr.io
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
 ```
 
 Set `REEVE_PORT` to publish on a different host port (handy when something

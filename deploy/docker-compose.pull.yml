@@ -1,0 +1,8 @@
+# Override for running a published image instead of building from this
+# checkout. The package is private, so `docker login ghcr.io` first:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
+services:
+  server:
+    build: !reset null
+    image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
+    pull_policy: always
