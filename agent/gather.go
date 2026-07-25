@@ -1,18 +1,32 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/thehelvijs/Reeve/agent/collect"
 	"github.com/thehelvijs/Reeve/contracts"
 )
 
+// commandTimeout bounds every helper the agent shells out to. Without it a hung
+// docker or systemctl would stall the push loop for as long as it hangs. A var
+// so tests can shorten it.
+var commandTimeout = 20 * time.Second
+
+// maxLogReaders caps concurrent `docker logs` calls: a host with many
+// containers should not fork one process per container at once.
+const maxLogReaders = 4
+
 // gather collects a full telemetry snapshot from the host. Every collector is
 // best-effort: a missing command or file yields an empty section rather than a
-// failure, so one broken source never blocks the push.
+// failure, so one broken source never blocks the push. The collectors run
+// concurrently, so a tick costs the slowest source rather than their sum:
+// `docker stats --no-stream` alone takes over a second, and the CPU sample
+// spends 200ms inside its own measurement window.
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
 		ProtocolVersion: contracts.PushProtocolVersion,
@@ -20,18 +34,53 @@ func gather(version string, cfg config) contracts.Push {
 		SentAt:          time.Now().UTC(),
 	}
 
-	if out, err := run("systemctl", "list-units", "--type=service", "--all", "--no-legend", "--plain", "--no-pager"); err == nil {
-		push.Services = collect.ParseSystemctl(out)
+	var services []contracts.ServiceState
+	var containers []contracts.ContainerState
+	var stats []contracts.ContainerSample
+	var crons []contracts.CronState
+	var metrics contracts.HostMetrics
+	var journalErrors, dockerErrors []contracts.LogEvent
+
+	var wg sync.WaitGroup
+	run := func(fn func()) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fn()
+		}()
 	}
-	if out, err := run("docker", "ps", "-a", "--format", "{{json .}}"); err == nil {
-		push.Containers = collect.ParseDockerPS(out)
-	}
-	if out, err := run("docker", "stats", "--no-stream", "--format", "{{json .}}"); err == nil {
-		push.ContainerStats = collect.ParseDockerStats(out)
-	}
-	push.CronJobs = gatherCron()
-	push.Metrics = gatherMetrics()
-	push.LogEvents = append(gatherLogErrors(), gatherDockerLogErrors()...)
+
+	run(func() {
+		if out, err := runCmd("systemctl", "list-units", "--type=service", "--all", "--no-legend", "--plain", "--no-pager"); err == nil {
+			services = collect.ParseSystemctl(out)
+		}
+	})
+	run(func() {
+		if out, err := runCmd("docker", "stats", "--no-stream", "--format", "{{json .}}"); err == nil {
+			stats = collect.ParseDockerStats(out)
+		}
+	})
+	run(func() { crons = gatherCron() })
+	run(func() { metrics = collect.SampleHostMetrics() })
+	run(func() { journalErrors = gatherLogErrors() })
+	// The container list feeds both the inventory and the per-container log
+	// scan, so one `docker ps` serves both.
+	run(func() {
+		out, err := runCmd("docker", "ps", "-a", "--format", "{{json .}}")
+		if err != nil {
+			return
+		}
+		containers = collect.ParseDockerPS(out)
+		dockerErrors = gatherDockerLogErrors(containers)
+	})
+	wg.Wait()
+
+	push.Services = services
+	push.Containers = containers
+	push.ContainerStats = stats
+	push.CronJobs = crons
+	push.Metrics = metrics
+	push.LogEvents = append(journalErrors, dockerErrors...)
 	return push
 }
 
@@ -49,53 +98,69 @@ func gatherCron() []contracts.CronState {
 	return jobs
 }
 
-func gatherMetrics() contracts.HostMetrics {
-	return collect.SampleHostMetrics()
-}
-
 func gatherLogErrors() []contracts.LogEvent {
-	out, err := run("journalctl", "-p", "err", "--since", "-1min", "--no-pager", "-q")
+	out, err := runCmd("journalctl", "-p", "err", "--since", "-1min", "--no-pager", "-q")
 	if err != nil {
 		return nil
 	}
-	var lines []string
-	for _, l := range splitLines(out) {
-		lines = append(lines, l)
-	}
-	return collect.ScanLogErrors("journald", lines, time.Now().UTC(), nil)
+	return collect.ScanLogErrors("journald", splitLines(out), time.Now().UTC(), nil)
 }
 
-func gatherDockerLogErrors() []contracts.LogEvent {
-	out, err := run("docker", "ps", "--format", "{{.ID}}")
-	if err != nil {
-		return nil
+// gatherDockerLogErrors scans the recent logs of every running container,
+// reading them concurrently since each is an independent docker call.
+func gatherDockerLogErrors(containers []contracts.ContainerState) []contracts.LogEvent {
+	perContainer := make([][]contracts.LogEvent, len(containers))
+	slots := make(chan struct{}, maxLogReaders)
+	var wg sync.WaitGroup
+	for i, c := range containers {
+		if c.State != "running" || c.ID == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			slots <- struct{}{}
+			defer func() { <-slots }()
+			logs, err := runCmdCombined("docker", "logs", "--since", "90s", "--tail", "500", id)
+			if err != nil {
+				return
+			}
+			perContainer[i] = collect.ScanLogErrors("docker:"+id, splitLines(logs), time.Now().UTC(), nil)
+		}(i, c.ID)
 	}
+	wg.Wait()
+
 	var events []contracts.LogEvent
-	for _, id := range splitLines(out) {
-		if id == "" {
-			continue
-		}
-		logs, err := runCombined("docker", "logs", "--since", "90s", "--tail", "500", id)
-		if err != nil {
-			continue
-		}
-		events = append(events, collect.ScanLogErrors("docker:"+id, splitLines(logs), time.Now().UTC(), nil)...)
+	for _, e := range perContainer {
+		events = append(events, e...)
 	}
 	return events
 }
 
-func run(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).Output()
+func runCmd(name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).Output()
 	return string(out), err
 }
 
-func runCombined(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).CombinedOutput()
+func runCmdCombined(name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	return string(out), err
 }
 
+// splitLines splits on newlines without allocating per line beyond the slice
+// itself; the trailing fragment after the last newline is kept.
 func splitLines(s string) []string {
-	var out []string
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			n++
+		}
+	}
+	out := make([]string, 0, n+1)
 	start := 0
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' {
