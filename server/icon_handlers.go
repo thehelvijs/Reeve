@@ -281,3 +281,79 @@ func (a *app) handleServeHostThumbnail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	http.ServeFile(w, r, h.ThumbnailPath)
 }
+
+// --- collection icons ---------------------------------------------------
+
+func (a *app) handleUploadCollectionIcon(w http.ResponseWriter, r *http.Request) {
+	p, _ := rbac.FromContext(r.Context())
+	id := r.PathValue("id")
+	c, err := a.db.GetCollection(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "collection not found")
+		return
+	}
+	if can, _ := a.db.CanEditCollection(p.UserID, p.IsAdmin(), id); !can {
+		writeError(w, http.StatusForbidden, "forbidden", "not allowed to edit this collection")
+		return
+	}
+	data, ext, ok := readImageUpload(w, r, "icon")
+	if !ok {
+		return
+	}
+	dest, err := writeImageFile(a.iconDir(), "collection-"+id, ext, data, c.IconPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not store icon")
+		return
+	}
+	if err := a.db.SetCollectionIconPath(id, dest); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not store icon")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"icon_url": iconURL("collections", id, dest)})
+}
+
+func (a *app) handleDeleteCollectionIcon(w http.ResponseWriter, r *http.Request) {
+	p, _ := rbac.FromContext(r.Context())
+	id := r.PathValue("id")
+	c, err := a.db.GetCollection(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "collection not found")
+		return
+	}
+	if can, _ := a.db.CanEditCollection(p.UserID, p.IsAdmin(), id); !can {
+		writeError(w, http.StatusForbidden, "forbidden", "not allowed to edit this collection")
+		return
+	}
+	if c.IconPath != "" {
+		os.Remove(c.IconPath)
+		if err := a.db.SetCollectionIconPath(id, ""); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not update icon")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"icon_url": ""})
+}
+
+// handleServeCollectionIcon serves a collection's icon, respecting visibility:
+// public collections to anyone, restricted ones only to principals who may see
+// them.
+func (a *app) handleServeCollectionIcon(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	c, err := a.db.GetCollection(id)
+	if err != nil || c.IconPath == "" {
+		writeError(w, http.StatusNotFound, "not_found", "no icon")
+		return
+	}
+	visible := c.Visibility == store.VisibilityPublic
+	if p, ok := rbac.FromContext(r.Context()); ok {
+		if seen, _ := a.db.CanSeeCollection(p.UserID, p.IsAdmin(), id); seen {
+			visible = true
+		}
+	}
+	if !visible {
+		writeError(w, http.StatusNotFound, "not_found", "no icon")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	http.ServeFile(w, r, c.IconPath)
+}

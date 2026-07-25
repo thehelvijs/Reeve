@@ -75,6 +75,8 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET "+googleCallbackPath, a.handleGoogleCallback)
 	mux.HandleFunc("GET /api/v1/public/tools", a.handleListPublicTools)
 	mux.HandleFunc("GET /api/v1/public/hosts", a.handleListPublicHosts)
+	mux.HandleFunc("GET /api/v1/public/collections", a.handleListPublicCollections)
+	mux.HandleFunc("GET /api/v1/collections/{id}/icon", a.handleServeCollectionIcon)
 	mux.HandleFunc("GET /install.sh", a.handleInstallScript)
 	mux.HandleFunc("GET /uninstall.sh", a.handleUninstallScript)
 	mux.HandleFunc("GET /dl/{filename}", a.handleAgentDownload)
@@ -107,6 +109,24 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/v1/tools/{id}/visibility", authed(http.HandlerFunc(a.handleListToolVisibility)))
 	mux.Handle("PUT /api/v1/tools/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleAddToolVisibility)))
 	mux.Handle("DELETE /api/v1/tools/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveToolVisibility)))
+
+	// Collections.
+	mux.Handle("GET /api/v1/collections", authed(http.HandlerFunc(a.handleListCollections)))
+	mux.Handle("POST /api/v1/collections", authed(http.HandlerFunc(a.handleCreateCollection)))
+	mux.Handle("GET /api/v1/collections/{id}", authed(http.HandlerFunc(a.handleGetCollection)))
+	mux.Handle("PATCH /api/v1/collections/{id}", authed(http.HandlerFunc(a.handleUpdateCollection)))
+	mux.Handle("DELETE /api/v1/collections/{id}", authed(http.HandlerFunc(a.handleDeleteCollection)))
+	mux.Handle("POST /api/v1/collections/{id}/icon", authed(http.HandlerFunc(a.handleUploadCollectionIcon)))
+	mux.Handle("DELETE /api/v1/collections/{id}/icon", authed(http.HandlerFunc(a.handleDeleteCollectionIcon)))
+	mux.Handle("PUT /api/v1/collections/{id}/tools/{toolId}", authed(http.HandlerFunc(a.handleAddCollectionTool)))
+	mux.Handle("DELETE /api/v1/collections/{id}/tools/{toolId}", authed(http.HandlerFunc(a.handleRemoveCollectionTool)))
+	mux.Handle("GET /api/v1/collections/{id}/editors", authed(http.HandlerFunc(a.handleListCollectionEditors)))
+	mux.Handle("PUT /api/v1/collections/{id}/editors/{ptype}/{pid}", authed(http.HandlerFunc(a.handleAddCollectionEditor)))
+	mux.Handle("DELETE /api/v1/collections/{id}/editors/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionEditor)))
+	mux.Handle("GET /api/v1/collections/{id}/visibility", authed(http.HandlerFunc(a.handleListCollectionVisibility)))
+	mux.Handle("PUT /api/v1/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleAddCollectionVisibility)))
+	mux.Handle("DELETE /api/v1/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionVisibility)))
+	mux.Handle("GET /api/v1/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
 
 	// Credentials.
 	mux.Handle("GET /api/v1/tools/{id}/credentials", authed(http.HandlerFunc(a.handleListCredentials)))
