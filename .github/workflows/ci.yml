@@ -32,8 +32,8 @@ jobs:
         run: bash deploy/test_install.sh
       - name: Python release tests
         run: |
-          python3 -m pip install --quiet pytest
-          python3 -m pytest scripts/test_release.py -v
+          python3 -m pip install --quiet pytest pyyaml
+          python3 -m pytest scripts/ -v
 
   e2e:
     runs-on: ubuntu-latest

@@ -11,7 +11,7 @@ ln -sf ../../scripts/pre-commit.sh .git/hooks/pre-commit
 ```sh
 make gate                    # go vet + go test across server, agent, contracts
 make web-check               # tsc --noEmit + eslint --max-warnings 0
-python3 -m pytest scripts/   # release builder tests
+python3 -m pytest scripts/   # release builder + build config tests
 ```
 
 `make web-build` stages the UI into `server/webdist`, `make server-assets`

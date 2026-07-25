@@ -15,13 +15,18 @@ vet:
 fmt:
 	gofmt -w server agent contracts
 
+# Reinstalled only when the lockfile is newer than the installed tree.
+web/node_modules: web/package-lock.json
+	npm --prefix web ci
+	touch web/node_modules
+
 # Build the UI and stage it for embedding into the server binary.
-web-build:
+web-build: web/node_modules
 	npm --prefix web run build
 	rm -rf server/webdist
 	cp -r web/dist server/webdist
 
-web-check:
+web-check: web/node_modules
 	npm --prefix web run typecheck
 	npm --prefix web run lint
 
