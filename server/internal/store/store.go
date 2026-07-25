@@ -3,9 +3,13 @@
 package store
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -81,4 +85,92 @@ func (db *DB) inTx(fn func(*sql.Tx) error) error {
 func (db *DB) BackupTo(destPath string) error {
 	_, err := db.sql.Exec("VACUUM INTO ?", destPath)
 	return err
+}
+
+// NewID returns a random 128-bit identifier as 32 hex characters.
+func NewID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return hex.EncodeToString(b)
+}
+
+// parseNullableTime parses an optional RFC3339Nano timestamp, returning nil for
+// a nil pointer or an unparseable value.
+func parseNullableTime(s *string) *time.Time {
+	if s == nil {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, *s)
+	if err != nil {
+		return nil
+	}
+	return &t
+}
+
+// GetSetting returns a setting value and whether it was present.
+func (db *DB) GetSetting(key string) (string, bool) {
+	var v string
+	err := db.sql.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&v)
+	if err != nil {
+		return "", false
+	}
+	return v, true
+}
+
+// SetSetting upserts a setting value.
+func (db *DB) SetSetting(key, value string) error {
+	_, err := db.sql.Exec(
+		`INSERT INTO settings(key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
+}
+
+// GetBoolSetting returns a boolean setting, defaulting when unset.
+func (db *DB) GetBoolSetting(key string, def bool) bool {
+	v, ok := db.GetSetting(key)
+	if !ok {
+		return def
+	}
+	return v == "true"
+}
+
+// sqliteMagic is the 16-byte header every SQLite file starts with.
+const sqliteMagic = "SQLite format 3\x00"
+
+// StagedRestorePath is where a validated restore waits for the next startup.
+func StagedRestorePath(dbPath string) string {
+	return dbPath + ".restore"
+}
+
+// ValidateBackup reports whether path is a SQLite database this server can
+// adopt: right magic, openable, and carrying the tables a Reeve database
+// must have. Staging an unvalidated file would brick the next startup.
+func ValidateBackup(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	header := make([]byte, len(sqliteMagic))
+	n, err := f.Read(header)
+	f.Close()
+	if err != nil || n < len(sqliteMagic) || string(header) != sqliteMagic {
+		return errors.New("not a SQLite database file")
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		return fmt.Errorf("cannot open as a Reeve database: %w", err)
+	}
+	defer db.Close()
+	for _, table := range []string{"users", "tools", "credentials", "schema_migrations"} {
+		var name string
+		err := db.sql.QueryRow(
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+		if err != nil {
+			return fmt.Errorf("database is missing the %s table", table)
+		}
+	}
+	return nil
 }
