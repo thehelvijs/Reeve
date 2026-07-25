@@ -47,12 +47,14 @@ func (db *DB) RenameGroup(id, name string) error {
 	return db.exec1(`UPDATE groups SET name = ? WHERE id = ?`, name, id)
 }
 
-// DeleteGroup removes a group. Membership cascades via FK; visibility and
-// credential-access grants reference the group polymorphically, so they are
-// cleared explicitly.
+// DeleteGroup removes a group. Membership cascades via FK; visibility,
+// credential-access and collection grants reference the group polymorphically,
+// so they are cleared explicitly.
 func (db *DB) DeleteGroup(id string) error {
 	db.sql.Exec(`DELETE FROM tool_visibility WHERE principal_type='group' AND principal_id = ?`, id)
 	db.sql.Exec(`DELETE FROM credential_access WHERE principal_type='group' AND principal_id = ?`, id)
+	db.sql.Exec(`DELETE FROM collection_editors WHERE principal_type='group' AND principal_id = ?`, id)
+	db.sql.Exec(`DELETE FROM collection_visibility WHERE principal_type='group' AND principal_id = ?`, id)
 	return db.exec1(`DELETE FROM groups WHERE id = ?`, id)
 }
 
