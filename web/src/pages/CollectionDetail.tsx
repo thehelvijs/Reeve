@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
 import StatusPill from '../components/StatusPill';
 import CollectionEditor from '../components/CollectionEditor';
+import { fmtCount } from '../lib/format';
 
 export default function CollectionDetail() {
   const { id } = useParams();
@@ -63,7 +64,7 @@ export default function CollectionDetail() {
               {collection.visibility === 'restricted' && <Pill tone="down">restricted</Pill>}
             </div>
             {collection.description && <p className="mt-1 text-sm text-muted">{collection.description}</p>}
-            <p className="mt-1 text-xs text-muted">{collection.tool_count} services</p>
+            <p className="mt-1 text-xs text-muted">{fmtCount(collection.tool_count, 'service')}</p>
           </div>
         </div>
         {collection.can_edit && (

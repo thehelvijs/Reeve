@@ -8,6 +8,13 @@ export function fmtBytes(v: number): string {
   return `${v.toFixed(0)}${u[i]}`;
 }
 
+export function fmtCount(n: number, singular: string): string {
+  if (n === 1) {
+    return `1 ${singular}`;
+  }
+  return `${n} ${singular}s`;
+}
+
 export function fmtUptime(secs: number): string {
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);

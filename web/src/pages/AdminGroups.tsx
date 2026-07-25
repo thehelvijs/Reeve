@@ -39,8 +39,8 @@ export default function AdminGroups() {
   return (
     <div>
       <PageHeader
-        title="Groups"
-        subtitle="Assign visibility and access to a set of users at once."
+        title="User groups"
+        subtitle="Assign visibility and access to a set of users at once. For grouping services, use Collections."
         action={<Button onClick={() => setCreating(true)}>New group</Button>}
       />
 

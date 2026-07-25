@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
 import CollectionEditor from '../components/CollectionEditor';
+import { fmtCount } from '../lib/format';
 
 export default function Collections() {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export default function Collections() {
               </div>
               <p className="mt-2 truncate text-sm font-medium text-content">{c.name}</p>
               <p className="truncate text-xs text-muted">{c.description || '—'}</p>
-              <p className="mt-2 text-xs text-muted">{c.tool_count} services</p>
+              <p className="mt-2 text-xs text-muted">{fmtCount(c.tool_count, 'service')}</p>
             </Card>
           </button>
         ))}

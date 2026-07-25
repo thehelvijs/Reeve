@@ -91,7 +91,7 @@ export default function CollectionEditor({
 
   return (
     <Modal title={title} onClose={onClose} size="lg">
-      <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+      <div className="mt-4 max-h-[60vh] space-y-4 overflow-y-auto pr-1">
         <Field label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Manufacturing" />
         </Field>
@@ -154,16 +154,16 @@ export default function CollectionEditor({
             ))}
           </div>
         </div>
+      </div>
 
-        <ErrorText>{error}</ErrorText>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={busy || !name.trim()}>
-            {busy ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
+      <ErrorText>{error}</ErrorText>
+      <div className="mt-3 flex justify-end gap-2 border-t border-hairline pt-3">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={save} disabled={busy || !name.trim()}>
+          {busy ? 'Saving…' : 'Save'}
+        </Button>
       </div>
     </Modal>
   );
