@@ -12,13 +12,14 @@ import { SOURCE_URL, UI_VERSION } from '../version';
 const primaryNav: { to: string; label: string; icon: IconName; end: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', end: true },
   { to: '/catalog', label: 'Services', icon: 'services', end: false },
+  { to: '/collections', label: 'Collections', icon: 'collections', end: false },
   { to: '/hosts', label: 'Hosts', icon: 'hosts', end: false },
   { to: '/requests', label: 'Requests', icon: 'requests', end: false },
 ];
 
 const adminNav: { to: string; label: string; icon: IconName }[] = [
   { to: '/admin/users', label: 'Users', icon: 'users' },
-  { to: '/admin/groups', label: 'Groups', icon: 'groups' },
+  { to: '/admin/groups', label: 'User groups', icon: 'groups' },
   { to: '/admin/webhooks', label: 'Webhooks', icon: 'webhooks' },
   { to: '/admin/alerts', label: 'Alerts', icon: 'alerts' },
   { to: '/admin/audit', label: 'Audit', icon: 'audit' },

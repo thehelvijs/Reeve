@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 export type IconName =
   | 'dashboard'
   | 'services'
+  | 'collections'
   | 'hosts'
   | 'requests'
   | 'users'
@@ -28,6 +29,12 @@ const paths: Record<IconName, ReactElement> = {
       <path d="M8 2 14 5l-6 3-6-3 6-3Z" />
       <path d="M2 8l6 3 6-3" />
       <path d="M2 11l6 3 6-3" />
+    </>
+  ),
+  collections: (
+    <>
+      <path d="M8 2 14 5l-6 3-6-3 6-3Z" />
+      <rect x="3.5" y="9.5" width="9" height="4" rx="1" />
     </>
   ),
   hosts: (

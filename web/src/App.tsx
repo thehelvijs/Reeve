@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Portal from './pages/Portal';
 import Profile from './pages/Profile';
 import Catalog from './pages/Catalog';
+import Collections from './pages/Collections';
+import CollectionDetail from './pages/CollectionDetail';
 import ToolFormPage from './pages/ToolFormPage';
 import ToolDetail from './pages/ToolDetail';
 import Hosts from './pages/Hosts';
@@ -74,6 +76,8 @@ export default function App() {
         <Route path="/catalog/new" element={<ToolFormPage />} />
         <Route path="/catalog/:id" element={<ToolDetail />} />
         <Route path="/catalog/:id/edit" element={<ToolFormPage />} />
+        <Route path="/collections" element={<Collections />} />
+        <Route path="/collections/:id" element={<CollectionDetail />} />
         <Route path="/hosts" element={<Hosts />} />
         <Route path="/hosts/:id" element={<HostInventory />} />
         <Route path="/requests" element={<Requests />} />
