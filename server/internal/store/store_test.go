@@ -174,6 +174,28 @@ func TestEffectiveThresholdOverride(t *testing.T) {
 	}
 }
 
+// The bulk-loaded set an alerting pass uses must resolve exactly like the
+// per-metric query it replaced, override and fallback alike.
+func TestLoadThresholdsMatchesEffectiveThreshold(t *testing.T) {
+	db := openTemp(t)
+	if err := db.SetThreshold("host-x", "cpu", false, 55); err != nil {
+		t.Fatal(err)
+	}
+	set, err := db.LoadThresholds()
+	if err != nil {
+		t.Fatalf("LoadThresholds: %v", err)
+	}
+	for _, hostID := range []string{"", "host-x", "host-unset"} {
+		for _, metric := range []string{"cpu", "mem", "disk", "temp", "load", "net", "nosuch"} {
+			want, wantOK := db.EffectiveThreshold(hostID, metric)
+			got, gotOK := set.Effective(hostID, metric)
+			if gotOK != wantOK || got != want {
+				t.Errorf("Effective(%q, %q) = %+v ok=%v, want %+v ok=%v", hostID, metric, got, gotOK, want, wantOK)
+			}
+		}
+	}
+}
+
 func TestLatestHostMetric(t *testing.T) {
 	db := openTemp(t)
 	h, err := db.CreateHost("h", "linux", "", "hh", 60)

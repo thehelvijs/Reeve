@@ -46,6 +46,12 @@ func (a *app) evaluateAlerts(now time.Time) {
 	for _, h := range hosts {
 		hostMap[h.ID] = h
 	}
+	thresholds, err := a.db.LoadThresholds()
+	if err != nil {
+		log.Printf("alerts: load thresholds: %v", err)
+		return
+	}
+	window := a.thresholdWindow()
 
 	for _, h := range hosts {
 		offline := h.LastSeenAt != nil && !h.Online(now)
@@ -56,7 +62,7 @@ func (a *app) evaluateAlerts(now time.Time) {
 		}, offline, now)
 
 		if !offline && h.LastSeenAt != nil {
-			a.evaluateHostThresholds(h, now)
+			a.evaluateHostThresholds(h, thresholds, window, now)
 		}
 	}
 
@@ -122,9 +128,9 @@ func hostMetricValues(m store.MetricPoint) map[string]float64 {
 }
 
 // evaluateHostThresholds fires <metric>_high subjects for a host whose latest
-// sample breaches an enabled threshold for the sustained window.
-func (a *app) evaluateHostThresholds(h store.Host, now time.Time) {
-	window := a.thresholdWindow()
+// sample breaches an enabled threshold for the sustained window. The threshold
+// set and window come from the pass, so neither is re-read per host.
+func (a *app) evaluateHostThresholds(h store.Host, thresholds store.ThresholdSet, window time.Duration, now time.Time) {
 	values := map[string]float64{}
 	if m, haveMetric := a.db.LatestHostMetric(h.ID); haveMetric {
 		values = hostMetricValues(m)
@@ -133,24 +139,28 @@ func (a *app) evaluateHostThresholds(h store.Host, now time.Time) {
 		values["net"] = rate
 	}
 	for _, metric := range thresholdMetrics {
-
 		val, present := values[metric]
-		th, thOK := a.db.EffectiveThreshold(h.ID, metric)
+		th, thOK := thresholds.Effective(h.ID, metric)
 		bad := present && thOK && th.Enabled && val >= th.Value
-		msg := fmt.Sprintf("%s %s %.0f%% over %.0f%%", h.Name, metricLabels[metric], val, th.Value)
-		if metric == "temp" {
-			msg = fmt.Sprintf("%s temperature %.0f°C over %.0f°C", h.Name, val, th.Value)
-		}
-		if metric == "load" {
-			msg = fmt.Sprintf("%s load %.2f over %.2f", h.Name, val, th.Value)
-		}
-		if metric == "net" {
-			msg = fmt.Sprintf("%s network %s/s over %s/s", h.Name, fmtRate(val), fmtRate(th.Value))
-		}
 		a.transition(alertSubject{
 			key: "host:" + h.ID + ":" + metric + "_high", altype: metric + "_high",
-			hostID: h.ID, hostName: h.Name, message: msg, severity: "warning", debounce: window,
+			hostID: h.ID, hostName: h.Name, message: thresholdMessage(h.Name, metric, val, th.Value),
+			severity: "warning", debounce: window,
 		}, bad, now)
+	}
+}
+
+// thresholdMessage renders the alert text for one breached metric.
+func thresholdMessage(hostName, metric string, val, limit float64) string {
+	switch metric {
+	case "temp":
+		return fmt.Sprintf("%s temperature %.0f°C over %.0f°C", hostName, val, limit)
+	case "load":
+		return fmt.Sprintf("%s load %.2f over %.2f", hostName, val, limit)
+	case "net":
+		return fmt.Sprintf("%s network %s/s over %s/s", hostName, fmtRate(val), fmtRate(limit))
+	default:
+		return fmt.Sprintf("%s %s %.0f%% over %.0f%%", hostName, metricLabels[metric], val, limit)
 	}
 }
 

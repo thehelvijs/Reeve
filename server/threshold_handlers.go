@@ -19,8 +19,12 @@ type thresholdsPayload struct {
 
 func (a *app) thresholdsFor(hostID string) map[string]thresholdDTO {
 	out := map[string]thresholdDTO{}
+	set, err := a.db.LoadThresholds()
+	if err != nil {
+		return out
+	}
 	for _, m := range thresholdMetrics {
-		if th, ok := a.db.EffectiveThreshold(hostID, m); ok {
+		if th, ok := set.Effective(hostID, m); ok {
 			out[m] = thresholdDTO{Enabled: th.Enabled, Threshold: th.Value}
 		}
 	}

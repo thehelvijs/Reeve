@@ -9,6 +9,43 @@ type Threshold struct {
 	Value   float64 `json:"threshold"`
 }
 
+// ThresholdSet is every threshold row loaded at once, keyed by host and metric.
+// An alerting pass reads the table once instead of twice per host per metric.
+type ThresholdSet map[string]Threshold
+
+func thresholdKey(hostID, metric string) string {
+	return hostID + "\x00" + metric
+}
+
+// LoadThresholds reads every threshold row into a set.
+func (db *DB) LoadThresholds() (ThresholdSet, error) {
+	rows, err := db.sql.Query(`SELECT host_id, metric, enabled, threshold FROM alert_thresholds`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := ThresholdSet{}
+	for rows.Next() {
+		var t Threshold
+		var en int
+		if err := rows.Scan(&t.HostID, &t.Metric, &en, &t.Value); err != nil {
+			return nil, err
+		}
+		t.Enabled = en == 1
+		out[thresholdKey(t.HostID, t.Metric)] = t
+	}
+	return out, rows.Err()
+}
+
+// Effective returns the host's own row if present, else the global row.
+func (s ThresholdSet) Effective(hostID, metric string) (Threshold, bool) {
+	if t, ok := s[thresholdKey(hostID, metric)]; ok {
+		return t, true
+	}
+	t, ok := s[thresholdKey("", metric)]
+	return t, ok
+}
+
 // SetThreshold upserts a threshold row.
 func (db *DB) SetThreshold(hostID, metric string, enabled bool, value float64) error {
 	_, err := db.sql.Exec(
