@@ -297,3 +297,64 @@ func hasKey(v any, key string) bool {
 	}
 	return false
 }
+
+func TestToolPayloadCollections(t *testing.T) {
+	ts := newTestServer(t)
+	owner, _ := newUser(t, ts, "boss@example.com")
+	stranger, _ := newUser(t, ts, "stranger@example.com")
+
+	_, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+		map[string]any{"name": "Hidden", "visibility": "restricted"}, nil)
+	hidden := jsonString(t, body, "id")
+	_, body = ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+		map[string]any{"name": "Shown"}, nil)
+	shown := jsonString(t, body, "id")
+
+	resp, body := ts.do(t, owner, http.MethodPost, "/api/v1/tools",
+		map[string]any{"name": "grafana", "collection_ids": []string{hidden, shown}}, nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create tool = %d: %s", resp.StatusCode, body)
+	}
+	toolID := jsonString(t, body, "id")
+
+	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	if !containsName(t, body, "Hidden") || !containsName(t, body, "Shown") {
+		t.Errorf("creator's tool payload is missing a collection they can see: %s", body)
+	}
+
+	_, body = ts.do(t, stranger, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	if containsName(t, body, "Hidden") {
+		t.Error("tool payload leaked a collection the caller cannot see")
+	}
+	if !containsName(t, body, "Shown") {
+		t.Error("tool payload dropped a public collection")
+	}
+
+	_, body = ts.do(t, nil, http.MethodGet, "/api/v1/public/tools", nil, nil)
+	if containsName(t, body, "Hidden") {
+		t.Error("public tool payload leaked a restricted collection")
+	}
+	if !containsName(t, body, "Shown") {
+		t.Error("public tool payload dropped a public collection")
+	}
+
+	resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/tools",
+		map[string]any{"name": "bogus", "collection_ids": []string{"no-such-id"}}, nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("unknown collection id = %d, want 400", resp.StatusCode)
+	}
+	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools?search=bogus", nil, nil)
+	if containsName(t, body, "bogus") {
+		t.Error("a tool rejected for an unknown collection id was still created")
+	}
+
+	resp, _ = ts.do(t, owner, http.MethodPatch, "/api/v1/tools/"+toolID,
+		map[string]any{"name": "grafana", "collection_ids": []string{shown}}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("update tool = %d", resp.StatusCode)
+	}
+	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	if containsName(t, body, "Hidden") {
+		t.Error("collection_ids on update did not replace the membership set")
+	}
+}

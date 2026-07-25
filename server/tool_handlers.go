@@ -14,6 +14,7 @@ import (
 type toolInput struct {
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
+	CollectionIDs    []string `json:"collection_ids"`
 	Tags             []string `json:"tags"`
 	Scheme           string   `json:"scheme"`
 	Address          string   `json:"address"`
@@ -86,6 +87,60 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 	}
 }
 
+// visibleCollectionRefs maps tool ids to the collections each caller may see.
+// A nil principal means anonymous, which sees public collections only.
+func (a *app) visibleCollectionRefs(toolIDs []string, p *auth.Principal) map[string][]contracts.CollectionRef {
+	out := map[string][]contracts.CollectionRef{}
+	byTool, err := a.db.CollectionsForTools(toolIDs)
+	if err != nil {
+		return out
+	}
+	for toolID, cols := range byTool {
+		refs := []contracts.CollectionRef{}
+		for _, c := range cols {
+			visible := c.Visibility == store.VisibilityPublic
+			if !visible && p != nil {
+				visible, _ = a.db.CanSeeCollection(p.UserID, p.IsAdmin(), c.ID)
+			}
+			if !visible {
+				continue
+			}
+			refs = append(refs, contracts.CollectionRef{
+				ID: c.ID, Name: c.Name, IconURL: iconURL("collections", c.ID, c.IconPath),
+			})
+		}
+		out[toolID] = refs
+	}
+	return out
+}
+
+// collectionRefsFor returns one tool's visible collections, never nil so the
+// JSON is [] rather than null.
+func (a *app) collectionRefsFor(toolID string, p *auth.Principal) []contracts.CollectionRef {
+	refs := a.visibleCollectionRefs([]string{toolID}, p)[toolID]
+	if refs == nil {
+		return []contracts.CollectionRef{}
+	}
+	return refs
+}
+
+// applyCollectionIDs replaces a tool's collection membership, rejecting ids the
+// caller cannot see.
+func (a *app) applyCollectionIDs(w http.ResponseWriter, toolID string, ids []string, p auth.Principal) bool {
+	for _, id := range ids {
+		ok, _ := a.db.CanSeeCollection(p.UserID, p.IsAdmin(), id)
+		if !ok {
+			writeError(w, http.StatusBadRequest, "invalid_collection", "unknown collection id")
+			return false
+		}
+	}
+	if err := a.db.SetToolCollections(toolID, ids); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not set collections")
+		return false
+	}
+	return true
+}
+
 func (a *app) handleListTools(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
 	f := store.ToolFilter{
@@ -101,10 +156,19 @@ func (a *app) handleListTools(w http.ResponseWriter, r *http.Request) {
 	}
 	hosts := a.hostMap()
 	now := time.Now().UTC()
+	ids := make([]string, 0, len(tools))
+	for _, t := range tools {
+		ids = append(ids, t.ID)
+	}
+	refs := a.visibleCollectionRefs(ids, &p)
 	out := make([]toolResponse, 0, len(tools))
 	for _, t := range tools {
 		tr := toolToResponse(t, p)
 		tr.Status = a.toolStatus(t, hosts, now)
+		tr.Collections = refs[t.ID]
+		if tr.Collections == nil {
+			tr.Collections = []contracts.CollectionRef{}
+		}
 		out = append(out, tr)
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -124,12 +188,22 @@ func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 	}
 	hosts := a.hostMap()
 	now := time.Now().UTC()
+	ids := make([]string, 0, len(tools))
+	for _, t := range tools {
+		ids = append(ids, t.ID)
+	}
+	refs := a.visibleCollectionRefs(ids, nil)
 	out := make([]publicToolResponse, 0, len(tools))
 	for _, t := range tools {
+		cols := refs[t.ID]
+		if cols == nil {
+			cols = []contracts.CollectionRef{}
+		}
 		out = append(out, publicToolResponse{
 			ID:               t.ID,
 			Name:             t.Name,
 			Description:      t.Description,
+			Collections:      cols,
 			Tags:             t.Tags,
 			Scheme:           t.Scheme,
 			Address:          t.Address,
@@ -176,7 +250,13 @@ func (a *app) handleCreateTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create tool")
 		return
 	}
-	writeJSON(w, http.StatusCreated, toolToResponse(t, p))
+	if !a.applyCollectionIDs(w, t.ID, in.CollectionIDs, p) {
+		a.db.DeleteTool(t.ID)
+		return
+	}
+	tr := toolToResponse(t, p)
+	tr.Collections = a.collectionRefsFor(t.ID, &p)
+	writeJSON(w, http.StatusCreated, tr)
 }
 
 func (a *app) handleGetTool(w http.ResponseWriter, r *http.Request) {
@@ -187,6 +267,7 @@ func (a *app) handleGetTool(w http.ResponseWriter, r *http.Request) {
 	}
 	tr := toolToResponse(t, p)
 	tr.Status = a.toolStatus(t, a.hostMap(), time.Now().UTC())
+	tr.Collections = a.collectionRefsFor(t.ID, &p)
 	writeJSON(w, http.StatusOK, tr)
 }
 
@@ -224,7 +305,12 @@ func (a *app) handleUpdateTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not update tool")
 		return
 	}
-	writeJSON(w, http.StatusOK, toolToResponse(t, p))
+	if !a.applyCollectionIDs(w, t.ID, in.CollectionIDs, p) {
+		return
+	}
+	tr := toolToResponse(t, p)
+	tr.Collections = a.collectionRefsFor(t.ID, &p)
+	writeJSON(w, http.StatusOK, tr)
 }
 
 func (a *app) handleDeleteTool(w http.ResponseWriter, r *http.Request) {
