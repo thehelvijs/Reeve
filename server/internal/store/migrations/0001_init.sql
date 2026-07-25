@@ -98,6 +98,43 @@ CREATE TABLE tools (
 CREATE INDEX idx_tools_creator ON tools(creator_id);
 CREATE INDEX idx_tools_category ON tools(category);
 
+CREATE TABLE collections (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    visibility  TEXT NOT NULL DEFAULT 'public'
+                  CHECK (visibility IN ('public', 'restricted')),
+    creator_id  TEXT NOT NULL REFERENCES users(id),
+    icon_path   TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX idx_collections_creator ON collections(creator_id);
+
+CREATE TABLE collection_tools (
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    tool_id       TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+    PRIMARY KEY (collection_id, tool_id)
+);
+CREATE INDEX idx_collection_tools_tool ON collection_tools(tool_id);
+
+CREATE TABLE collection_editors (
+    collection_id  TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    principal_type TEXT NOT NULL CHECK (principal_type IN ('user', 'group')),
+    principal_id   TEXT NOT NULL,
+    PRIMARY KEY (collection_id, principal_type, principal_id)
+);
+CREATE INDEX idx_collection_editors_principal
+    ON collection_editors(principal_type, principal_id);
+
+CREATE TABLE collection_visibility (
+    collection_id  TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    principal_type TEXT NOT NULL CHECK (principal_type IN ('user', 'group')),
+    principal_id   TEXT NOT NULL,
+    PRIMARY KEY (collection_id, principal_type, principal_id)
+);
+CREATE INDEX idx_collection_visibility_principal
+    ON collection_visibility(principal_type, principal_id);
+
 CREATE TABLE tool_visibility (
     tool_id        TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
     principal_type TEXT NOT NULL CHECK (principal_type IN ('user', 'group')),
