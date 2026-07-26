@@ -34,6 +34,34 @@ func (db *DB) ClearHostUpdateSlot(id string) error {
 	return db.exec1(`UPDATE hosts SET update_started_at = NULL WHERE id = ?`, id)
 }
 
+// TryStartHostUpdate grants a rollout slot in a single conditional write, so
+// two concurrent pushes cannot both observe spare capacity and both stamp.
+// It refuses if any host is stalled or the live count is already at cap.
+func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency int) (bool, error) {
+	res, err := db.sql.Exec(`
+		UPDATE hosts SET update_started_at = ?
+		WHERE id = ?
+		  AND NOT EXISTS (
+		    SELECT 1 FROM hosts s
+		    WHERE s.id != ? AND s.update_started_at IS NOT NULL AND s.update_started_at < ?
+		  )
+		  AND (
+		    SELECT COUNT(*) FROM hosts l
+		    WHERE l.id != ? AND l.update_started_at IS NOT NULL AND l.update_started_at >= ?
+		  ) < ?`,
+		at.UTC().Format(slotStamp), id,
+		ServerHostID, cutoff.UTC().Format(slotStamp),
+		ServerHostID, cutoff.UTC().Format(slotStamp), concurrency)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n == 1, nil
+}
+
 // CountLiveUpdateSlots counts hosts stamped at or after cutoff, still inside the
 // stall window and therefore occupying a slot.
 func (db *DB) CountLiveUpdateSlots(cutoff time.Time) (int, error) {

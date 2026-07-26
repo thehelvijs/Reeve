@@ -1,6 +1,9 @@
 package store
 
 import (
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -138,6 +141,108 @@ func TestSlotStampsCompareCorrectlyAcrossFractions(t *testing.T) {
 	}
 	if live != 1 {
 		t.Errorf("live slots = %d, want 1 (only the later stamp)", live)
+	}
+}
+
+func TestTryStartHostUpdateGrantsUnderCap(t *testing.T) {
+	db := openTemp(t)
+	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	cutoff := now.Add(-15 * time.Minute)
+
+	ok, err := db.TryStartHostUpdate(h.ID, now, cutoff, 1)
+	if err != nil {
+		t.Fatalf("try start: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected the slot to be granted under the cap")
+	}
+	got, _ := db.GetHost(h.ID)
+	if got.UpdateStartedAt == nil {
+		t.Fatal("slot was not stamped on grant")
+	}
+}
+
+func TestTryStartHostUpdateRefusesAtCap(t *testing.T) {
+	db := openTemp(t)
+	a, _ := db.CreateHost("a", "linux", "", "hash-a", 60)
+	b, _ := db.CreateHost("b", "linux", "", "hash-b", 60)
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	cutoff := now.Add(-15 * time.Minute)
+
+	db.StartHostUpdate(a.ID, now)
+	ok, err := db.TryStartHostUpdate(b.ID, now, cutoff, 1)
+	if err != nil {
+		t.Fatalf("try start: %v", err)
+	}
+	if ok {
+		t.Error("granted a slot at the concurrency cap")
+	}
+}
+
+func TestTryStartHostUpdateRefusesWhileAnyHostIsStalled(t *testing.T) {
+	db := openTemp(t)
+	stalled, _ := db.CreateHost("stalled", "linux", "", "hash-s", 60)
+	next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
+	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	db.StartHostUpdate(stalled.ID, started)
+	later := started.Add(time.Hour)
+	cutoff := later.Add(-15 * time.Minute)
+
+	ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 10)
+	if err != nil {
+		t.Fatalf("try start: %v", err)
+	}
+	if ok {
+		t.Error("granted a new slot while a host was stalled")
+	}
+}
+
+// This is Finding 2's regression test: a read-then-write gate lets two
+// concurrent pushes both see spare capacity and both stamp, over-granting
+// the canary batch. TryStartHostUpdate must fold the check into one write.
+func TestTryStartHostUpdateIsAtomicUnderConcurrency(t *testing.T) {
+	db := openTemp(t)
+	const hostCount = 20
+	const concurrencyCap = 3
+	ids := make([]string, hostCount)
+	for i := range ids {
+		h, err := db.CreateHost(fmt.Sprintf("host-%d", i), "linux", "", fmt.Sprintf("hash-%d", i), 60)
+		if err != nil {
+			t.Fatalf("create host %d: %v", i, err)
+		}
+		ids[i] = h.ID
+	}
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	cutoff := now.Add(-15 * time.Minute)
+
+	var wg sync.WaitGroup
+	var granted int32
+	for _, id := range ids {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			ok, err := db.TryStartHostUpdate(id, now, cutoff, concurrencyCap)
+			if err != nil {
+				t.Errorf("try start: %v", err)
+				return
+			}
+			if ok {
+				atomic.AddInt32(&granted, 1)
+			}
+		}(id)
+	}
+	wg.Wait()
+
+	if granted != concurrencyCap {
+		t.Errorf("granted = %d, want exactly the cap of %d", granted, concurrencyCap)
+	}
+	live, err := db.CountLiveUpdateSlots(cutoff)
+	if err != nil {
+		t.Fatalf("count live: %v", err)
+	}
+	if live != concurrencyCap {
+		t.Errorf("live slots after the race = %d, want %d", live, concurrencyCap)
 	}
 }
 

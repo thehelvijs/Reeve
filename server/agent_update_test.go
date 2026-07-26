@@ -94,6 +94,37 @@ func TestDecideCheckNowRefusesVetoAndPolicyOff(t *testing.T) {
 	}
 }
 
+// A veto is the owner refusing an update on their box; no host policy override
+// may outrank it. This is the top-precedence rule the design calls out.
+func TestDecideCheckNowVetoBeatsHostOnPolicy(t *testing.T) {
+	ts := newTestServer(t)
+	h, _ := ts.app.db.CreateHost("vetoed-on", "linux", "", "hash-vo", 60)
+	ts.app.db.SetHostAutoUpdate(h.ID, store.AutoUpdateOn)
+	h, _ = ts.app.db.GetHost(h.ID)
+
+	if ts.app.decideCheckNow(h, "0.0.1", true, time.Now().UTC()) {
+		t.Error("a host pinned on but vetoed locally was told to update")
+	}
+}
+
+// The slot release for a host confirming the target version must run ahead of
+// the veto check, or a vetoed host's stale slot wedges the fleet forever.
+func TestDecideCheckNowReleasesSlotEvenWhenVetoed(t *testing.T) {
+	ts := newTestServer(t)
+	now := time.Now().UTC()
+	h, _ := ts.app.db.CreateHost("web-2", "linux", "", "hash-2", 60)
+	ts.app.db.StartHostUpdate(h.ID, now)
+	h, _ = ts.app.db.GetHost(h.ID)
+
+	if ts.app.decideCheckNow(h, ts.app.cfg.Version, true, now) {
+		t.Error("a vetoed host reporting the target version was told to update")
+	}
+	got, _ := ts.app.db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Error("the slot was not released for a vetoed host reporting the target version")
+	}
+}
+
 func TestDecideCheckNowHonoursHostOnAgainstFleetOff(t *testing.T) {
 	ts := newTestServer(t)
 	ts.app.db.SetSetting(settingAgentUpdateEnabled, "false")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/thehelvijs/Reeve/server/internal/store"
@@ -99,39 +100,38 @@ func updateStateFor(h store.Host, uc updateContext, now time.Time) string {
 
 // decideCheckNow answers one agent's push: may it self-update right now? The
 // reported version and veto come from the push, which is newer than the row.
+// It derives the same updateStateFor an operator sees, so ingest and the host
+// view can never disagree about why a host was or wasn't granted a slot.
 func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, now time.Time) bool {
 	if reportedVersion == a.cfg.Version && h.UpdateStartedAt != nil {
-		a.db.ClearHostUpdateSlot(h.ID)
-	}
-	if vetoed {
-		return false
-	}
-	cfg := a.agentUpdateConfig()
-	if !effectiveAutoUpdate(h.AutoUpdate, cfg.Enabled) {
-		return false
-	}
-	if !versionComparable(a.cfg.Version) || !versionComparable(reportedVersion) {
-		return false
-	}
-	if reportedVersion == a.cfg.Version {
-		return false
+		if err := a.db.ClearHostUpdateSlot(h.ID); err != nil {
+			log.Printf("agent update: clear slot for host %s: %v", h.ID, err)
+		} else {
+			h.UpdateStartedAt = nil
+		}
 	}
 
-	stall := time.Duration(cfg.StallSecs) * time.Second
-	cutoff := now.Add(-stall)
-	if h.UpdateStartedAt != nil && now.Sub(*h.UpdateStartedAt) < stall {
+	cfg := a.agentUpdateConfig()
+	uc := updateContext{
+		ServerVersion: a.cfg.Version,
+		FleetDefault:  cfg.Enabled,
+		Stall:         time.Duration(cfg.StallSecs) * time.Second,
+	}
+	h.AgentVersion = reportedVersion
+	h.AutoUpdateVetoed = vetoed
+
+	switch updateStateFor(h, uc, now) {
+	case updateStateUpdating:
 		return true
-	}
-	stalled, err := a.db.CountStalledUpdates(cutoff)
-	if err != nil || stalled > 0 {
+	case updateStateOutdated:
+		cutoff := now.Add(-uc.Stall)
+		granted, err := a.db.TryStartHostUpdate(h.ID, now, cutoff, cfg.Concurrency)
+		if err != nil {
+			log.Printf("agent update: try start slot for host %s: %v", h.ID, err)
+			return false
+		}
+		return granted
+	default:
 		return false
 	}
-	live, err := a.db.CountLiveUpdateSlots(cutoff)
-	if err != nil || live >= cfg.Concurrency {
-		return false
-	}
-	if err := a.db.StartHostUpdate(h.ID, now); err != nil {
-		return false
-	}
-	return true
 }

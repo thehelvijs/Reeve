@@ -53,6 +53,9 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	if err := json.Unmarshal(data, &ack); err != nil {
 		t.Fatalf("decode ack: %v", err)
 	}
+	if !ack.CheckNow {
+		t.Fatal("an outdated host's first push must be granted a rollout slot")
+	}
 
 	// Host shows online.
 	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
@@ -81,6 +84,19 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	ts.app.db.SQL().QueryRow(`SELECT COUNT(*) FROM log_events WHERE host_id = ?`, hostID).Scan(&n)
 	if n != 1 {
 		t.Errorf("log events = %d, want 1", n)
+	}
+
+	// A second push while the slot is still live must keep being honored.
+	resp, data = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("second ingest status = %d, want 200", resp.StatusCode)
+	}
+	if err := json.Unmarshal(data, &ack); err != nil {
+		t.Fatalf("decode second ack: %v", err)
+	}
+	if !ack.CheckNow {
+		t.Fatal("a host already holding a live slot must keep being told to update")
 	}
 }
 
