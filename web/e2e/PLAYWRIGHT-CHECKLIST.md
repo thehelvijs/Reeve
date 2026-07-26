@@ -4,6 +4,11 @@ Run through this with Playwright (screenshots + real clicks) after ANY frontend
 change, including areas not touched. Passing typecheck/lint/build/e2e is NOT a
 substitute — look at the screenshots and actually click things.
 
+`playwright.config.ts` always runs the e2e backend on `REEVE_DEV_PORT=8099` (it
+sets the variable itself, unconditionally), so it never collides with `8080`,
+which `npm run dev` uses by default and which a locally deployed Reeve
+instance may already hold.
+
 ## Global chrome
 - [ ] Version badge shows next to `Reeve` brand (app + portal).
 - [ ] Search is centered; `Cmd/Ctrl+K` focuses it; hint shows the platform key.

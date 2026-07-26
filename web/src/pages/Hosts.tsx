@@ -70,6 +70,7 @@ export default function Hosts() {
                   <p className="truncate text-sm font-medium text-content">{h.name}</p>
                   <p className="truncate text-xs text-muted">
                     {h.os}
+                    {h.agent_version ? ` · agent ${h.agent_version}` : ''}
                     {h.last_seen_at ? ` · seen ${new Date(h.last_seen_at).toLocaleString()}` : ''}
                   </p>
                 </div>

@@ -17,8 +17,7 @@ async function createHost(req: APIRequestContext, name: string) {
   return { id: body.host.id as string, token: body.enroll_token as string };
 }
 
-// Drives the real ingest protocol rather than mocking it, so the ack and the
-// rollout state machine are exercised exactly as a live agent would.
+// Drives the real ingest protocol rather than mocking it, so the ack and the rollout state machine are exercised exactly as a live agent would.
 async function push(
   req: APIRequestContext,
   token: string,
@@ -47,8 +46,7 @@ async function setFleetPolicy(
   expect(res.status()).toBe(200);
 }
 
-// The list page renders each host as an <a> wrapping its name and pills; a
-// second, textless <a> wraps the row's chevron, so matching on name is unambiguous.
+// Each row is an <a> wrapping name+pills; a second, textless <a> wraps only the chevron, so matching on name is unambiguous.
 function hostRow(page: Page, name: string) {
   return page.locator('a', { hasText: name });
 }
@@ -70,21 +68,18 @@ test('a current agent reads as up to date and an old one as outdated', async ({ 
   await page.goto('/hosts');
   const currentRow = hostRow(page, 'e2e-current');
   const behindRow = hostRow(page, 'e2e-behind');
-  await expect(currentRow).toBeVisible();
-  await expect(behindRow).toBeVisible();
 
-  // check_now=true means the server already granted the behind host a slot in
-  // the same push, so its row reads "updating" (UpdateStartedAt set), not the
-  // pre-grant "outdated". An up-to-date host shows no version pill at all
-  // (see showsVersionPill in web/src/lib/agentUpdate.ts), so the regression to
-  // guard against is either label leaking onto a host that is really current.
+  // Each assertion below targets the exact row it names, so it stands on its own regardless of what else runs first.
+  await expect(currentRow).toContainText(`agent ${SERVER_VERSION}`);
+  await expect(behindRow).toContainText('agent 0.0.1');
+
+  // check_now=true means the server already granted the behind host a slot in the same push, so it reads "updating", not "outdated" (see updateStateFor in server/agent_update.go).
   await expect(behindRow.getByText('updating', { exact: true })).toBeVisible();
   await expect(currentRow.getByText('updating', { exact: true })).toHaveCount(0);
   await expect(currentRow.getByText('outdated', { exact: true })).toHaveCount(0);
   await expect(page.locator('text=server on 9.9.9')).toBeVisible();
 
-  // Release the slot the outdated push claimed so it doesn't count against a
-  // later test's tighter concurrency cap.
+  // Release the slot the outdated push claimed so it doesn't count against a later test's tighter concurrency cap.
   await push(req, behind.token, SERVER_VERSION);
 });
 
@@ -114,8 +109,11 @@ test('concurrency caps how many hosts update at once', async ({ page }) => {
   expect((await push(req, first.token, '0.0.1')).check_now).toBe(true);
   expect((await push(req, second.token, '0.0.1')).check_now).toBe(false);
 
-  // Free the slot and restore a sane concurrency so later tests start clean
-  // even if this spec is ever run as a standalone subset.
+  // The capped host never got a slot, so it stays outdated (UpdateStartedAt still null) — the feature's headline state.
+  await page.goto('/hosts');
+  await expect(hostRow(page, 'e2e-cap-2').getByText('outdated', { exact: true })).toBeVisible();
+
+  // Free the slot and restore a sane concurrency so later tests start clean even if this spec is ever run as a standalone subset.
   await push(req, first.token, SERVER_VERSION);
   await setFleetPolicy(req, { enabled: true, concurrency: 10, stall_secs: 900 });
 });
@@ -163,7 +161,11 @@ test('a per-host policy of off disables updates for that host alone', async ({ p
   await page.reload();
   await expect(page.getByText('updates off', { exact: true })).toBeVisible();
 
-  // Release the earlier slot even though the policy stays off, so a dangling
-  // update_started_at row can't eventually read as a fleet-wide stall.
+  // A second, unpinned host under the same fleet policy still gets a slot — proves the policy scopes to this host alone.
+  const control = await createHost(req, 'e2e-not-pinned');
+  expect((await push(req, control.token, '0.0.1')).check_now).toBe(true);
+  await push(req, control.token, SERVER_VERSION);
+
+  // Release the earlier slot even though the policy stays off, so a dangling update_started_at row can't eventually read as a fleet-wide stall.
   await push(req, pinned.token, SERVER_VERSION);
 });

@@ -1,10 +1,9 @@
 import { defineConfig } from '@playwright/test';
 
-// Default the e2e backend to a port distinct from 8080, which is often held by
-// a locally deployed Reeve instance; the vite dev server this config spawns
-// inherits the same value from process.env, so both sides agree without the
-// caller having to export anything.
-process.env.REEVE_DEV_PORT ??= '8099';
+// The suite always owns this port outright (not ??=) so it can't collide with
+// a REEVE_DEV_PORT a developer already exports for their own dev server; the
+// vite dev server this config spawns inherits the overridden value.
+process.env.REEVE_DEV_PORT = '8099';
 const devPort = process.env.REEVE_DEV_PORT;
 
 // Pre-ship e2e. Starts a fresh Go server (throwaway DB, fixed test master key)
