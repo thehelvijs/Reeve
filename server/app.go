@@ -24,6 +24,13 @@ type config struct {
 	CookieSecure bool
 	Version      string
 	LogRequests  bool
+	// TrustProxyHeaders lets X-Forwarded-For set the client IP. Off unless a
+	// reverse proxy the operator controls is the only way in: otherwise any
+	// caller could forge the throttle key and the audited reveal source.
+	TrustProxyHeaders bool
+	// AllowedOrigins are extra origins the same-origin check accepts, for a
+	// dev UI served from a different port than the API.
+	AllowedOrigins []string
 }
 
 // app wires the store, cipher, and config for the HTTP handlers.
@@ -205,5 +212,5 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/v1/admin/agent-updates", admin(http.HandlerFunc(a.handleGetAgentUpdates)))
 	mux.Handle("POST /api/v1/admin/agent-updates/resume", admin(http.HandlerFunc(a.handleResumeAgentUpdates)))
 
-	return a.resolvePrincipal(a.logRequests(gzipResponses(mux)))
+	return securityHeaders(a.resolvePrincipal(a.requireSameOrigin(a.logRequests(gzipResponses(mux)))))
 }

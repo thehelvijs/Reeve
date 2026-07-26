@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/thehelvijs/Reeve/server/internal/auth"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
@@ -153,9 +151,12 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var secret map[string]string
-	json.Unmarshal(plain, &secret)
+	if err := json.Unmarshal(plain, &secret); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not decode credential")
+		return
+	}
 
-	a.db.RecordReveal(c.ID, t.ID, p.UserID, clientIP(r))
+	a.db.RecordReveal(c.ID, t.ID, p.UserID, a.clientIP(r))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id": c.ID, "type": c.Type, "label": c.Label, "secret": secret,
 	})
@@ -201,15 +202,4 @@ func (a *app) sealSecret(secret map[string]string) (ct, nonce []byte, err error)
 		return nil, nil, err
 	}
 	return a.cipher.Seal(plain)
-}
-
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -132,11 +133,34 @@ func fromIP(ip string) map[string]string {
 	return map[string]string{"X-Forwarded-For": ip}
 }
 
+// login sends the attempt from a caller-chosen source IP. Distinct source IPs
+// only exist behind a reverse proxy, so this opts the app into trusting the
+// forwarded header the way such a deployment would.
 func login(t *testing.T, ts *testServer, email, pass, ip string) *http.Response {
 	t.Helper()
+	ts.app.cfg.TrustProxyHeaders = true
 	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
 		credentials{Email: email, Password: pass}, fromIP(ip))
 	return resp
+}
+
+// Without a trusted proxy the forwarded header is just something a caller
+// typed, so rotating it must not hand out a fresh throttle bucket each attempt.
+func TestLoginThrottleIgnoresSpoofedForwardedFor(t *testing.T) {
+	ts := newTestServer(t)
+	signup(t, ts, ts.client(t), "a@b.com", "password123")
+	for i := 0; i < 5; i++ {
+		resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+			credentials{Email: "a@b.com", Password: "wrong"}, fromIP(fmt.Sprintf("10.0.0.%d", i)))
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("attempt %d status = %d, want 401", i+1, resp.StatusCode)
+		}
+	}
+	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+		credentials{Email: "a@b.com", Password: "wrong"}, fromIP("10.0.0.99"))
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("status after 5 failures from rotating spoofed IPs = %d, want 429", resp.StatusCode)
+	}
 }
 
 // loginWith logs in on a caller-supplied client so its cookie jar keeps the

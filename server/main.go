@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -56,6 +57,9 @@ func run() error {
 		CookieSecure: os.Getenv("REEVE_COOKIE_SECURE") == "true",
 		Version:      version,
 		LogRequests:  os.Getenv("REEVE_LOG_REQUESTS") != "false",
+
+		TrustProxyHeaders: os.Getenv("REEVE_TRUST_PROXY") == "true",
+		AllowedOrigins:    splitList(os.Getenv("REEVE_ALLOWED_ORIGINS")),
 	}
 
 	// The container healthcheck runs this binary rather than adding curl to the
@@ -205,4 +209,15 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// splitList parses a comma-separated environment value, dropping blanks.
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

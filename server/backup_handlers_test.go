@@ -46,6 +46,7 @@ func uploadRestore(t *testing.T, ts *testServer, c *http.Client, content []byte)
 		t.Fatalf("request: %v", err)
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Origin", ts.srv.URL)
 	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatalf("upload: %v", err)

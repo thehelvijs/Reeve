@@ -28,6 +28,7 @@ func uploadAvatar(t *testing.T, ts *testServer, c *http.Client, data []byte) (*h
 	mw.Close()
 	req, _ := http.NewRequest(http.MethodPost, ts.srv.URL+"/api/v1/me/avatar", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Origin", ts.srv.URL)
 	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatalf("upload: %v", err)

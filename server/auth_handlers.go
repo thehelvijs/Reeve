@@ -71,6 +71,13 @@ func (a *app) handleSignup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "weak_password", "password must be at least 8 characters")
 		return
 	}
+	// Open signup is a write endpoint anyone can reach, so it gets the same
+	// per-source ceiling as login.
+	signupKey := "signup-ip:" + a.clientIP(r)
+	if a.throttled(w, signupKey) {
+		return
+	}
+	a.loginThrottle().Fail(signupKey)
 
 	count, err := a.db.CountUsers()
 	if err != nil {
@@ -102,6 +109,7 @@ func (a *app) handleSignup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create user")
 		return
 	}
+	a.loginThrottle().Reset(signupKey)
 	a.startSession(w, u.ID)
 	writeJSON(w, http.StatusCreated, a.userView(u))
 }
@@ -114,7 +122,7 @@ func (a *app) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	in.Email = strings.TrimSpace(strings.ToLower(in.Email))
 
-	keys := []string{"login-ip:" + clientIP(r), "login-email:" + in.Email}
+	keys := []string{"login-ip:" + a.clientIP(r), "login-email:" + in.Email}
 	if a.throttled(w, keys...) {
 		return
 	}
