@@ -50,3 +50,6 @@ __pycache__/
 
 # Superpowers specs/plans: local working docs, not part of the repo
 docs/superpowers/
+
+# Subagent-driven development scratch
+.superpowers/
