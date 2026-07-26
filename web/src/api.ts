@@ -98,11 +98,35 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
+export type AutoUpdatePolicy = 'default' | 'on' | 'off';
+
+export type UpdateState =
+  | 'up_to_date'
+  | 'outdated'
+  | 'updating'
+  | 'stalled'
+  | 'disabled'
+  | 'unknown';
+
+export interface AgentUpdateRollup {
+  server_version: string;
+  counts: Partial<Record<UpdateState, number>>;
+  paused: boolean;
+  stalled: string[];
+}
+
+export interface AgentUpdateSettings {
+  enabled: boolean;
+  concurrency: number;
+  stall_secs: number;
+}
+
 export interface Settings {
   signup_enabled: boolean;
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
+  agent_update: AgentUpdateSettings;
 }
 
 // The write shape differs from the read shape: secrets are write-only.
@@ -111,6 +135,7 @@ export interface SettingsInput {
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;
+  agent_update?: AgentUpdateSettings;
 }
 
 // Avatar upload rides a multipart form, so it bypasses the JSON request helper.
@@ -320,6 +345,8 @@ export interface Host {
   thumbnail_url: string;
   latitude?: number;
   longitude?: number;
+  auto_update: AutoUpdatePolicy;
+  update_state: UpdateState;
 }
 
 export interface InventoryItem {
