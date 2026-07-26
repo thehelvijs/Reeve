@@ -61,7 +61,10 @@ export default function Hosts() {
           />
         </div>
       ) : (
-        <div className="mt-6 divide-y divide-hairline overflow-hidden rounded-card border border-hairline">
+        <div
+          id="host-list"
+          className="mt-6 divide-y divide-hairline overflow-hidden rounded-card border border-hairline"
+        >
           {hosts.map((h) => (
             <div key={h.id} className="flex items-center transition-colors hover:bg-surface-2">
               <Link to={`/hosts/${h.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
@@ -162,8 +165,18 @@ function AgentRollup() {
       </div>
       {data.paused && (
         <p className="mt-2 text-xs text-muted">
-          Rollout paused: {data.stalled.join(', ')} did not come back on the new agent. No other host
-          updates until this is cleared.
+          Rollout paused:{' '}
+          {data.stalled.map((h, i) => (
+            <span key={h.id}>
+              {i > 0 && ', '}
+              <Link to={`/hosts/${h.id}`} className="text-content underline underline-offset-2">
+                {h.name}
+              </Link>
+            </span>
+          ))}{' '}
+          did not come back on the new agent. No other host updates until this is cleared. Resuming
+          hands the same host the slot again, so if it cannot update at all, open it and set
+          Auto-update to Off to take it out of the rollout for good.
         </p>
       )}
       <ErrorText>{error}</ErrorText>

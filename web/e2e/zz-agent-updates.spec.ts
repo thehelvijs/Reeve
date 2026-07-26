@@ -46,9 +46,13 @@ async function setFleetPolicy(
   expect(res.status()).toBe(200);
 }
 
-// Each row is an <a> wrapping name+pills; a second, textless <a> wraps only the chevron, so matching on name is unambiguous.
+// Each row is an <a> wrapping name+pills; a second, textless <a> wraps only the chevron. Scoped to the list because the paused-rollout banner also links stalled hosts by name.
 function hostRow(page: Page, name: string) {
-  return page.locator('a', { hasText: name });
+  return page.locator('#host-list a', { hasText: name });
+}
+
+function pausedBanner(page: Page) {
+  return page.locator('p', { hasText: 'Rollout paused' });
 }
 
 test('a current agent reads as up to date and an old one as outdated', async ({ page }) => {
@@ -132,10 +136,10 @@ test('a stalled host pauses the rollout until it is resumed', async ({ page }) =
   await page.goto('/hosts');
   const canaryRow = hostRow(page, 'e2e-canary');
   await expect(canaryRow.getByText('update stalled', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Rollout paused/)).toBeVisible();
+  await expect(pausedBanner(page)).toBeVisible();
 
   await page.getByRole('button', { name: 'Resume rollout' }).click();
-  await expect(page.getByText(/Rollout paused/)).toHaveCount(0);
+  await expect(pausedBanner(page)).toHaveCount(0);
 
   await setFleetPolicy(req, { enabled: true, concurrency: 5, stall_secs: 900 });
   await push(req, canary.token, SERVER_VERSION);
@@ -166,6 +170,39 @@ test('a per-host policy of off disables updates for that host alone', async ({ p
   expect((await push(req, control.token, '0.0.1')).check_now).toBe(true);
   await push(req, control.token, SERVER_VERSION);
 
-  // Release the earlier slot even though the policy stays off, so a dangling update_started_at row can't eventually read as a fleet-wide stall.
-  await push(req, pinned.token, SERVER_VERSION);
+  // Setting the policy off released the slot the first push claimed, so the host stays out of the rollup's stalled set no matter how long it sits on the old version. Asserted, not worked around: a dangling row here used to read as a fleet-wide stall.
+  const rollup = await (await req.get('/api/v1/admin/agent-updates')).json();
+  expect(rollup.paused).toBe(false);
+  expect(rollup.stalled).toEqual([]);
+  expect(rollup.counts.stalled).toBe(0);
+});
+
+// A host taken out of the rollout must clear the pause, or Resume is the only escape and it hands the same broken host its slot straight back.
+test('taking a stalled host out of the rollout clears the pause', async ({ page }) => {
+  await login(page);
+  const req = page.request;
+  await setFleetPolicy(req, { enabled: true, concurrency: 5, stall_secs: 1 });
+
+  const broken = await createHost(req, 'e2e-never-updates');
+  expect((await push(req, broken.token, '0.0.1')).check_now).toBe(true);
+  await page.waitForTimeout(2000);
+  await push(req, broken.token, '0.0.1');
+
+  await page.goto('/hosts');
+  await expect(pausedBanner(page)).toBeVisible();
+
+  // The banner names the host as a link, which is the only signposted route to the permanent fix.
+  await pausedBanner(page).getByRole('link', { name: 'e2e-never-updates' }).click();
+  await expect(page).toHaveURL(new RegExp(`/hosts/${broken.id}$`));
+  await page.selectOption('select', 'off');
+  await expect(page.getByText('updates off', { exact: true })).toBeVisible();
+
+  await page.goto('/hosts');
+  await expect(pausedBanner(page)).toHaveCount(0);
+
+  const rollup = await (await req.get('/api/v1/admin/agent-updates')).json();
+  expect(rollup.paused).toBe(false);
+  expect(rollup.counts.stalled).toBe(0);
+
+  await setFleetPolicy(req, { enabled: true, concurrency: 5, stall_secs: 900 });
 });

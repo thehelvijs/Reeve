@@ -98,11 +98,16 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
+export interface StalledHost {
+  id: string;
+  name: string;
+}
+
 export interface AgentUpdateRollup {
   server_version: string;
   counts: Record<UpdateState, number>;
   paused: boolean;
-  stalled: string[];
+  stalled: StalledHost[];
 }
 
 export interface AgentUpdateSettings {

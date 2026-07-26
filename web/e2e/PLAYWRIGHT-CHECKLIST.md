@@ -50,3 +50,6 @@ instance may already hold.
 - [ ] Host detail: a vetoed host explains that the machine refuses updates.
 - [ ] Settings → Agent updates: toggle, concurrency, stall timeout save and persist.
 - [ ] Paused rollout: banner names the stalled hosts; Resume rollout clears it.
+- [ ] Paused rollout: each named host is a link to its detail page, and the
+      banner says setting Auto-update to Off takes it out of the rollout.
+- [ ] Setting a stalled host's policy to Off clears the pause on the Hosts page.
