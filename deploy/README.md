@@ -123,6 +123,11 @@ leaves the host in the catalog with its history.
 This needs `REEVE_PUBLIC_URL` set, since it is the address the agent is
 told to push to.
 
+The address is resolved by the server, not your browser. In Docker that is the
+embedded resolver at 127.0.0.11, which does not do mDNS, so a `.local` name like
+`somehost.local` fails with `server misbehaving`. Use the machine's IP, or give
+the container the name with `extra_hosts: ["somehost.local:192.168.1.20"]`.
+
 ### Pulled by the host with curl
 
 ```sh
