@@ -98,19 +98,9 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
-export type AutoUpdatePolicy = 'default' | 'on' | 'off';
-
-export type UpdateState =
-  | 'up_to_date'
-  | 'outdated'
-  | 'updating'
-  | 'stalled'
-  | 'disabled'
-  | 'unknown';
-
 export interface AgentUpdateRollup {
   server_version: string;
-  counts: Partial<Record<UpdateState, number>>;
+  counts: Record<UpdateState, number>;
   paused: boolean;
   stalled: string[];
 }
@@ -331,6 +321,16 @@ export interface HostMetrics {
   disk_total: number;
   at: string;
 }
+
+export type AutoUpdatePolicy = 'default' | 'on' | 'off';
+
+export type UpdateState =
+  | 'up_to_date'
+  | 'outdated'
+  | 'updating'
+  | 'stalled'
+  | 'disabled'
+  | 'unknown';
 
 export interface Host {
   id: string;
