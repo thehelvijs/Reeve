@@ -74,8 +74,6 @@ type Principal struct {
 	UserID string
 	Email  string
 	Role   string
-	// ViaToken is true when authenticated by API token rather than a session.
-	ViaToken bool
 }
 
 // IsAdmin reports whether the principal has the admin role.
@@ -84,34 +82,22 @@ func (p Principal) IsAdmin() bool {
 }
 
 // PrincipalFromUser builds a Principal from a user row.
-func PrincipalFromUser(u store.User, viaToken bool) Principal {
-	return Principal{UserID: u.ID, Email: u.Email, Role: u.Role, ViaToken: viaToken}
+func PrincipalFromUser(u store.User) Principal {
+	return Principal{UserID: u.ID, Email: u.Email, Role: u.Role}
 }
 
-// TokenPrefix marks a Reeve API token in Authorization headers. Tokens are
-// stored as hashes, so the prefix is a human hint only: tokens minted under an
-// older prefix keep working.
-const TokenPrefix = "rvt_"
-
-// AgentTokenPrefix marks a host agent enrollment token.
+// AgentTokenPrefix marks a host agent enrollment token. Tokens are stored as
+// hashes, so the prefix is a human hint only: tokens minted under an older
+// prefix keep working.
 const AgentTokenPrefix = "rva_"
-
-// NewToken returns a fresh random API token (shown once) and its storage hash.
-func NewToken() (token, hash string) {
-	return newPrefixedToken(TokenPrefix)
-}
 
 // NewAgentToken returns a fresh agent enrollment token and its storage hash.
 func NewAgentToken() (token, hash string) {
-	return newPrefixedToken(AgentTokenPrefix)
-}
-
-func newPrefixedToken(prefix string) (token, hash string) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand failed: " + err.Error())
 	}
-	token = prefix + hex.EncodeToString(b)
+	token = AgentTokenPrefix + hex.EncodeToString(b)
 	return token, HashToken(token)
 }
 

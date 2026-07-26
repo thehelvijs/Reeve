@@ -6,6 +6,10 @@ CREATE TABLE users (
     active        INTEGER NOT NULL DEFAULT 1,
     display_name  TEXT NOT NULL DEFAULT '',
     avatar_path   TEXT NOT NULL DEFAULT '',
+    -- The identity provider's immutable subject id, pinned on the first
+    -- federated sign-in. An email address can be reassigned by whoever runs
+    -- the domain; this cannot, so later sign-ins are matched against it.
+    oauth_subject TEXT NOT NULL DEFAULT '',
     created_at    TEXT NOT NULL
 );
 
@@ -16,17 +20,6 @@ CREATE TABLE sessions (
     created_at TEXT NOT NULL
 );
 CREATE INDEX idx_sessions_user ON sessions(user_id);
-
-CREATE TABLE api_tokens (
-    id           TEXT PRIMARY KEY,
-    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name         TEXT NOT NULL,
-    token_hash   TEXT NOT NULL UNIQUE,
-    created_at   TEXT NOT NULL,
-    last_used_at TEXT,
-    revoked_at   TEXT
-);
-CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
 
 CREATE TABLE password_resets (
     id         TEXT PRIMARY KEY,
@@ -64,7 +57,14 @@ CREATE TABLE hosts (
     latitude           REAL,
     longitude          REAL,
     enroll_token_hash  TEXT NOT NULL UNIQUE,
+    -- The address the agent last reported, on the route from this host to the
+    -- server. Tools on this host with no address of their own follow it.
+    ip_address         TEXT NOT NULL DEFAULT '',
     agent_version      TEXT NOT NULL DEFAULT '',
+    auto_update        TEXT NOT NULL DEFAULT 'default'
+                         CHECK (auto_update IN ('default','on','off')),
+    auto_update_vetoed INTEGER NOT NULL DEFAULT 0,
+    update_started_at  TEXT,
     last_seen_at       TEXT,
     offline_after_secs INTEGER NOT NULL DEFAULT 60,
     icon_path          TEXT NOT NULL DEFAULT '',
@@ -75,6 +75,8 @@ CREATE TABLE hosts (
 CREATE TABLE tools (
     id                TEXT PRIMARY KEY,
     name              TEXT NOT NULL,
+    -- The name in /go/<slug>. Unique so one short URL means one tool.
+    slug              TEXT NOT NULL UNIQUE,
     description       TEXT NOT NULL DEFAULT '',
     tags              TEXT NOT NULL DEFAULT '[]',
     scheme            TEXT NOT NULL DEFAULT '',

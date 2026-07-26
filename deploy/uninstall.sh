@@ -5,6 +5,7 @@ set -euo pipefail
 BIN_PATH="/usr/local/bin/reeve-agent"
 UNINSTALL_PATH="/usr/local/bin/reeve-agent-uninstall"
 ENV_DIR="/etc/reeve-agent"
+STATE_DIR="/var/lib/reeve-agent"
 UNIT_FILE="/etc/systemd/system/reeve-agent.service"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -14,6 +15,6 @@ fi
 
 systemctl disable --now reeve-agent 2>/dev/null || true
 rm -f "$UNIT_FILE" "$BIN_PATH" "$UNINSTALL_PATH"
-rm -rf "$ENV_DIR"
+rm -rf "$ENV_DIR" "$STATE_DIR"
 systemctl daemon-reload 2>/dev/null || true
 echo "Reeve agent removed. Delete the host from the catalog UI if desired."

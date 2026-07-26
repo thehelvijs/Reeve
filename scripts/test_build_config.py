@@ -50,3 +50,50 @@ def test_workflow_jobs_install_web_deps_before_running_npm_scripts(path):
                 installed = True
             if "npm" in line and " run " in line:
                 assert installed, f"{job} runs {line!r} with no web deps installed"
+
+
+# The release signing key is what every deployed agent trusts. A third-party
+# action running in the same job can read anything in the job's environment,
+# so the key stays scoped to the steps that sign and actions are pinned to a
+# commit rather than a tag that can be repointed.
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_signing_key_is_never_workflow_or_job_scoped(path):
+    doc = yaml.safe_load(path.read_text())
+    assert "REEVE_SIGNING_KEY" not in (doc.get("env") or {}), f"{path.name}: key is workflow-scoped"
+    for name, job in doc["jobs"].items():
+        assert "REEVE_SIGNING_KEY" not in (job.get("env") or {}), f"{path.name}:{name}: key is job-scoped"
+
+
+SHA_LEN = 40
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_actions_are_pinned_to_a_commit(path):
+    doc = yaml.safe_load(path.read_text())
+    for name, job in doc["jobs"].items():
+        for step in job.get("steps", []):
+            uses = step.get("uses")
+            if not uses:
+                continue
+            ref = uses.split("@", 1)[1]
+            assert len(ref) == SHA_LEN and all(c in "0123456789abcdef" for c in ref), \
+                f"{path.name}:{name} uses {uses}, which is not pinned to a commit sha"
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_workflows_grant_no_blanket_permissions(path):
+    doc = yaml.safe_load(path.read_text())
+    top = doc.get("permissions")
+    assert top is not None, f"{path.name}: no top-level permissions block"
+    assert top in ({}, None) or set(top) <= {"contents"}, \
+        f"{path.name}: top-level permissions {top} should be narrowed per job"
+
+
+COMPOSE = ROOT / "deploy" / "docker-compose.yml"
+
+
+# A fresh `up -d` must not put a credential store on every interface; reaching
+# it from the LAN is a deliberate REEVE_BIND, not the default.
+def test_compose_publishes_on_loopback_by_default():
+    ports = yaml.safe_load(COMPOSE.read_text())["services"]["server"]["ports"]
+    assert ports == ["${REEVE_BIND:-127.0.0.1}:${REEVE_PORT:-8080}:8080"]

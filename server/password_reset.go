@@ -12,10 +12,12 @@ import (
 )
 
 // setPassword hashes password for the user and signs every existing session of
-// theirs out, so a stolen or shared session cannot outlive the change.
+// theirs out, so a stolen or shared session cannot outlive the change. Every
+// path that sets a password routes through here, so the length floor lives here
+// rather than in each caller.
 func setPassword(db *store.DB, userID, password string) error {
-	if password == "" {
-		return errors.New("password must not be empty")
+	if len(password) < minPasswordLen {
+		return fmt.Errorf("password must be at least %d characters", minPasswordLen)
 	}
 	hash, err := auth.HashPassword(password)
 	if err != nil {
@@ -68,8 +70,8 @@ func (a *app) handleAdminResetPassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "self_reset", "change your own password from your profile")
 		return
 	}
-	if in.Password == "" {
-		writeError(w, http.StatusBadRequest, "empty_password", "a password is required")
+	if len(in.Password) < minPasswordLen {
+		writeError(w, http.StatusBadRequest, "weak_password", "password must be at least 8 characters")
 		return
 	}
 	u, err := a.db.GetUserByID(id)

@@ -4,6 +4,11 @@ Run through this with Playwright (screenshots + real clicks) after ANY frontend
 change, including areas not touched. Passing typecheck/lint/build/e2e is NOT a
 substitute — look at the screenshots and actually click things.
 
+`playwright.config.ts` always runs the e2e backend on `REEVE_DEV_PORT=8099` (it
+sets the variable itself, unconditionally), so it never collides with `8080`,
+which `npm run dev` uses by default and which a locally deployed Reeve
+instance may already hold.
+
 ## Global chrome
 - [ ] Version badge shows next to `Reeve` brand (app + portal).
 - [ ] Search is centered; `Cmd/Ctrl+K` focuses it; hint shows the platform key.
@@ -37,3 +42,14 @@ substitute — look at the screenshots and actually click things.
 
 ## Forms
 - [ ] Add-for-monitoring page: endpoint toggle (host&port / URL), save → tool detail.
+
+## Agent updates
+- [ ] Hosts page: rollup line shows the server version and per-state counts.
+- [ ] Hosts row: outdated shows an amber pill, stalled a red one, up-to-date no pill.
+- [ ] Host detail: Agent card shows version, state pill, policy select, Update now.
+- [ ] Host detail: a vetoed host explains that the machine refuses updates.
+- [ ] Settings → Agent updates: toggle, concurrency, stall timeout save and persist.
+- [ ] Paused rollout: banner names the stalled hosts; Resume rollout clears it.
+- [ ] Paused rollout: each named host is a link to its detail page, and the
+      banner says setting Auto-update to Off takes it out of the rollout.
+- [ ] Setting a stalled host's policy to Off clears the pause on the Hosts page.

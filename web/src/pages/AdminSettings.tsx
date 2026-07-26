@@ -75,6 +75,7 @@ export default function AdminSettings() {
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
       <RetentionSection settings={settings} onSave={save} />
+      <AgentUpdateSection settings={settings} onSave={save} />
     </div>
   );
 }
@@ -122,6 +123,85 @@ function RetentionSection({
       <div className="mt-4 flex justify-end">
         <Button disabled={!dirty} onClick={() => onSave({ retention: draft })}>
           Save retention
+        </Button>
+      </div>
+    </Section>
+  );
+}
+
+// Sanitizes a possibly-NaN draft value for display; NaN means the operator cleared the field mid-edit.
+function numOrEmpty(n: number): number | string {
+  if (Number.isNaN(n)) {
+    return '';
+  }
+  return n;
+}
+
+function AgentUpdateSection({
+  settings,
+  onSave,
+}: {
+  settings: Settings;
+  onSave: (patch: SettingsInput) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(settings.agent_update);
+  useEffect(() => setDraft(settings.agent_update), [settings.agent_update]);
+
+  const dirty =
+    draft.enabled !== settings.agent_update.enabled ||
+    draft.concurrency !== settings.agent_update.concurrency ||
+    draft.stall_secs !== settings.agent_update.stall_secs;
+
+  const concurrencyValid = !Number.isNaN(draft.concurrency) && draft.concurrency >= 1 && draft.concurrency <= 100;
+  const stallValid = !Number.isNaN(draft.stall_secs) && draft.stall_secs >= 1 && draft.stall_secs <= 86400;
+
+  return (
+    <Section
+      title="Agent updates"
+      description="The fleet default for agent self-updates. A host can override it, and a host running the agent with REEVE_AUTO_UPDATE=false always refuses."
+    >
+      <label className="flex items-center gap-2 text-sm text-content">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-accent"
+          checked={draft.enabled}
+          onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+        />
+        Roll out agent updates automatically
+      </label>
+      <p className="mt-1 text-xs text-muted">
+        {draft.enabled
+          ? 'Outdated hosts are told to update, a few at a time.'
+          : 'No host updates unless it is pinned on for that host, or you press Update now.'}
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Hosts updating at once" hint="1–100. The first batch is effectively a canary.">
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            value={numOrEmpty(draft.concurrency)}
+            onChange={(e) => setDraft({ ...draft, concurrency: e.target.valueAsNumber })}
+          />
+        </Field>
+        <Field
+          label="Stall timeout (seconds)"
+          hint="A host that doesn't report the new version within this window stalls, and halts the whole rollout until an admin resumes it from the Hosts page."
+        >
+          <Input
+            type="number"
+            min={1}
+            max={86400}
+            value={numOrEmpty(draft.stall_secs)}
+            onChange={(e) => setDraft({ ...draft, stall_secs: e.target.valueAsNumber })}
+          />
+        </Field>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <Button disabled={!dirty || !concurrencyValid || !stallValid} onClick={() => onSave({ agent_update: draft })}>
+          Save agent updates
         </Button>
       </div>
     </Section>

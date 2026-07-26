@@ -1,6 +1,9 @@
 package main
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
@@ -46,5 +49,70 @@ func TestVersionFlagPrintsAndExits(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "dev") {
 		t.Errorf("expected version output to contain the default 'dev', got: %s", out)
+	}
+}
+
+// speedUpGather makes gather's exec calls fail fast instead of running for real.
+func speedUpGather(t *testing.T) {
+	t.Helper()
+	prev := commandTimeout
+	commandTimeout = 10 * time.Millisecond
+	t.Cleanup(func() { commandTimeout = prev })
+}
+
+func TestRunOnceDoesNotStampLastAckOnMalformedAck(t *testing.T) {
+	speedUpGather(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `not json`)
+	}))
+	defer srv.Close()
+	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
+	p.bufferDir = t.TempDir()
+
+	var lastAck time.Time
+	if runOnce(p, config{ServerURL: srv.URL, Token: "t", AutoUpdate: true}, "1.0.0", &lastAck) {
+		t.Error("runOnce requested an update from a malformed ack")
+	}
+	if !lastAck.IsZero() {
+		t.Error("a malformed ack was treated as contact")
+	}
+}
+
+func TestRunOnceStampsLastAckOnRealAck(t *testing.T) {
+	speedUpGather(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"check_now":true}`)
+	}))
+	defer srv.Close()
+	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
+	p.bufferDir = t.TempDir()
+
+	var lastAck time.Time
+	before := time.Now()
+	if !runOnce(p, config{ServerURL: srv.URL, Token: "t", AutoUpdate: true}, "1.0.0", &lastAck) {
+		t.Error("runOnce did not request the update the server asked for")
+	}
+	if lastAck.Before(before) {
+		t.Error("lastAck was not stamped with the current time")
+	}
+}
+
+func TestRunOnceVetoBlocksUpdateNotContact(t *testing.T) {
+	speedUpGather(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"check_now":true}`)
+	}))
+	defer srv.Close()
+	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
+	p.bufferDir = t.TempDir()
+
+	var lastAck time.Time
+	if runOnce(p, config{ServerURL: srv.URL, Token: "t", AutoUpdate: false}, "1.0.0", &lastAck) {
+		t.Error("runOnce requested an update on a host that vetoed auto-update")
+	}
+	if lastAck.IsZero() {
+		t.Error("the veto blocked contact tracking, not just the update")
 	}
 }

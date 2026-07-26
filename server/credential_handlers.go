@@ -2,9 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"net"
+	"log"
 	"net/http"
-	"strings"
 
 	"github.com/thehelvijs/Reeve/server/internal/auth"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
@@ -153,20 +152,29 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var secret map[string]string
-	json.Unmarshal(plain, &secret)
+	if err := json.Unmarshal(plain, &secret); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not decode credential")
+		return
+	}
 
-	a.db.RecordReveal(c.ID, t.ID, p.UserID, clientIP(r))
+	a.db.RecordReveal(c.ID, t.ID, p.UserID, a.clientIP(r))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id": c.ID, "type": c.Type, "label": c.Label, "secret": secret,
 	})
 }
 
-// canReveal reports whether the principal may reveal a tool's credentials.
+// canReveal reports whether the principal may reveal a tool's credentials. A
+// lookup that fails denies, and says so in the log: a silent false is
+// indistinguishable from a real denial when someone is trying to explain one.
 func (a *app) canReveal(t store.Tool, p auth.Principal) bool {
 	if p.IsAdmin() || t.CreatorID == p.UserID {
 		return true
 	}
-	ok, _ := a.db.HasCredentialAccess(p.UserID, t.ID)
+	ok, err := a.db.HasCredentialAccess(p.UserID, t.ID)
+	if err != nil {
+		log.Printf("credentials: access lookup for user %s on tool %s: %v", p.UserID, t.ID, err)
+		return false
+	}
 	return ok
 }
 
@@ -201,15 +209,4 @@ func (a *app) sealSecret(secret map[string]string) (ct, nonce []byte, err error)
 		return nil, nil, err
 	}
 	return a.cipher.Seal(plain)
-}
-
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }

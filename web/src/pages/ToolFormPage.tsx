@@ -10,6 +10,17 @@ import ThumbnailUploader from '../components/ThumbnailUploader';
 
 const SOURCE_TYPES = ['manual', 'systemd', 'docker', 'cron'];
 
+// slugPreview shows what the server will derive from a name, so the field can
+// stay empty (and keep tracking the name) until someone deliberately sets one.
+// The server does this same derivation; this is only the placeholder.
+function slugPreview(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'grafana';
+}
+
 type EndpointMode = 'hostport' | 'url';
 
 // ToolFormPage creates or edits a tool on its own route (/catalog/new and
@@ -32,6 +43,7 @@ export default function ToolFormPage() {
     address: '',
     port: '',
     url: '',
+    slug: '',
     source_type: params.get('source_type') ?? 'manual',
     visibility: 'public',
   });
@@ -69,6 +81,7 @@ export default function ToolFormPage() {
           address: t.address,
           port: t.port?.toString() ?? '',
           url: t.url ?? '',
+          slug: t.slug,
           source_type: t.source_type,
           visibility: t.visibility,
         });
@@ -149,6 +162,23 @@ export default function ToolFormPage() {
         <Section title="Service">
           <Field label="Name">
             <Input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="Grafana" required />
+          </Field>
+          <Field
+            label="Short link"
+            hint={
+              editing
+                ? 'Changing this breaks links people have already saved.'
+                : 'Optional. Derived from the name when left blank.'
+            }
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="shrink-0 font-mono text-xs text-muted">/go/</span>
+              <Input
+                value={f.slug}
+                onChange={(e) => set('slug', e.target.value)}
+                placeholder={slugPreview(f.name)}
+              />
+            </div>
           </Field>
           <Field label="Description" hint="Optional. What this service does.">
             <Input value={f.description} onChange={(e) => set('description', e.target.value)} />

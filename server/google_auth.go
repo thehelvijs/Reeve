@@ -191,6 +191,10 @@ func (a *app) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 			a.redirectLoginError(w, r, "account_disabled")
 			return
 		}
+		if !a.linkOAuthSubject(u, profile.Subject) {
+			a.redirectLoginError(w, r, "subject_mismatch")
+			return
+		}
 		a.startSession(w, u.ID)
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
@@ -210,6 +214,28 @@ func (a *app) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	a.startSession(w, u.ID)
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
+}
+
+// linkOAuthSubject ties an account to the provider's subject id on its first
+// federated sign-in and, from then on, requires every later sign-in to present
+// the same one. Matching on the email alone would hand the account to whoever
+// holds that address next, which the domain's owner decides, not this server.
+func (a *app) linkOAuthSubject(u store.User, subject string) bool {
+	if subject == "" {
+		return false
+	}
+	if u.OAuthSubject == subject {
+		return true
+	}
+	if u.OAuthSubject != "" {
+		log.Printf("google sign-in: %s presented subject %s but the account is bound to another", u.Email, subject)
+		return false
+	}
+	if err := a.db.SetUserOAuthSubject(u.ID, subject); err != nil {
+		log.Printf("google sign-in: bind subject for %s: %v", u.Email, err)
+		return false
+	}
+	return true
 }
 
 // provisionOAuthUser creates an account for a federated identity. Its password
@@ -236,6 +262,10 @@ func (a *app) provisionOAuthUser(p oauth.Profile) (store.User, error) {
 	if err != nil {
 		return store.User{}, err
 	}
+	if err := a.db.SetUserOAuthSubject(u.ID, p.Subject); err != nil {
+		return store.User{}, err
+	}
+	u.OAuthSubject = p.Subject
 	if p.Name != "" {
 		if err := a.db.SetUserDisplayName(u.ID, p.Name); err == nil {
 			u.DisplayName = p.Name

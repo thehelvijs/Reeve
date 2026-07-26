@@ -163,8 +163,11 @@ func (db *DB) HasCredentialAccess(userID, toolID string) (bool, error) {
 				SELECT group_id FROM group_members WHERE user_id = ?))
 		 ) LIMIT 1`,
 		toolID, userID, userID).Scan(&one)
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
+	}
+	if err != nil {
+		return false, err
 	}
 	return one == 1, nil
 }

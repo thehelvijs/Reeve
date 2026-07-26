@@ -2,35 +2,43 @@ name: release
 on:
   push:
     tags: ['v*']
-permissions:
-  contents: write
-  packages: write
+# Nothing is granted by default; each job asks for what it needs.
+permissions: {}
 env:
   IMAGE: ghcr.io/thehelvijs/reeve
-  # Without this secret the build still succeeds, but artifacts go out unsigned
-  # and deployed agents refuse to self-update to them.
-  REEVE_SIGNING_KEY: ${{ secrets.REEVE_SIGNING_KEY }}
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      # Actions are pinned by commit, not by tag. A tag can be repointed at new
+      # code, and the whole agent trust model rests on the signing key that is
+      # in scope for steps in this job.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.25'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
+      # The key is scoped to the steps that sign rather than the whole
+      # workflow. Without it the build still succeeds, but artifacts go out
+      # unsigned and deployed agents refuse to self-update to them.
       - name: Build all-arch agent (versioned)
         run: python3 scripts/release.py --release --version "$(cat VERSION)"
+        env:
+          REEVE_SIGNING_KEY: ${{ secrets.REEVE_SIGNING_KEY }}
       - name: Build the UI and stage embedded assets
         run: |
           make web-build
           make server-assets
+        env:
+          REEVE_SIGNING_KEY: ${{ secrets.REEVE_SIGNING_KEY }}
       - name: Build server binaries
         run: python3 scripts/release.py --server --version "$(cat VERSION)"
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             dist/agent-linux-*
@@ -41,11 +49,13 @@ jobs:
 
   publish-image:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -54,7 +64,7 @@ jobs:
         id: v
         run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
       - name: Build and push server image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: deploy/Dockerfile.server

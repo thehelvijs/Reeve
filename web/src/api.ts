@@ -98,11 +98,30 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
+export interface StalledHost {
+  id: string;
+  name: string;
+}
+
+export interface AgentUpdateRollup {
+  server_version: string;
+  counts: Record<UpdateState, number>;
+  paused: boolean;
+  stalled: StalledHost[];
+}
+
+export interface AgentUpdateSettings {
+  enabled: boolean;
+  concurrency: number;
+  stall_secs: number;
+}
+
 export interface Settings {
   signup_enabled: boolean;
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
+  agent_update: AgentUpdateSettings;
 }
 
 // The write shape differs from the read shape: secrets are write-only.
@@ -111,6 +130,7 @@ export interface SettingsInput {
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;
+  agent_update?: AgentUpdateSettings;
 }
 
 // Avatar upload rides a multipart form, so it bypasses the JSON request helper.
@@ -178,6 +198,8 @@ export type ToolStatus = 'up' | 'down' | 'agent_offline' | 'unknown';
 export interface Tool {
   id: string;
   name: string;
+  // The name in /go/<slug>, the link that survives a host address change.
+  slug: string;
   description: string;
   collections: CollectionRef[];
   tags: string[];
@@ -307,11 +329,23 @@ export interface HostMetrics {
   at: string;
 }
 
+export type AutoUpdatePolicy = 'default' | 'on' | 'off';
+
+export type UpdateState =
+  | 'up_to_date'
+  | 'outdated'
+  | 'updating'
+  | 'stalled'
+  | 'disabled'
+  | 'unknown';
+
 export interface Host {
   id: string;
   name: string;
   os: string;
   physical_location?: string;
+  // Where the agent last reported this host to be. Empty until it first pushes.
+  ip_address: string;
   agent_version: string;
   status: 'online' | 'offline' | 'never';
   last_seen_at?: string;
@@ -320,6 +354,8 @@ export interface Host {
   thumbnail_url: string;
   latitude?: number;
   longitude?: number;
+  auto_update: AutoUpdatePolicy;
+  update_state: UpdateState;
 }
 
 export interface InventoryItem {
@@ -350,12 +386,24 @@ export const CREDENTIAL_FIELDS: Record<CredentialType, string[]> = {
   kv: [],
 };
 
-// endpointString renders a tool's address as a copyable URL/host:port.
+// endpointString renders a tool's address as a copyable URL/host:port. A tool
+// with no address of its own follows its host, and only the server knows where
+// that host currently is, so this renders a placeholder rather than a wrong
+// answer; goURL is what to link to.
 export function endpointString(t: Tool): string {
   if (t.url) {
     return t.url;
   }
+  if (!t.address) {
+    return t.host_id ? 'follows this host' : '';
+  }
   const scheme = t.scheme ? `${t.scheme}://` : '';
   const port = t.port ? `:${t.port}` : '';
   return `${scheme}${t.address}${port}`;
+}
+
+// goURL is the durable link to a tool: the server resolves it at click time,
+// so it keeps working after the host's address changes.
+export function goURL(t: Pick<Tool, 'slug'>): string {
+  return `/go/${t.slug}`;
 }

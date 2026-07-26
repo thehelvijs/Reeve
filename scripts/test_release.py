@@ -63,3 +63,17 @@ def test_release_smoke_single_arch(tmp_path, monkeypatch):
     assert (dist / "SHA256SUMS").exists()
     assert (dist / "install.sh").exists()
     assert (dist / "uninstall.sh").exists()
+
+
+def test_agent_ldflags_stamp_the_published_arch():
+    """An armv6 build must know it is armv6: GOARM is not readable at runtime,
+    so without the stamp it self-updates onto the armv7 binary and bricks."""
+    flags = release.ldflags("1.2.3", "armv6")
+    assert "-X main.version=1.2.3" in flags
+    assert "-X main.buildArch=armv6" in flags
+
+
+def test_server_ldflags_carry_no_arch_stamp():
+    flags = release.ldflags("1.2.3")
+    assert "-X main.version=1.2.3" in flags
+    assert "buildArch" not in flags

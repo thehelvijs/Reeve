@@ -21,7 +21,7 @@ func TestHostMetricsEndpointContainers(t *testing.T) {
 	push.ContainerStats = []contracts.ContainerSample{{ContainerID: "c1", CPUPct: 2, MemUsed: 1000, MemLimit: 5000}}
 	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", push,
 		map[string]string{"Authorization": "Bearer " + dockerToken})
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
 	}
 
@@ -60,7 +60,7 @@ func TestHostMetricsEndpointContainers(t *testing.T) {
 	plain.ContainerStats = nil
 	resp, data = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", plain,
 		map[string]string{"Authorization": "Bearer " + plainToken})
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("plain ingest = %d: %s", resp.StatusCode, data)
 	}
 

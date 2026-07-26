@@ -24,6 +24,13 @@ type config struct {
 	CookieSecure bool
 	Version      string
 	LogRequests  bool
+	// TrustProxyHeaders lets X-Forwarded-For set the client IP. Off unless a
+	// reverse proxy the operator controls is the only way in: otherwise any
+	// caller could forge the throttle key and the audited reveal source.
+	TrustProxyHeaders bool
+	// AllowedOrigins are extra origins the same-origin check accepts, for a
+	// dev UI served from a different port than the API.
+	AllowedOrigins []string
 }
 
 // app wires the store, cipher, and config for the HTTP handlers.
@@ -77,6 +84,10 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/public/hosts", a.handleListPublicHosts)
 	mux.HandleFunc("GET /api/v1/public/collections", a.handleListPublicCollections)
 	mux.HandleFunc("GET /api/v1/collections/{id}/icon", a.handleServeCollectionIcon)
+	// Short, durable URLs for a tool wherever it currently is. Public tools
+	// answer anonymously; the handlers gate the rest.
+	mux.HandleFunc("GET /go/{slug}", a.handleGoToTool)
+	mux.HandleFunc("GET /api/v1/endpoints/{slug}", a.handleGetEndpoint)
 	mux.HandleFunc("GET /install.sh", a.handleInstallScript)
 	mux.HandleFunc("GET /uninstall.sh", a.handleUninstallScript)
 	mux.HandleFunc("GET /dl/{filename}", a.handleAgentDownload)
@@ -200,6 +211,10 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/v1/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handleGetHostThresholds)))
 	mux.Handle("PUT /api/v1/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handlePutHostThresholds)))
 	mux.Handle("DELETE /api/v1/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handleResetHostThresholds)))
+	mux.Handle("PUT /api/v1/admin/hosts/{id}/auto-update", admin(http.HandlerFunc(a.handleSetHostAutoUpdate)))
+	mux.Handle("POST /api/v1/admin/hosts/{id}/update-now", admin(http.HandlerFunc(a.handleHostUpdateNow)))
+	mux.Handle("GET /api/v1/admin/agent-updates", admin(http.HandlerFunc(a.handleGetAgentUpdates)))
+	mux.Handle("POST /api/v1/admin/agent-updates/resume", admin(http.HandlerFunc(a.handleResumeAgentUpdates)))
 
-	return a.resolvePrincipal(a.logRequests(gzipResponses(mux)))
+	return securityHeaders(a.resolvePrincipal(a.requireSameOrigin(a.logRequests(gzipResponses(mux)))))
 }

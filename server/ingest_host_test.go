@@ -46,8 +46,15 @@ func TestIngestStoresTelemetry(t *testing.T) {
 
 	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ingest status = %d, want 200", resp.StatusCode)
+	}
+	var ack contracts.PushAck
+	if err := json.Unmarshal(data, &ack); err != nil {
+		t.Fatalf("decode ack: %v", err)
+	}
+	if !ack.CheckNow {
+		t.Fatal("an outdated host's first push must be granted a rollout slot")
 	}
 
 	// Host shows online.
@@ -77,6 +84,19 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	ts.app.db.SQL().QueryRow(`SELECT COUNT(*) FROM log_events WHERE host_id = ?`, hostID).Scan(&n)
 	if n != 1 {
 		t.Errorf("log events = %d, want 1", n)
+	}
+
+	// A second push while the slot is still live must keep being honored.
+	resp, data = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("second ingest status = %d, want 200", resp.StatusCode)
+	}
+	if err := json.Unmarshal(data, &ack); err != nil {
+		t.Fatalf("decode second ack: %v", err)
+	}
+	if !ack.CheckNow {
+		t.Fatal("a host already holding a live slot must keep being told to update")
 	}
 }
 
@@ -125,6 +145,21 @@ func TestIngestBadProtocolRejected(t *testing.T) {
 		map[string]string{"Authorization": "Bearer " + token})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("bad protocol ingest = %d, want 400", resp.StatusCode)
+	}
+}
+
+// An enrolled agent is a credential on a machine the server does not control,
+// so one push must not be able to write an unbounded number of rows.
+func TestIngestRejectsAnOversizedPush(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	_, token := enrollHost(t, ts, admin, "host-a")
+	p := samplePush()
+	p.LogEvents = make([]contracts.LogEvent, contracts.MaxPushLogEvents+1)
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("oversized ingest = %d, want 413: %s", resp.StatusCode, data)
 	}
 }
 

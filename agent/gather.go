@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,9 +31,11 @@ const maxLogReaders = 4
 // spends 200ms inside its own measurement window.
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
-		ProtocolVersion: contracts.PushProtocolVersion,
-		AgentVersion:    version,
-		SentAt:          time.Now().UTC(),
+		ProtocolVersion:  contracts.PushProtocolVersion,
+		AgentVersion:     version,
+		AutoUpdateVetoed: !cfg.AutoUpdate,
+		IPAddress:        localIPFor(cfg.ServerURL),
+		SentAt:           time.Now().UTC(),
 	}
 
 	var services []contracts.ServiceState
@@ -82,6 +86,43 @@ func gather(version string, cfg config) contracts.Push {
 	push.Metrics = metrics
 	push.LogEvents = append(journalErrors, dockerErrors...)
 	return push
+}
+
+// localIPFor reports this host's address on the route to serverURL.
+//
+// A UDP "connection" sends nothing: the kernel just resolves the route and
+// picks the source address it would use to reach that host. That is the one
+// address guaranteed to be reachable from the server's network, which is also
+// where the browser following a /go/ redirect lives, so docker0, tailscale0
+// and VPN interfaces sort themselves out with no per-host configuration.
+//
+// Best-effort like every other collector: an empty string when it cannot tell.
+func localIPFor(serverURL string) string {
+	u, err := url.Parse(serverURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	host := u.Hostname()
+	port := u.Port()
+	if port == "" {
+		port = "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+	}
+	conn, err := net.DialTimeout("udp", net.JoinHostPort(host, port), commandTimeout)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+	addr, _, err := net.SplitHostPort(conn.LocalAddr().String())
+	if err != nil {
+		return ""
+	}
+	if ip := net.ParseIP(addr); ip == nil || ip.IsUnspecified() || ip.IsLoopback() {
+		return ""
+	}
+	return addr
 }
 
 func gatherCron() []contracts.CronState {

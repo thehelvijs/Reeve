@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,16 +11,25 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thehelvijs/Reeve/signing"
 )
 
-// selfArch maps runtime.GOARCH to the arch suffix the server publishes
-// binaries under. GOARM is not available at runtime, so arm defaults to
-// armv7; armv6 hosts will not auto-update correctly.
+// buildArch is the arch suffix this binary was published under, stamped at
+// build time via -ldflags. GOARM is not readable at runtime, so an armv6 build
+// cannot tell itself apart from an armv7 one; without this stamp it would
+// fetch the armv7 binary and replace itself with something it cannot execute.
+var buildArch = ""
+
+// selfArch is the arch suffix to fetch updates under: the build-time stamp
+// when the release builder set one, otherwise derived from GOARCH.
 func selfArch(goarch string) string {
+	if buildArch != "" {
+		return buildArch
+	}
 	switch goarch {
 	case "amd64", "arm64", "386", "riscv64":
 		return goarch
@@ -28,6 +38,65 @@ func selfArch(goarch string) string {
 	default:
 		return goarch
 	}
+}
+
+// errArmVariantUnknown stops an unstamped 32-bit arm build from guessing. A
+// wrong guess replaces the running binary with one the CPU cannot run, and the
+// service then restart-loops with no agent left to fix it.
+var errArmVariantUnknown = errors.New(
+	"this build carries no arch stamp and cannot tell armv6 from armv7; reinstall from the server to get a stamped build")
+
+// signedVersion pulls the version out of a verified trusted comment, which the
+// release builder writes as "version:<v>".
+func signedVersion(trustedComment string) string {
+	v, ok := strings.CutPrefix(strings.TrimSpace(trustedComment), "version:")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
+
+// olderThan reports whether candidate is a strictly lower version than current.
+// Both are dot-separated numbers with an optional "+build" suffix; anything
+// that does not parse that way compares as not-older, since refusing an update
+// on a version string nobody can read would strand the fleet.
+func olderThan(candidate, current string) bool {
+	c, okC := versionParts(candidate)
+	r, okR := versionParts(current)
+	if !okC || !okR {
+		return false
+	}
+	for i := 0; i < len(c) || i < len(r); i++ {
+		cv, rv := 0, 0
+		if i < len(c) {
+			cv = c[i]
+		}
+		if i < len(r) {
+			rv = r[i]
+		}
+		if cv != rv {
+			return cv < rv
+		}
+	}
+	return false
+}
+
+// versionParts splits "1.2.3+abc" into [1 2 3], reporting false for anything
+// that is not a dot-separated run of numbers.
+func versionParts(v string) ([]int, bool) {
+	base, _, _ := strings.Cut(v, "+")
+	if base == "" {
+		return nil, false
+	}
+	var out []int
+	for _, field := range strings.Split(base, ".") {
+		n, err := strconv.Atoi(field)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, n)
+	}
+	return out, true
 }
 
 // needsUpdate reports whether remoteLine's checksum differs from localSum.
@@ -125,6 +194,9 @@ func (c config) checkAndUpdate() error {
 		return fmt.Errorf("self-update: hash running binary: %w", err)
 	}
 
+	if buildArch == "" && runtime.GOARCH == "arm" {
+		return fmt.Errorf("self-update: %w", errArmVariantUnknown)
+	}
 	arch := selfArch(runtime.GOARCH)
 	base := strings.TrimSuffix(c.ServerURL, "/")
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -149,8 +221,15 @@ func (c config) checkAndUpdate() error {
 		return fmt.Errorf("self-update: fetch binary: %w", err)
 	}
 	// Verified before the bytes are ever written to disk, let alone executed.
-	if err := signing.VerifyBytes(pub, binBody, string(sigBody)); err != nil {
+	comment, err := signing.VerifyBytes(pub, binBody, string(sigBody))
+	if err != nil {
 		return fmt.Errorf("self-update: refusing unverified binary: %w", err)
+	}
+	// A signature proves who built the binary, not that it is the newest one
+	// they built. Without this, replaying an old release's bytes and signature
+	// walks a host back onto a version whose bugs are public.
+	if offered := signedVersion(comment); olderThan(offered, version) {
+		return fmt.Errorf("self-update: refusing to move from %s back to %s", version, offered)
 	}
 
 	dir := filepath.Dir(exe)

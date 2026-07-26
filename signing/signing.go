@@ -160,73 +160,87 @@ func SignFile(sk SecretKey, path, trustedComment string) (string, error) {
 	return b.String(), nil
 }
 
-// VerifyFile checks a .minisig against a file and the expected public key.
-func VerifyFile(pub PublicKey, path, signature string) error {
+// VerifyFile checks a .minisig against a file and the expected public key,
+// returning the signed trusted comment.
+func VerifyFile(pub PublicKey, path, signature string) (string, error) {
 	digest, err := hashFile(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return VerifyDigest(pub, digest, signature)
 }
 
-// VerifyBytes checks a .minisig against in-memory content.
-func VerifyBytes(pub PublicKey, content []byte, signature string) error {
+// VerifyBytes checks a .minisig against in-memory content, returning the
+// signed trusted comment.
+func VerifyBytes(pub PublicKey, content []byte, signature string) (string, error) {
 	h, err := blake2b.New512(nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	h.Write(content)
 	return VerifyDigest(pub, h.Sum(nil), signature)
 }
 
-// VerifyDigest checks a .minisig against an already-computed Blake2b-512 digest.
-func VerifyDigest(pub PublicKey, digest []byte, signature string) error {
+// VerifyDigest checks a .minisig against an already-computed Blake2b-512
+// digest. The trusted comment it returns is covered by the global signature,
+// so a caller may act on what it says.
+func VerifyDigest(pub PublicKey, digest []byte, signature string) (string, error) {
 	sigBlob, trustedComment, global, err := parseSignature(signature)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if string(sigBlob[:2]) != algHashedSig {
-		return fmt.Errorf("unsupported signature algorithm %q", sigBlob[:2])
+		return "", fmt.Errorf("unsupported signature algorithm %q", sigBlob[:2])
 	}
 	var keyID [keyIDLen]byte
 	copy(keyID[:], sigBlob[2:2+keyIDLen])
 	if keyID != pub.KeyID {
-		return errors.New("signature was made by a different key")
+		return "", errors.New("signature was made by a different key")
 	}
 	sig := sigBlob[2+keyIDLen:]
 	if !ed25519.Verify(pub.Key, digest, sig) {
-		return errors.New("signature does not match the file")
+		return "", errors.New("signature does not match the file")
 	}
 	if !ed25519.Verify(pub.Key, append(append([]byte{}, sig...), []byte(trustedComment)...), global) {
-		return errors.New("trusted comment signature does not match")
+		return "", errors.New("trusted comment signature does not match")
 	}
-	return nil
+	return trustedComment, nil
 }
 
 // parseSignature splits a .minisig into its signature blob, trusted comment,
-// and global signature.
+// and global signature. Lines are located by what they are rather than by
+// position, so a file without the leading untrusted comment fails on its own
+// merits instead of misreading the line after it.
 func parseSignature(s string) (sigBlob []byte, trustedComment string, global []byte, err error) {
-	lines := make([]string, 0, 4)
+	var payload []string
 	for _, l := range strings.Split(s, "\n") {
-		if strings.TrimSpace(l) != "" {
-			lines = append(lines, strings.TrimRight(l, "\r"))
+		l = strings.TrimRight(l, "\r")
+		if strings.TrimSpace(l) == "" || strings.HasPrefix(l, untrustedPrefix) {
+			continue
 		}
+		if strings.HasPrefix(l, trustedPrefix) {
+			if trustedComment != "" {
+				return nil, "", nil, errors.New("signature file has more than one trusted comment")
+			}
+			trustedComment = strings.TrimPrefix(l, trustedPrefix)
+			continue
+		}
+		payload = append(payload, strings.TrimSpace(l))
 	}
-	if len(lines) < 4 {
+	if trustedComment == "" {
+		return nil, "", nil, errors.New("missing trusted comment")
+	}
+	if len(payload) != 2 {
 		return nil, "", nil, errors.New("signature file is truncated")
 	}
-	sigBlob, err = base64.StdEncoding.DecodeString(strings.TrimSpace(lines[1]))
+	sigBlob, err = base64.StdEncoding.DecodeString(payload[0])
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("signature line is not base64: %w", err)
 	}
 	if len(sigBlob) != 2+keyIDLen+ed25519.SignatureSize {
 		return nil, "", nil, errors.New("signature line has the wrong length")
 	}
-	if !strings.HasPrefix(lines[2], trustedPrefix) {
-		return nil, "", nil, errors.New("missing trusted comment")
-	}
-	trustedComment = strings.TrimPrefix(lines[2], trustedPrefix)
-	global, err = base64.StdEncoding.DecodeString(strings.TrimSpace(lines[3]))
+	global, err = base64.StdEncoding.DecodeString(payload[1])
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("global signature is not base64: %w", err)
 	}

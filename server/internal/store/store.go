@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -134,6 +135,19 @@ func (db *DB) GetBoolSetting(key string, def bool) bool {
 		return def
 	}
 	return v == "true"
+}
+
+// GetIntSetting returns an integer setting, defaulting when unset or unparseable.
+func (db *DB) GetIntSetting(key string, def int) int {
+	v, ok := db.GetSetting(key)
+	if !ok {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
 }
 
 // sqliteMagic is the 16-byte header every SQLite file starts with.

@@ -66,8 +66,8 @@ func TestUsersCLICreateAndList(t *testing.T) {
 	if out := e.mustRun("list"); !strings.Contains(out, "no accounts yet") {
 		t.Errorf("list on an empty database = %q", out)
 	}
-	e.mustRun("create", "Boss@Example.com", "-password", "pw", "-role", "admin", "-name", "The Boss")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "Boss@Example.com", "-password", "password123", "-role", "admin", "-name", "The Boss")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 
 	boss := e.user("boss@example.com")
 	if boss.Role != store.RoleAdmin {
@@ -76,7 +76,7 @@ func TestUsersCLICreateAndList(t *testing.T) {
 	if boss.DisplayName != "The Boss" {
 		t.Errorf("display name = %q", boss.DisplayName)
 	}
-	if !auth.VerifyPassword("pw", boss.PasswordHash) {
+	if !auth.VerifyPassword("password123", boss.PasswordHash) {
 		t.Error("password does not verify")
 	}
 	if dev := e.user("dev@example.com"); dev.Role != store.RoleBasic {
@@ -93,14 +93,14 @@ func TestUsersCLICreateAndList(t *testing.T) {
 
 func TestUsersCLICreateRejects(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
 
 	cases := map[string][]string{
 		"no email":       {"create"},
-		"not an email":   {"create", "nonsense", "-password", "pw"},
+		"not an email":   {"create", "nonsense", "-password", "password123"},
 		"no password":    {"create", "new@example.com"},
-		"bad role":       {"create", "new@example.com", "-password", "pw", "-role", "owner"},
-		"duplicate":      {"create", "boss@example.com", "-password", "pw"},
+		"bad role":       {"create", "new@example.com", "-password", "password123", "-role", "owner"},
+		"duplicate":      {"create", "boss@example.com", "-password", "password123"},
 		"unknown action": {"frobnicate"},
 	}
 	for name, args := range cases {
@@ -115,20 +115,20 @@ func TestUsersCLICreateRejects(t *testing.T) {
 
 func TestUsersCLISetPasswordSignsSessionsOut(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "old-pw", "-role", "admin")
+	e.mustRun("create", "boss@example.com", "-password", "old-password", "-role", "admin")
 	u := e.user("boss@example.com")
 	sess, err := e.db().CreateSession(u.ID, time.Hour)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
 
-	e.mustRun("set-password", "BOSS@example.com", "-password", "new-pw")
+	e.mustRun("set-password", "BOSS@example.com", "-password", "new-password")
 
 	after := e.user("boss@example.com")
-	if !auth.VerifyPassword("new-pw", after.PasswordHash) {
+	if !auth.VerifyPassword("new-password", after.PasswordHash) {
 		t.Error("new password does not verify")
 	}
-	if auth.VerifyPassword("old-pw", after.PasswordHash) {
+	if auth.VerifyPassword("old-password", after.PasswordHash) {
 		t.Error("old password still verifies")
 	}
 	if _, err := e.db().GetSession(sess.ID); err == nil {
@@ -137,15 +137,15 @@ func TestUsersCLISetPasswordSignsSessionsOut(t *testing.T) {
 	if _, err := e.run("set-password", "boss@example.com"); err == nil {
 		t.Error("missing -password: expected an error")
 	}
-	if _, err := e.run("set-password", "nobody@example.com", "-password", "pw"); err == nil {
+	if _, err := e.run("set-password", "nobody@example.com", "-password", "password123"); err == nil {
 		t.Error("unknown email: expected an error")
 	}
 }
 
 func TestUsersCLISetRole(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 
 	e.mustRun("set-role", "dev@example.com", "admin")
 	if e.user("dev@example.com").Role != store.RoleAdmin {
@@ -172,8 +172,8 @@ func TestUsersCLISetRole(t *testing.T) {
 // The whole point of this CLI is fixing lockouts, so it must not create one.
 func TestUsersCLIRefusesToRemoveTheLastActiveAdmin(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 
 	if _, err := e.run("set-role", "boss@example.com", "basic"); err == nil {
 		t.Error("demoting the only admin was allowed")
@@ -202,8 +202,8 @@ func TestUsersCLIRefusesToRemoveTheLastActiveAdmin(t *testing.T) {
 
 func TestUsersCLIEnableDisable(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 
 	e.mustRun("disable", "dev@example.com")
 	if e.user("dev@example.com").Active {
@@ -223,7 +223,7 @@ func TestUsersCLIEnableDisable(t *testing.T) {
 
 func TestUsersCLISetName(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 
 	e.mustRun("set-name", "dev@example.com", "Dev", "Example")
 	if got := e.user("dev@example.com").DisplayName; got != "Dev Example" {
@@ -243,8 +243,8 @@ func TestUsersCLISetName(t *testing.T) {
 
 func TestUsersCLIDeleteReassignsOwnership(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
 	db := e.db()
 	dev := e.user("dev@example.com")
 	boss := e.user("boss@example.com")
@@ -279,9 +279,9 @@ func TestUsersCLIDeleteReassignsOwnership(t *testing.T) {
 
 func TestUsersCLIDeleteWithExplicitHeir(t *testing.T) {
 	e := newCLIEnv(t)
-	e.mustRun("create", "boss@example.com", "-password", "pw", "-role", "admin")
-	e.mustRun("create", "dev@example.com", "-password", "pw")
-	e.mustRun("create", "ops@example.com", "-password", "pw")
+	e.mustRun("create", "boss@example.com", "-password", "password123", "-role", "admin")
+	e.mustRun("create", "dev@example.com", "-password", "password123")
+	e.mustRun("create", "ops@example.com", "-password", "password123")
 	db := e.db()
 	dev := e.user("dev@example.com")
 	ops := e.user("ops@example.com")

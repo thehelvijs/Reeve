@@ -164,6 +164,54 @@ func TestGoogleSignInReusesExistingAccount(t *testing.T) {
 	}
 }
 
+// The first federated sign-in pins the provider's subject to the account.
+func TestGoogleSignInPinsTheSubject(t *testing.T) {
+	ts := newTestServer(t)
+	enableGoogle(t, ts, stubGoogle(t, verifiedProfile), "")
+	signup(t, ts, ts.client(t), "dev@example.com", "password123")
+
+	c := noFollow(t)
+	_, state := startSignIn(t, ts, c)
+	callback(t, ts, c, "code-1", state)
+
+	u, err := ts.app.db.GetUserByEmail("dev@example.com")
+	if err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	if u.OAuthSubject != "1" {
+		t.Errorf("oauth subject = %q, want %q", u.OAuthSubject, "1")
+	}
+}
+
+// An email address can be reassigned by whoever runs the domain, so a second
+// Google identity presenting the same address must not inherit the account.
+func TestGoogleSignInRefusesADifferentSubjectForTheSameEmail(t *testing.T) {
+	ts := newTestServer(t)
+	enableGoogle(t, ts, stubGoogle(t, verifiedProfile), "")
+	signup(t, ts, ts.client(t), "dev@example.com", "password123")
+
+	first := noFollow(t)
+	_, state := startSignIn(t, ts, first)
+	if resp := callback(t, ts, first, "code-1", state); resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("first sign-in location = %q, want /dashboard", resp.Header.Get("Location"))
+	}
+
+	// Same address, different Google account.
+	ts.app.googleEndpoints.UserInfo = stubGoogle(t,
+		`{"sub":"impostor","email":"dev@example.com","email_verified":true}`).URL + "/userinfo"
+	second := noFollow(t)
+	_, state2 := startSignIn(t, ts, second)
+	resp := callback(t, ts, second, "code-2", state2)
+	if got := resp.Header.Get("Location"); got != "/login?oauth_error=subject_mismatch" {
+		t.Errorf("location = %q, want the subject_mismatch refusal", got)
+	}
+	for _, ck := range resp.Cookies() {
+		if ck.Name == sessionCookie && ck.Value != "" {
+			t.Error("a session was issued to the impostor subject")
+		}
+	}
+}
+
 // State is the CSRF defense on the callback, so a mismatch must not sign in.
 func TestGoogleCallbackRejectsStateMismatch(t *testing.T) {
 	ts := newTestServer(t)

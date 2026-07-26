@@ -67,6 +67,9 @@ func (ts *testServer) do(t *testing.T, c *http.Client, method, path string, body
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	// Same-origin by default, as a browser on this server would be; a test
+	// exercising the origin check overrides it through hdrs.
+	req.Header.Set("Origin", ts.srv.URL)
 	for k, v := range hdrs {
 		req.Header.Set(k, v)
 	}
@@ -172,15 +175,97 @@ func TestLogRequestsToggleOff(t *testing.T) {
 	}
 }
 
-func TestClientIPForwardedFor(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
-	r.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
-	if got := clientIP(r); got != "203.0.113.9" {
+func TestClientIPForwardedForOnlyWhenProxyTrusted(t *testing.T) {
+	spoofed := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+	spoofed.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
+	spoofed.RemoteAddr = "192.168.1.5:54321"
+
+	untrusting := &app{cfg: config{}}
+	if got := untrusting.clientIP(spoofed); got != "192.168.1.5" {
+		t.Errorf("clientIP = %q, want the peer address 192.168.1.5 when no proxy is trusted", got)
+	}
+
+	trusting := &app{cfg: config{TrustProxyHeaders: true}}
+	if got := trusting.clientIP(spoofed); got != "203.0.113.9" {
 		t.Errorf("clientIP = %q, want 203.0.113.9", got)
 	}
-	r2 := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
-	r2.RemoteAddr = "192.168.1.5:54321"
-	if got := clientIP(r2); got != "192.168.1.5" {
+
+	bare := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+	bare.RemoteAddr = "192.168.1.5:54321"
+	if got := trusting.clientIP(bare); got != "192.168.1.5" {
 		t.Errorf("clientIP = %q, want 192.168.1.5", got)
+	}
+}
+
+func TestRequireSameOriginRejectsCrossSiteCookieWrite(t *testing.T) {
+	a := &app{cfg: config{PublicURL: "http://reeve.lan:8080"}}
+	reached := false
+	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
+
+	withCookie := func(method, origin string) *http.Request {
+		r := httptest.NewRequest(method, "http://reeve.lan:8080/api/v1/credentials/c1/reveal", nil)
+		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: "s1"})
+		if origin != "" {
+			r.Header.Set("Origin", origin)
+		}
+		return r
+	}
+
+	cases := []struct {
+		name       string
+		req        *http.Request
+		wantPassed bool
+	}{
+		{"cross-origin post", withCookie(http.MethodPost, "http://evil.lan"), false},
+		{"same-host different port", withCookie(http.MethodPost, "http://reeve.lan:9999"), false},
+		{"no origin header", withCookie(http.MethodPost, ""), false},
+		{"matching public url", withCookie(http.MethodPost, "http://reeve.lan:8080"), true},
+		{"safe method", withCookie(http.MethodGet, "http://evil.lan"), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reached = false
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, tc.req)
+			if reached != tc.wantPassed {
+				t.Errorf("handler reached = %v, want %v (status %d)", reached, tc.wantPassed, w.Code)
+			}
+		})
+	}
+}
+
+// The agent authenticates with a bearer token and sends no Origin, so ingest
+// must stay reachable; only a session cookie brings the browser's ambient
+// credential into play.
+func TestRequireSameOriginLeavesTokenCallersAlone(t *testing.T) {
+	a := &app{cfg: config{}}
+	reached := false
+	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/ingest", nil)
+	r.Header.Set("Authorization", "Bearer rva_deadbeef")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if !reached {
+		t.Error("token-authenticated ingest was rejected by the origin check")
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	h := securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	for header, want := range map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options":        "DENY",
+		"Referrer-Policy":        "no-referrer",
+	} {
+		if got := w.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+	csp := w.Header().Get("Content-Security-Policy")
+	for _, want := range []string{"script-src 'self'", "frame-ancestors 'none'", "object-src 'none'"} {
+		if !strings.Contains(csp, want) {
+			t.Errorf("CSP %q is missing %q", csp, want)
+		}
 	}
 }

@@ -15,7 +15,10 @@ type hostView struct {
 	Name             string           `json:"name"`
 	OS               string           `json:"os"`
 	PhysicalLocation string           `json:"physical_location"`
+	IPAddress        string           `json:"ip_address"`
 	AgentVersion     string           `json:"agent_version"`
+	AutoUpdate       string           `json:"auto_update"`
+	UpdateState      string           `json:"update_state"`
 	Status           string           `json:"status"` // online | offline | never
 	LastSeenAt       string           `json:"last_seen_at,omitempty"`
 	Metrics          *hostMetricsView `json:"metrics,omitempty"`
@@ -36,14 +39,17 @@ type hostMetricsView struct {
 	At        string  `json:"at"`
 }
 
-func hostToView(h store.Host, now time.Time) hostView {
+func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 	last := ""
 	if h.LastSeenAt != nil {
 		last = h.LastSeenAt.Format(time.RFC3339)
 	}
 	return hostView{
 		ID: h.ID, Name: h.Name, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
-		AgentVersion: h.AgentVersion, Status: hostStatus(h, now), LastSeenAt: last,
+		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate,
+		IPAddress:   h.IPAddress,
+		UpdateState: updateStateFor(h, uc, now),
+		Status:      hostStatus(h, now), LastSeenAt: last,
 		IconURL: iconURL("hosts", h.ID, h.IconPath), ThumbnailURL: thumbnailURL("hosts", h.ID, h.ThumbnailPath),
 		Latitude: h.Latitude, Longitude: h.Longitude,
 	}
@@ -84,9 +90,10 @@ func (a *app) handleListHosts(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	now := time.Now().UTC()
+	uc := a.updateContext()
 	out := make([]hostView, 0, len(hosts))
 	for _, h := range hosts {
-		v := hostToView(h, now)
+		v := hostToView(h, now, uc)
 		if m, ok := latest[h.ID]; ok {
 			v.Metrics = &hostMetricsView{
 				CPUPct: m.CPUPct, MemUsed: m.MemUsed, MemTotal: m.MemTotal,
@@ -138,7 +145,7 @@ func (a *app) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 	}
 	// The enrollment token is returned exactly once.
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"host":            hostToView(h, time.Now().UTC()),
+		"host":            hostToView(h, time.Now().UTC(), a.updateContext()),
 		"enroll_token":    token,
 		"install_command": a.agentInstallCommand(token),
 		"run_command":     a.agentRunCommand(token),
@@ -198,7 +205,7 @@ func (a *app) handleUpdateHostLocation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not load host")
 		return
 	}
-	writeJSON(w, http.StatusOK, hostToView(updated, time.Now().UTC()))
+	writeJSON(w, http.StatusOK, hostToView(updated, time.Now().UTC(), a.updateContext()))
 }
 
 func (a *app) handleHostEvents(w http.ResponseWriter, r *http.Request) {

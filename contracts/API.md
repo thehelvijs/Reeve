@@ -34,7 +34,7 @@ Query params: `search`, `collection` (a collection id, not a name), `host`,
 ```json
 [
   {
-    "id": "…", "name": "Grafana", "description": "",
+    "id": "…", "name": "Grafana", "slug": "grafana", "description": "",
     "collections": [{"id": "…", "name": "Metrics", "icon_url": "…"}],
     "tags": ["prod"], "scheme": "https", "address": "10.0.0.5", "port": 3000,
     "url": "", "physical_location": "", "host_id": "…",
@@ -62,17 +62,65 @@ invalid_collection`, and on create the tool is not kept. The `collections`
 array in every tool response is filtered to the collections that caller may
 see, so two callers can get different arrays for the same tool.
 
+### `POST /api/v1/tools` — the `slug`
+
+`slug` is the name in `/go/<slug>` and is unique across the catalog. Omit it
+and the server derives one from the name (`Paperless-ngx` → `paperless-ngx`),
+adding `-2`, `-3` on collision. Supply one and it is taken literally: a
+collision is `409 slug_taken` rather than a silent rename, because it is a URL
+the caller is about to share. A slug with no letter or digit in it is `400
+invalid_slug`. A `PATCH` that omits `slug` leaves it alone, so renaming a tool
+never moves a link someone has bookmarked.
+
 ### `GET /api/v1/public/tools` (no auth)
 
 The unauthenticated portal surface. Returns only tools with `visibility: "public"`
 (now defined as **anonymous-visible on the LAN**). A reduced DTO, not the same
 shape as `GET /api/v1/tools`: `id`, `name`, `description`, `collections`,
-`tags`, `scheme`, `address`, `port`, `url`, `physical_location`, `host_id`,
-`source_type`, `status`. It omits `creator_id`, `source_ref`, `visibility`,
+`slug`, `tags`, `scheme`, `address`, `port`, `url`, `physical_location`,
+`host_id`, `source_type`, `status`. It omits `creator_id`, `source_ref`, `visibility`,
 `can_edit`, and `log_alert_enabled`. Query params: `search`, `collection`,
 `host`, `source_type`. Credentials are **never** included. Restricted tools
 are never returned. `collections` carries public collections only, since the
 caller is anonymous.
+
+## Resolving where a service is
+
+A tool with no `address` and no `url` follows its host: the agent reports the
+host's own address on the route to the server on every push, and the server
+resolves it at request time. That keeps a link working when the host's DHCP
+lease changes. A tool that has an `address` or a `url` of its own always uses
+it — the fallback only fills a blank.
+
+### `GET /go/{slug}` (no auth for public tools)
+
+`302` to wherever the tool is now, with the resolved URL in `Location`. This is
+the link worth bookmarking or sharing.
+
+- `404` when the slug is unknown **or** the caller may not see the tool, so the
+  route cannot be used to enumerate the catalog.
+- `409 no_endpoint` when the tool has no URL, no address, and no host that has
+  reported one.
+- A host that is offline still redirects to the last address it reported: a
+  stale answer beats no answer.
+
+### `GET /api/v1/endpoints/{slug}` (no auth for public tools)
+
+The same resolution as JSON, for scripts and for the UI.
+
+```json
+{
+  "tool_id": "…", "slug": "grafana",
+  "url": "http://192.168.1.42:3000",
+  "scheme": "http", "address": "192.168.1.42", "port": 3000,
+  "host_id": "…", "host_ip": "192.168.1.42",
+  "source": "host",          // url | address | host
+  "host_online": true
+}
+```
+
+`source` says which rule answered, so a caller can tell a pinned tool from one
+following its host. Same `404` and `409` semantics as `/go/{slug}`.
 
 ## Collections
 
@@ -136,6 +184,93 @@ Returns only hosts referenced by at least one public tool, trimmed to `id`,
 `last_seen_at`. Hosts whose tools are all restricted, or that have no tools,
 are omitted.
 
+## Agent updates (admin)
+
+The authed host payload from `GET /api/v1/hosts` (and any other endpoint that
+returns a `hostView`) carries two fields the public/anonymous host payload
+never does:
+
+- `auto_update` — the host's policy override: `default` (inherit the fleet
+  setting), `on`, or `off`.
+- `update_state` — one of:
+  - `up_to_date` — the host's `agent_version` matches the running server version.
+  - `outdated` — behind the server version, auto-update enabled, no slot yet.
+  - `updating` — holds a rollout slot and is inside the stall window.
+  - `stalled` — held a slot past the stall window without checking in on the
+    new version.
+  - `disabled` — auto-update is off, either by the host's own veto
+    (`REEVE_AUTO_UPDATE=false`) or by policy (fleet default off with no
+    per-host override, or an explicit `off` override).
+  - `unknown` — the server version or the host's reported version isn't a
+    comparable release (e.g. a `dev` build), so no state can be derived.
+
+### `GET /api/v1/admin/agent-updates`
+
+Fleet rollout rollup.
+
+```json
+{
+  "server_version": "1.4.0",
+  "counts": {"up_to_date": 12, "outdated": 2, "updating": 1, "stalled": 1, "disabled": 3, "unknown": 0},
+  "paused": true,
+  "stalled": [{"id": "…", "name": "db-1"}]
+}
+```
+
+`paused` is `true` whenever `stalled` is non-empty — a stalled host halts the
+rollout for every other host until it's cleared. `counts.stalled` is always
+greater than zero while `paused` is `true`: a host that can no longer update
+(local veto or a policy of `off`) releases its slot instead of holding one, so
+the banner can never name a host the page renders as fine. Each entry carries
+the host `id` so the banner can link to the page where an admin takes it out of
+the rollout.
+
+### `POST /api/v1/admin/agent-updates/resume`
+
+Releases every rollout slot stamped before the stall cutoff, un-pausing the
+rollout. `204 No Content`. Resume hands the same host its slot back on the next
+push, so a host that genuinely cannot update re-stalls; setting that host's
+policy to `off` is the way to take it out of the rollout for good.
+
+### `PUT /api/v1/admin/hosts/{id}/auto-update`
+
+Body `{"policy": "default" | "on" | "off"}`. `200` with the updated `hostView`;
+`400 invalid_policy` for anything else; `404 not_found` for an unknown host.
+
+### `POST /api/v1/admin/hosts/{id}/update-now`
+
+Grants the host a rollout slot immediately, bypassing both the concurrency cap
+and a paused rollout — this is an explicit operator override, not a paced grant.
+`204 No Content`. `409 update_vetoed` if the host itself refuses updates
+(`REEVE_AUTO_UPDATE=false`); `409 update_disabled` if auto-update is off for
+the host by policy; `409 already_up_to_date` if the host's reported
+`agent_version` already matches the server version — stamping a slot for a
+host with nothing to do would occupy a concurrency slot indefinitely if that
+host is offline, silently pausing the rest of the fleet;
+`409 version_unknown` if the server or the host is on a `dev` build or the host
+has never reported, since a slot granted against an incomparable version can
+never clear; `404 not_found` for an unknown host.
+
+Setting the host's policy to `off` also releases any slot it holds, so "Never
+update" reliably takes a host out of a rollout it is wedging. So does a push
+reporting `auto_update_vetoed: true`.
+
+### Settings: `agent_update`
+
+`GET/PUT /api/v1/admin/settings` carries an `agent_update` section alongside
+`retention`, `smtp`, and `google`:
+
+```json
+{ "agent_update": {"enabled": true, "concurrency": 3, "stall_secs": 900} }
+```
+
+`enabled` is the fleet-wide default auto-update policy (a host's own
+`auto_update` override wins over it). `concurrency` (1-100) caps how many
+hosts may hold a rollout slot at once. `stall_secs` (1-86400) is how long a
+host may hold a slot before it's considered stalled and pauses the rollout.
+`PUT` validates both bounds and returns `400 invalid_agent_update` on failure;
+like the other settings sections, omitting `agent_update` leaves it unchanged.
+
 ## Other endpoints (used by the web UI)
 
 - Auth: `POST /auth/signup`, `/auth/login`, `/auth/logout`; `GET /me`.
@@ -150,10 +285,19 @@ are omitted.
   `/hosts/{id}/uptime`.
 - Admin (`role=admin`): `/admin/users`, `/admin/groups`, `/admin/hosts`,
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
-  `/admin/audit/reveals|grants`, `/admin/server-info`.
+  `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
+  (see Agent updates above).
 
 ## Ingest (agent → server)
 
 `POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or wrong-protocol pushes with the standard error envelope.
+
+The agent reports `auto_update_vetoed` (`true` when the host set
+`REEVE_AUTO_UPDATE=false` and will refuse any update) and `ip_address`, the
+host's own address on the route to this server. An empty `ip_address` leaves
+the stored one alone: a tick that could not work the address out is not
+evidence the host moved. The endpoint replies
+`200` with `{"check_now": bool}` (a `contracts.PushAck`), where `check_now` is
+the server's instruction to run a self-update immediately.

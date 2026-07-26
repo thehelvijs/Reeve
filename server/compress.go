@@ -76,13 +76,20 @@ func (c *compressWriter) WriteHeader(code int) {
 	c.ResponseWriter.WriteHeader(code)
 }
 
-// shouldCompress skips bodyless statuses, already-encoded responses, media that
-// does not shrink, and bodies too small to be worth a gzip frame.
+// shouldCompress skips bodyless statuses, partial content, already-encoded
+// responses, media that does not shrink, and bodies too small to be worth a
+// gzip frame.
 func (c *compressWriter) shouldCompress(code int) bool {
 	if code == http.StatusNoContent || code == http.StatusNotModified {
 		return false
 	}
 	h := c.Header()
+	// A range response describes a byte window of the identity encoding, so
+	// gzipping it would leave Content-Range describing bytes that are not
+	// what was sent. http.ServeFile answers ranges for the SPA bundle.
+	if code == http.StatusPartialContent || h.Get("Content-Range") != "" {
+		return false
+	}
 	if h.Get("Content-Encoding") != "" || !compressible(h.Get("Content-Type")) {
 		return false
 	}

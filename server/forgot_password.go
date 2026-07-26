@@ -56,7 +56,7 @@ func (a *app) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	email := strings.TrimSpace(strings.ToLower(in.Email))
 
-	ipKey := "forgot-ip:" + clientIP(r)
+	ipKey := "forgot-ip:" + a.clientIP(r)
 	if a.throttled(w, ipKey) {
 		return
 	}
@@ -101,12 +101,12 @@ func (a *app) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	ipKey := "reset-ip:" + clientIP(r)
+	ipKey := "reset-ip:" + a.clientIP(r)
 	if a.throttled(w, ipKey) {
 		return
 	}
-	if in.Password == "" {
-		writeError(w, http.StatusBadRequest, "empty_password", "a password is required")
+	if len(in.Password) < minPasswordLen {
+		writeError(w, http.StatusBadRequest, "weak_password", "password must be at least 8 characters")
 		return
 	}
 

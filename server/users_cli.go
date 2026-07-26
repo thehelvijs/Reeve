@@ -130,8 +130,8 @@ func usersCreate(out io.Writer, db *store.DB, args []string) error {
 	if !strings.Contains(email, "@") {
 		return fmt.Errorf("%q is not an email address", email)
 	}
-	if *password == "" {
-		return errors.New("-password is required")
+	if len(*password) < minPasswordLen {
+		return fmt.Errorf("-password must be at least %d characters", minPasswordLen)
 	}
 	if *role != store.RoleAdmin && *role != store.RoleBasic {
 		return fmt.Errorf("-role must be %q or %q", store.RoleAdmin, store.RoleBasic)

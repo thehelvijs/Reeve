@@ -29,10 +29,10 @@ func TestSignAndVerifyRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignFile: %v", err)
 	}
-	if err := VerifyFile(pub, path, sig); err != nil {
+	if _, err := VerifyFile(pub, path, sig); err != nil {
 		t.Fatalf("VerifyFile: %v", err)
 	}
-	if err := VerifyBytes(pub, []byte("agent binary bytes"), sig); err != nil {
+	if _, err := VerifyBytes(pub, []byte("agent binary bytes"), sig); err != nil {
 		t.Errorf("VerifyBytes: %v", err)
 	}
 }
@@ -45,13 +45,13 @@ func TestVerifyRejectsTamperedContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignFile: %v", err)
 	}
-	if err := VerifyBytes(pub, []byte("agent binary bytez"), sig); err == nil {
+	if _, err := VerifyBytes(pub, []byte("agent binary bytez"), sig); err == nil {
 		t.Error("VerifyBytes accepted tampered content")
 	}
 	if err := os.WriteFile(path, []byte("malicious payload"), 0o600); err != nil {
 		t.Fatalf("rewrite: %v", err)
 	}
-	if err := VerifyFile(pub, path, sig); err == nil {
+	if _, err := VerifyFile(pub, path, sig); err == nil {
 		t.Error("VerifyFile accepted a swapped file")
 	}
 }
@@ -64,7 +64,7 @@ func TestVerifyRejectsOtherKeys(t *testing.T) {
 	path := writeFile(t, "agent binary bytes")
 	sig, _ := SignFile(sk, path, "version:1.2.3")
 
-	if err := VerifyFile(otherPub, path, sig); err == nil {
+	if _, err := VerifyFile(otherPub, path, sig); err == nil {
 		t.Error("a signature verified against an unrelated public key")
 	}
 }
@@ -77,7 +77,7 @@ func TestVerifyRejectsEditedTrustedComment(t *testing.T) {
 	sig, _ := SignFile(sk, path, "version:1.2.3")
 	edited := strings.Replace(sig, "version:1.2.3", "version:9.9.9", 1)
 
-	if err := VerifyFile(pub, path, edited); err == nil {
+	if _, err := VerifyFile(pub, path, edited); err == nil {
 		t.Error("an edited trusted comment still verified")
 	}
 }
@@ -98,7 +98,7 @@ func TestVerifyRejectsMalformedSignatures(t *testing.T) {
 		"wrong global len": lines[0] + "\n" + lines[1] + "\n" + lines[2] + "\n" + base64.StdEncoding.EncodeToString([]byte("short")) + "\n",
 	}
 	for name, sig := range cases {
-		if err := VerifyFile(pub, path, sig); err == nil {
+		if _, err := VerifyFile(pub, path, sig); err == nil {
 			t.Errorf("%s: VerifyFile = nil, want an error", name)
 		}
 	}
@@ -151,7 +151,7 @@ func TestSecretKeyRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SignFile: %v", err)
 	}
-	if err := VerifyFile(pub, path, sig); err != nil {
+	if _, err := VerifyFile(pub, path, sig); err != nil {
 		t.Errorf("VerifyFile after a key round trip: %v", err)
 	}
 	for name, bad := range map[string]string{

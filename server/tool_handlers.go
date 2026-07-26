@@ -13,6 +13,7 @@ import (
 
 type toolInput struct {
 	Name             string   `json:"name"`
+	Slug             string   `json:"slug"`
 	Description      string   `json:"description"`
 	CollectionIDs    []string `json:"collection_ids"`
 	Tags             []string `json:"tags"`
@@ -30,6 +31,7 @@ type toolInput struct {
 
 type toolResponse struct {
 	contracts.ToolDTO
+	Slug            string   `json:"slug"`
 	SourceRef       string   `json:"source_ref"`
 	Visibility      string   `json:"visibility"`
 	CreatorID       string   `json:"creator_id"`
@@ -45,6 +47,7 @@ type toolResponse struct {
 type publicToolResponse struct {
 	ID               string                    `json:"id"`
 	Name             string                    `json:"name"`
+	Slug             string                    `json:"slug"`
 	Description      string                    `json:"description"`
 	Collections      []contracts.CollectionRef `json:"collections"`
 	Tags             []string                  `json:"tags"`
@@ -76,6 +79,7 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 			SourceType:       t.SourceType,
 			Status:           contracts.StatusUnknown, // live status arrives in M6
 		},
+		Slug:            t.Slug,
 		SourceRef:       t.SourceRef,
 		Visibility:      t.Visibility,
 		CreatorID:       t.CreatorID,
@@ -202,6 +206,7 @@ func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 		out = append(out, publicToolResponse{
 			ID:               t.ID,
 			Name:             t.Name,
+			Slug:             t.Slug,
 			Description:      t.Description,
 			Collections:      cols,
 			Tags:             t.Tags,
@@ -239,8 +244,12 @@ func (a *app) handleCreateTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_visibility", "visibility must be public or restricted")
 		return
 	}
+	slug, ok := a.resolveSlug(w, in.Slug, in.Name, "")
+	if !ok {
+		return
+	}
 	t, err := a.db.CreateTool(store.Tool{
-		Name: in.Name, Description: in.Description, Tags: in.Tags,
+		Name: in.Name, Slug: slug, Description: in.Description, Tags: in.Tags,
 		Scheme: in.Scheme, Address: in.Address, Port: in.Port, URL: in.URL,
 		PhysicalLocation: in.PhysicalLocation, HostID: in.HostID, SourceType: in.SourceType,
 		SourceRef: in.SourceRef, Visibility: in.Visibility, CreatorID: p.UserID,
@@ -289,6 +298,15 @@ func (a *app) handleUpdateTool(w http.ResponseWriter, r *http.Request) {
 	if !validSourceType(in.SourceType) || !validVisibility(in.Visibility) {
 		writeError(w, http.StatusBadRequest, "invalid_field", "invalid source_type or visibility")
 		return
+	}
+	// A rename leaves the slug alone: /go/ URLs are bookmarked, and silently
+	// repointing one is worse than a slug that no longer matches the name.
+	if in.Slug != "" && in.Slug != t.Slug {
+		slug, ok := a.resolveSlug(w, in.Slug, in.Name, t.ID)
+		if !ok {
+			return
+		}
+		t.Slug = slug
 	}
 	t.Name, t.Description, t.Tags = in.Name, in.Description, in.Tags
 	t.Scheme, t.Address, t.Port, t.URL = in.Scheme, in.Address, in.Port, in.URL
@@ -371,6 +389,38 @@ func (a *app) loadEditableTool(w http.ResponseWriter, r *http.Request, p auth.Pr
 		return store.Tool{}, false
 	}
 	return t, true
+}
+
+// resolveSlug settles a tool's /go/ name. An empty request slug is derived
+// from the tool name and made unique automatically, because most people never
+// think about it. One typed by hand is taken literally: it is a URL someone is
+// about to share, so a collision is a 409 to act on rather than a silent
+// rename to something they did not choose.
+func (a *app) resolveSlug(w http.ResponseWriter, requested, name, excludeID string) (string, bool) {
+	if requested == "" {
+		slug, err := a.db.UniqueToolSlug(store.Slugify(name), excludeID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not derive a URL name")
+			return "", false
+		}
+		return slug, true
+	}
+	slug := store.Slugify(requested)
+	if slug == "" {
+		writeError(w, http.StatusBadRequest, "invalid_slug",
+			"the URL name must contain a letter or a digit")
+		return "", false
+	}
+	free, err := a.db.UniqueToolSlug(slug, excludeID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not check the URL name")
+		return "", false
+	}
+	if free != slug {
+		writeError(w, http.StatusConflict, "slug_taken", "another tool already uses /go/"+slug)
+		return "", false
+	}
+	return slug, true
 }
 
 func validSourceType(s string) bool {

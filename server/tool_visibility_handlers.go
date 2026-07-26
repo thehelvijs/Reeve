@@ -35,12 +35,11 @@ func (a *app) handleAddToolVisibility(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ptype := r.PathValue("ptype")
-	if ptype != "user" && ptype != "group" {
-		writeError(w, http.StatusBadRequest, "invalid_principal", "principal type must be user or group")
+	ptype, pid := r.PathValue("ptype"), r.PathValue("pid")
+	if !validPrincipalType(w, ptype) || !a.principalExists(w, ptype, pid) {
 		return
 	}
-	if err := a.db.AddToolVisibility(t.ID, ptype, r.PathValue("pid")); err != nil {
+	if err := a.db.AddToolVisibility(t.ID, ptype, pid); err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not add visibility")
 		return
 	}
@@ -53,7 +52,11 @@ func (a *app) handleRemoveToolVisibility(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	if err := a.db.RemoveToolVisibility(t.ID, r.PathValue("ptype"), r.PathValue("pid")); err != nil {
+	ptype := r.PathValue("ptype")
+	if !validPrincipalType(w, ptype) {
+		return
+	}
+	if err := a.db.RemoveToolVisibility(t.ID, ptype, r.PathValue("pid")); err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not remove visibility")
 		return
 	}

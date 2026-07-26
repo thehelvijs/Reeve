@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync/atomic"
 	"time"
+
+	"github.com/thehelvijs/Reeve/contracts"
 )
 
 var version = "dev"
@@ -67,11 +69,11 @@ func main() {
 	defer updateTicker.Stop()
 
 	var updating atomic.Bool
+	var lastAck time.Time
 
 	run := func() {
-		p.flushBuffer()
-		if err := p.send(gather(version, cfg)); err != nil {
-			log.Printf("push failed (buffered): %v", err)
+		if runOnce(p, cfg, version, &lastAck) {
+			go runSelfUpdate(cfg, &updating)
 		}
 	}
 	run()
@@ -80,11 +82,51 @@ func main() {
 		case <-ticker.C:
 			run()
 		case <-updateTicker.C:
-			if cfg.AutoUpdate {
+			if shouldTickerUpdate(cfg.AutoUpdate, lastAck, time.Now(), cfg.UpdateInterval) {
 				go runSelfUpdate(cfg, &updating)
 			}
 		}
 	}
+}
+
+// runOnce flushes the buffer, pushes one telemetry snapshot, stamps lastAck on
+// any real ack, and reports whether the ack asks for a self-update this host
+// is willing to run.
+func runOnce(p *pusher, cfg config, version string, lastAck *time.Time) bool {
+	p.flushBuffer()
+	ack, err := p.send(gather(version, cfg))
+	if err != nil {
+		log.Printf("push failed (buffered): %v", err)
+		return false
+	}
+	if ack == nil {
+		log.Print("push acked with no usable body; self-update pacing falls back to the hourly ticker")
+		return false
+	}
+	*lastAck = time.Now()
+	return shouldAckUpdate(cfg.AutoUpdate, ack)
+}
+
+// shouldAckUpdate reports whether the server's ack asks for a self-update the
+// host is willing to run. The local veto always wins.
+func shouldAckUpdate(autoUpdate bool, ack *contracts.PushAck) bool {
+	if !autoUpdate {
+		return false
+	}
+	if ack == nil {
+		return false
+	}
+	return ack.CheckNow
+}
+
+// shouldTickerUpdate is the recovery path: it fires only once the server has
+// stopped acking, which is how an agent rejected by a protocol bump still gets
+// itself onto the new version.
+func shouldTickerUpdate(autoUpdate bool, lastAck, now time.Time, interval time.Duration) bool {
+	if !autoUpdate {
+		return false
+	}
+	return now.Sub(lastAck) >= 2*interval
 }
 
 // runSelfUpdate runs checkAndUpdate off the push loop so a slow download or

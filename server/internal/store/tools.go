@@ -14,8 +14,10 @@ const (
 
 // Tool is a catalog entry.
 type Tool struct {
-	ID               string
-	Name             string
+	ID   string
+	Name string
+	// Slug is the name in /go/<slug>, unique across the catalog.
+	Slug             string
 	Description      string
 	Tags             []string
 	Scheme           string
@@ -69,13 +71,23 @@ func (db *DB) CreateTool(t Tool) (Tool, error) {
 	if t.SourceType == "" {
 		t.SourceType = "manual"
 	}
+	// An empty slug is derived from the name and made unique here. A caller
+	// that supplied one gets it inserted as-is, so a collision surfaces as the
+	// UNIQUE constraint rather than being silently renamed behind their back.
+	if t.Slug == "" {
+		slug, err := db.UniqueToolSlug(Slugify(t.Name), "")
+		if err != nil {
+			return Tool{}, err
+		}
+		t.Slug = slug
+	}
 	tags, _ := json.Marshal(t.Tags)
 	_, err := db.sql.Exec(
-		`INSERT INTO tools(id, name, description, tags, scheme, address, port, url,
+		`INSERT INTO tools(id, name, slug, description, tags, scheme, address, port, url,
 			physical_location, host_id, source_type, source_ref, visibility, creator_id,
 			log_alert_enabled, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		t.ID, t.Name, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		t.ID, t.Name, t.Slug, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
 		t.PhysicalLocation, nullable(t.HostID), t.SourceType, t.SourceRef, t.Visibility, t.CreatorID,
 		boolToInt(t.LogAlertEnabled), t.CreatedAt.Format(time.RFC3339Nano),
 	)
@@ -89,10 +101,10 @@ func (db *DB) CreateTool(t Tool) (Tool, error) {
 func (db *DB) UpdateTool(t Tool) error {
 	tags, _ := json.Marshal(t.Tags)
 	return db.exec1(
-		`UPDATE tools SET name=?, description=?, tags=?, scheme=?, address=?, port=?, url=?,
+		`UPDATE tools SET name=?, slug=?, description=?, tags=?, scheme=?, address=?, port=?, url=?,
 			physical_location=?, host_id=?, source_type=?, source_ref=?, visibility=?,
 			log_alert_enabled=? WHERE id=?`,
-		t.Name, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
+		t.Name, t.Slug, t.Description, string(tags), t.Scheme, t.Address, t.Port, t.URL,
 		t.PhysicalLocation, nullable(t.HostID), t.SourceType, t.SourceRef, t.Visibility,
 		boolToInt(t.LogAlertEnabled), t.ID,
 	)
@@ -273,7 +285,7 @@ const toolVisibleClause = `(
 	)
 )`
 
-const toolSelect = `SELECT id, name, description, tags, scheme, address, port, url,
+const toolSelect = `SELECT id, name, slug, description, tags, scheme, address, port, url,
 	physical_location, host_id, source_type, source_ref, visibility, creator_id,
 	log_alert_enabled, created_at, icon_path, thumbnail_path FROM tools`
 
@@ -282,7 +294,7 @@ func (db *DB) scanTool(row scanner) (Tool, error) {
 	var tags, created string
 	var hostID *string
 	var logAlert int
-	if err := row.Scan(&t.ID, &t.Name, &t.Description, &tags, &t.Scheme, &t.Address, &t.Port, &t.URL,
+	if err := row.Scan(&t.ID, &t.Name, &t.Slug, &t.Description, &tags, &t.Scheme, &t.Address, &t.Port, &t.URL,
 		&t.PhysicalLocation, &hostID, &t.SourceType, &t.SourceRef, &t.Visibility,
 		&t.CreatorID, &logAlert, &created, &t.IconPath, &t.ThumbnailPath); err != nil {
 		return Tool{}, err

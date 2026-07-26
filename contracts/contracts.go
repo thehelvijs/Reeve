@@ -9,17 +9,60 @@ import (
 // PushProtocolVersion is bumped when the agent->server payload shape changes.
 const PushProtocolVersion = 1
 
+// Per-section ceilings on one push. A host runs as many services and
+// containers as it runs, but an enrolled agent is a credential sitting on
+// someone else's machine: these bound what one compromised host writes per
+// tick, well above what a real machine reports.
+const (
+	MaxPushServices   = 2000
+	MaxPushContainers = 2000
+	MaxPushCronJobs   = 2000
+	MaxPushLogEvents  = 1000
+)
+
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {
-	ProtocolVersion int               `json:"protocol_version"`
-	AgentVersion    string            `json:"agent_version"`
-	SentAt          time.Time         `json:"sent_at"`
-	Services        []ServiceState    `json:"services"`
-	Containers      []ContainerState  `json:"containers"`
-	CronJobs        []CronState       `json:"cron_jobs"`
-	Metrics         HostMetrics       `json:"metrics"`
-	ContainerStats  []ContainerSample `json:"container_stats"`
-	LogEvents       []LogEvent        `json:"log_events"`
+	ProtocolVersion  int               `json:"protocol_version"`
+	AgentVersion     string            `json:"agent_version"`
+	AutoUpdateVetoed bool              `json:"auto_update_vetoed"`
+	// IPAddress is the host's address on the route to the server, so a tool
+	// pinned to this host can be reached after its DHCP lease changes. Empty
+	// when the agent could not work it out.
+	IPAddress string    `json:"ip_address"`
+	SentAt    time.Time `json:"sent_at"`
+	Services         []ServiceState    `json:"services"`
+	Containers       []ContainerState  `json:"containers"`
+	CronJobs         []CronState       `json:"cron_jobs"`
+	Metrics          HostMetrics       `json:"metrics"`
+	ContainerStats   []ContainerSample `json:"container_stats"`
+	LogEvents        []LogEvent        `json:"log_events"`
+}
+
+// TooLarge names the first section of p that exceeds its ceiling, or "" when
+// the push is within bounds.
+func (p Push) TooLarge() string {
+	for _, section := range []struct {
+		name  string
+		count int
+		max   int
+	}{
+		{"services", len(p.Services), MaxPushServices},
+		{"containers", len(p.Containers), MaxPushContainers},
+		{"container_stats", len(p.ContainerStats), MaxPushContainers},
+		{"cron_jobs", len(p.CronJobs), MaxPushCronJobs},
+		{"log_events", len(p.LogEvents), MaxPushLogEvents},
+	} {
+		if section.count > section.max {
+			return section.name
+		}
+	}
+	return ""
+}
+
+// PushAck is the server's reply to a push. CheckNow asks the agent to run its
+// self-update now; the server withholds it to pace a fleet-wide rollout.
+type PushAck struct {
+	CheckNow bool `json:"check_now"`
 }
 
 // ServiceState is a systemd unit's current state.
