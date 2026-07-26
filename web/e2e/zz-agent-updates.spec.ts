@@ -11,7 +11,11 @@ const OLD_BUILD = '0'.repeat(64);
 async function publishedChecksum(req: APIRequestContext): Promise<string> {
   const res = await req.get('/dl/agent-linux-amd64.sha256');
   expect(res.status()).toBe(200);
-  return (await res.text()).trim().split(/\s+/)[0];
+  const sum = (await res.text()).trim().split(/\s+/)[0];
+  // An unproxied route answers with the SPA shell, and a 200 full of HTML then
+  // reads as "this agent is on an unknown build" rather than as a broken test.
+  expect(sum, 'expected a sha256, not the SPA shell').toMatch(/^[0-9a-f]{64}$/);
+  return sum;
 }
 
 async function login(page: Page) {

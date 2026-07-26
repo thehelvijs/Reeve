@@ -20,6 +20,13 @@ export default defineConfig({
       // Short links are resolved and redirected by the server, so the dev
       // server must hand them over rather than answering with the SPA shell.
       '/go': `http://127.0.0.1:${devPort}`,
+      // Same reason: the agent binaries, their checksums and signatures, and
+      // the install scripts are all served by the Go server. Unproxied, a
+      // fetch for one silently returns index.html, which looks like a wrong
+      // checksum rather than a missing route.
+      '/dl': `http://127.0.0.1:${devPort}`,
+      '/install.sh': `http://127.0.0.1:${devPort}`,
+      '/uninstall.sh': `http://127.0.0.1:${devPort}`,
     },
   },
 });

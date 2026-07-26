@@ -26,6 +26,12 @@ function volatile(page: Page) {
     page.getByText(/^\d+(\.\d+)?[BKMGT]B( \/ \d+(\.\d+)?[BKMGT]B)?$/),
     page.getByText(/^\d+\/\d+$/),
     page.getByText(/^(online|offline|never)$/),
+    // Rollout state, and the row actions derived from it: which host holds a
+    // slot depends on how long the suite took to get here and on what the
+    // agent-update spec left behind. What this baseline is for is the row's
+    // layout, not which of a fleet's hosts happened to be mid-update.
+    page.getByText(/^(up to date|outdated|updating|update stalled|updates off|build unknown)$/),
+    page.locator('#host-list button'),
     // uPlot draws to a canvas from live samples; nothing about it is stable.
     page.locator('.uplot'),
   ];
