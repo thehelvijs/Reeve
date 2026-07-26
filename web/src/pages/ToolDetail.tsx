@@ -43,7 +43,7 @@ export default function ToolDetail() {
       return;
     }
     await api.del(`/api/tools/${tool.id}`);
-    navigate('/catalog');
+    navigate('/services');
   };
 
   const copy = async () => {
@@ -64,7 +64,7 @@ export default function ToolDetail() {
 
   return (
     <div>
-      <BackLink to="/catalog">Services</BackLink>
+      <BackLink to="/services">Services</BackLink>
 
       <div className="mt-3 flex items-start justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -81,7 +81,7 @@ export default function ToolDetail() {
         </div>
         {tool.can_edit && (
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => navigate(`/catalog/${tool.id}/edit`)}>
+            <Button variant="secondary" onClick={() => navigate(`/services/${tool.id}/edit`)}>
               Edit
             </Button>
             <Button variant="danger" onClick={() => setConfirming(true)}>

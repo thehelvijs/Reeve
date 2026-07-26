@@ -12,6 +12,7 @@ import { ListSkeleton } from '../components/Skeleton';
 import SSHDeployModal from '../components/SSHDeployModal';
 import { useResource } from '../lib/cache';
 import { UPDATE_LABEL, UPDATE_TONE, showsVersionPill } from '../lib/agentUpdate';
+import { hostRowActions } from '../lib/hostActions';
 
 export default function Hosts() {
   const { user } = useAuth();
@@ -82,16 +83,7 @@ export default function Hosts() {
                 )}
                 <Pill tone={tone(h.status)}>{h.status}</Pill>
               </Link>
-              {user?.role === 'admin' && (
-                <div className="flex shrink-0 gap-2 pr-2">
-                  <Button variant="secondary" onClick={() => setDeploy({ host: h, mode: 'install' })}>
-                    Install over SSH
-                  </Button>
-                  <Button variant="danger" onClick={() => setDeploy({ host: h, mode: 'uninstall' })}>
-                    Remove agent
-                  </Button>
-                </div>
-              )}
+              {user?.role === 'admin' && <RowActions host={h} onInstall={() => setDeploy({ host: h, mode: 'install' })} onUpdated={refresh} />}
               {/* Same destination as the row link, so it is a mouse affordance only. */}
               <Link to={`/hosts/${h.id}`} className="pr-4" aria-hidden="true" tabIndex={-1}>
                 <Chevron />
@@ -120,6 +112,47 @@ export default function Hosts() {
           onClose={() => setDeploy(null)}
           onDone={refresh}
         />
+      )}
+    </div>
+  );
+}
+
+// RowActions shows only what this host actually needs. Nothing for a machine
+// that is online and current: a row of live buttons on every host is noise, and
+// two of them used to be destructive.
+function RowActions({ host, onInstall, onUpdated }: { host: Host; onInstall: () => void; onUpdated: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState('');
+  const actions = hostRowActions(host);
+  if (!actions.install && !actions.update) {
+    return null;
+  }
+
+  const update = async () => {
+    setBusy(true);
+    setFailed('');
+    try {
+      await api.post(`/api/admin/hosts/${host.id}/update-now`, {});
+      onUpdated();
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'could not start the update');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 pr-2">
+      {failed && <span className="max-w-48 truncate text-xs text-red-400" title={failed}>{failed}</span>}
+      {actions.update && (
+        <Button variant="secondary" disabled={busy} onClick={update}>
+          Update
+        </Button>
+      )}
+      {actions.install && (
+        <Button variant="secondary" onClick={onInstall}>
+          Install over SSH
+        </Button>
       )}
     </div>
   );

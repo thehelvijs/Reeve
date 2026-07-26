@@ -11,7 +11,7 @@ import { SOURCE_URL, UI_VERSION } from '../version';
 
 const primaryNav: { to: string; label: string; icon: IconName; end: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', end: true },
-  { to: '/catalog', label: 'Services', icon: 'services', end: false },
+  { to: '/services', label: 'Services', icon: 'services', end: false },
   { to: '/collections', label: 'Collections', icon: 'collections', end: false },
   { to: '/hosts', label: 'Hosts', icon: 'hosts', end: false },
   { to: '/requests', label: 'Requests', icon: 'requests', end: false },
@@ -37,7 +37,7 @@ export default function Layout() {
     prefetch('/api/hosts', () => api.get<Host[]>('/api/hosts'));
   }, []);
 
-  const submitSearch = () => navigate(`/catalog?q=${encodeURIComponent(search.trim())}`);
+  const submitSearch = () => navigate(`/services?q=${encodeURIComponent(search.trim())}`);
 
   return (
     <div className="flex h-screen">

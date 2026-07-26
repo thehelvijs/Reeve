@@ -72,10 +72,10 @@ export default function App() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/catalog" element={<Catalog />} />
-        <Route path="/catalog/new" element={<ToolFormPage />} />
-        <Route path="/catalog/:id" element={<ToolDetail />} />
-        <Route path="/catalog/:id/edit" element={<ToolFormPage />} />
+        <Route path="/services" element={<Catalog />} />
+        <Route path="/services/new" element={<ToolFormPage />} />
+        <Route path="/services/:id" element={<ToolDetail />} />
+        <Route path="/services/:id/edit" element={<ToolFormPage />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/collections/:id" element={<CollectionDetail />} />
         <Route path="/hosts" element={<Hosts />} />

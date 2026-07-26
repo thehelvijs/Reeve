@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton } from '../components/Skeleton';
 import VisibilityToggle from '../components/VisibilityToggle';
+import AddServiceModal from '../components/AddServiceModal';
 import { useResource } from '../lib/cache';
 
 export default function Catalog() {
@@ -17,6 +18,7 @@ export default function Catalog() {
   const [search, setSearch] = useState(params.get('q') ?? '');
   const [collectionID, setCollectionID] = useState('');
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     setSearch(params.get('q') ?? '');
@@ -59,7 +61,14 @@ export default function Catalog() {
       <PageHeader
         title="Services"
         subtitle="Every service, where it lives, and whether it's up."
-        action={<Button onClick={() => navigate('/catalog/new')}>Add for monitoring</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => navigate('/services/new')}>
+              Add manually
+            </Button>
+            <Button onClick={() => setAdding(true)}>Add for monitoring</Button>
+          </div>
+        }
       />
 
       <div className="mt-6 flex gap-3">
@@ -94,7 +103,7 @@ export default function Catalog() {
             {filtered.map((t) => (
               <Link
                 key={t.id}
-                to={`/catalog/${t.id}`}
+                to={`/services/${t.id}`}
                 className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
               >
                 <EntityIcon url={t.icon_url} name={t.name} size={36} />
@@ -117,7 +126,7 @@ export default function Catalog() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      navigate(`/catalog/${t.id}/edit`);
+                      navigate(`/services/${t.id}/edit`);
                     }}
                     className="rounded-button border border-hairline px-2 py-1 text-xs text-content opacity-0 transition-opacity group-hover:opacity-100"
                   >
@@ -134,7 +143,14 @@ export default function Catalog() {
                 <EmptyState
                   title="No services yet"
                   description="Add a service to track whether it's up and control who can reach it."
-                  action={<Button onClick={() => navigate('/catalog/new')}>Add for monitoring</Button>}
+                  action={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => navigate('/services/new')}>
+              Add manually
+            </Button>
+            <Button onClick={() => setAdding(true)}>Add for monitoring</Button>
+          </div>
+        }
                 />
               ) : (
                 <EmptyState title="No matches" description="No services match your search or collection." />
@@ -143,6 +159,8 @@ export default function Catalog() {
           )}
         </>
       )}
+
+      {adding && <AddServiceModal onClose={() => setAdding(false)} />}
     </div>
   );
 }

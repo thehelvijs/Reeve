@@ -297,7 +297,7 @@ export default function Portal() {
           hostName={hosts.find((h) => h.id === selected.tool.host_id)?.name}
           canOpen={Boolean(user)}
           onOpen={() => {
-            navigate(`/catalog/${selected.tool.id}`);
+            navigate(`/services/${selected.tool.id}`);
           }}
           onClose={() => setSelected(null)}
         />

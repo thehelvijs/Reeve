@@ -61,8 +61,8 @@ test.describe('authed app', () => {
 
   for (const [name, path] of Object.entries({
     dashboard: '/dashboard',
-    services: '/catalog',
-    'services-new': '/catalog/new',
+    services: '/services',
+    'services-new': '/services/new',
     hosts: '/hosts',
     profile: '/profile',
     'admin-users': '/admin/users',

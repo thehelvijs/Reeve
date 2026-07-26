@@ -9,8 +9,11 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' }) {
   const base =
     'inline-flex items-center justify-center whitespace-nowrap rounded-button px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:pointer-events-none';
+  // Every variant carries a border, transparent on the primary: without it the
+  // accent button is 2px shorter than the outlined ones and any row mixing them
+  // sits crooked.
   const styles = {
-    primary: 'bg-accent text-accent-fg hover:bg-accent-hover',
+    primary: 'border border-transparent bg-accent text-accent-fg hover:bg-accent-hover',
     secondary: 'border border-hairline text-muted hover:text-content hover:border-hairline-strong',
     danger: 'border border-hairline text-muted hover:text-red-400 hover:border-red-400/40',
   }[variant];

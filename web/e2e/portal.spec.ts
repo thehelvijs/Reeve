@@ -14,8 +14,10 @@ test('authed portal groups tools and links to dashboard', async ({ page }) => {
   await page.click('button[type=submit]');
   await expect(page).toHaveURL('/');
 
-  await page.goto('/catalog');
-  await page.click('button:has-text("Add for monitoring")');
+  // "Add for monitoring" opens the host picker; manual entry is the direct path.
+  await page.goto('/services');
+  await page.locator('button:text-is("Add for monitoring")').first().click();
+  await page.locator('[role=dialog] button:text-is("Add manually")').click();
   await page.fill('input[required]', 'PortalGrafana');
   await page.fill('input[placeholder="10.0.0.5"]', '10.0.0.9');
   await page.click('button[type=submit]');
@@ -36,7 +38,7 @@ test('authed portal groups tools and links to dashboard', async ({ page }) => {
   await page.click('text=PortalGrafana');
   await expect(page.getByRole('dialog', { name: 'Service' })).toBeVisible();
   await page.click('button:has-text("Open service")');
-  await expect(page).toHaveURL(/\/catalog\/.+/);
+  await expect(page).toHaveURL(/\/services\/.+/);
 });
 
 test('anonymous visitor sees public tool and opens its info modal', async ({ page, context }) => {

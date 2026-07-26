@@ -81,7 +81,7 @@ test('a restricted collection is hidden from anonymous, its services are not', a
 
 test('the catalog filters by collection', async ({ page }) => {
   await login(page);
-  await page.goto('/catalog');
+  await page.goto('/services');
   await expect(page.locator('text=PortalGrafana')).toBeVisible();
   await page.locator('select').first().selectOption({ label: 'Manufacturing' });
   await expect(page.locator('text=Grafana').first()).toBeVisible();

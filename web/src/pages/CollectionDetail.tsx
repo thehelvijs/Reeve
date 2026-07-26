@@ -89,7 +89,7 @@ export default function CollectionDetail() {
           {tools.map((t) => (
             <Link
               key={t.id}
-              to={`/catalog/${t.id}`}
+              to={`/services/${t.id}`}
               className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
             >
               <EntityIcon url={t.icon_url} name={t.name} size={36} />

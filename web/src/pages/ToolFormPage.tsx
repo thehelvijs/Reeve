@@ -23,8 +23,8 @@ function slugPreview(name: string): string {
 
 type EndpointMode = 'hostport' | 'url';
 
-// ToolFormPage creates or edits a tool on its own route (/catalog/new and
-// /catalog/:id/edit) so the form has room to breathe instead of a packed modal.
+// ToolFormPage creates or edits a tool on its own route (/services/new and
+// /services/:id/edit) so the form has room to breathe instead of a packed modal.
 export default function ToolFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -129,7 +129,7 @@ export default function ToolFormPage() {
       const saved = editing
         ? await api.patch<Tool>(`/api/tools/${id}`, body)
         : await api.post<Tool>('/api/tools', body);
-      navigate(`/catalog/${saved.id}`);
+      navigate(`/services/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed');
       setBusy(false);
@@ -139,7 +139,7 @@ export default function ToolFormPage() {
   if (loadErr) {
     return (
       <div>
-        <BackLink to="/catalog">Services</BackLink>
+        <BackLink to="/services">Services</BackLink>
         <p className="mt-4 text-sm text-muted">{loadErr}</p>
       </div>
     );
@@ -150,7 +150,7 @@ export default function ToolFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <BackLink to="/catalog">Services</BackLink>
+      <BackLink to="/services">Services</BackLink>
       <div className="mt-3">
         <PageHeader
           title={editing ? 'Edit service' : 'Add for monitoring'}
@@ -265,7 +265,7 @@ export default function ToolFormPage() {
 
         <ErrorText>{error}</ErrorText>
         <div className="flex justify-end gap-2 border-t border-hairline pt-4">
-          <Button type="button" variant="secondary" onClick={() => navigate(editing ? `/catalog/${id}` : '/catalog')}>
+          <Button type="button" variant="secondary" onClick={() => navigate(editing ? `/services/${id}` : '/services')}>
             Cancel
           </Button>
           <Button type="submit" disabled={busy}>

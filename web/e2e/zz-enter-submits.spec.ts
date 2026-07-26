@@ -57,7 +57,7 @@ test('enter confirms a portal info modal', async ({ page }) => {
   await page.click('text=PortalGrafana');
   await expect(page.getByRole('dialog', { name: 'Service' })).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/catalog\/.+/);
+  await expect(page).toHaveURL(/\/services\/.+/);
 });
 
 test('enter saves settings sections', async ({ page }) => {
@@ -100,13 +100,13 @@ test('enter creates a host from the add-host modal', async ({ page }) => {
 
 test('enter saves the service form, and the nested collection field keeps it open', async ({ page }) => {
   await loginAdmin(page);
-  await page.goto('/catalog/new');
+  await page.goto('/services/new');
 
   const newCollection = page.getByPlaceholder('New collection');
   await newCollection.fill('EnterColl');
   await newCollection.press('Enter');
   await expect(page.getByText('EnterColl')).toBeVisible();
-  await expect(page).toHaveURL('/catalog/new');
+  await expect(page).toHaveURL('/services/new');
 
   const name = page.locator('input[required]');
   await name.fill('EnterService');

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import SSHDeployModal from '../components/SSHDeployModal';
 import { needsConfirm, rowConfirmation } from '../lib/confirmText';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -61,7 +62,7 @@ export default function HostInventory() {
       source_type: item.source_type,
       source_ref: item.source_ref,
     });
-    navigate(`/catalog/new?${q}`);
+    navigate(`/services/new?${q}`);
   };
 
   // A row's buttons are live only for an admin, on a host whose agent said it
@@ -429,12 +430,15 @@ function RowControls({
   );
 }
 
-// DeleteHost removes the host and everything the schema hangs off it. The
-// confirm names what goes with it, because credentials and history cascade and
-// a catalogued service does not: tools keep a host_id that no longer resolves.
+// DeleteHost removes the host and everything the schema hangs off it, and is
+// where removing the agent from the machine lives too — both are ways of ending
+// this host, and neither belongs one click away in a list. The confirm names
+// what goes with it, because credentials and history cascade and a catalogued
+// service does not: tools keep a host_id that no longer resolves.
 function DeleteHost({ hostId, host }: { hostId: string; host: Host }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
+  const [uninstalling, setUninstalling] = useState(false);
   const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
 
@@ -450,18 +454,32 @@ function DeleteHost({ hostId, host }: { hostId: string; host: Host }) {
 
   return (
     <Card className="mt-6 border-red-900/50 p-5">
-      <p className="text-sm font-medium text-content">Delete host</p>
+      <p className="text-sm font-medium text-content">Remove this host</p>
       <p className="mt-1 text-xs text-muted">
-        Removes {host.name}, its stored credentials, metrics, events and command history. The agent
+        Removing the agent stops {host.name} reporting but leaves it here with its history. Deleting
+        the host removes it, its stored credentials, metrics, events and command history — the agent
         on the machine keeps running until you uninstall it, and any service pinned to this host
         keeps a reference that no longer resolves.
       </p>
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button variant="secondary" onClick={() => setUninstalling(true)}>
+          Remove agent over SSH
+        </Button>
         <Button variant="danger" onClick={() => setConfirming(true)}>
           Delete this host
         </Button>
       </div>
       <ErrorText>{error}</ErrorText>
+
+      {uninstalling && (
+        <SSHDeployModal
+          hostId={hostId}
+          hostName={host.name}
+          mode="uninstall"
+          onClose={() => setUninstalling(false)}
+          onDone={() => undefined}
+        />
+      )}
 
       {confirming && (
         <Modal title={`Delete ${host.name}?`} onClose={() => setConfirming(false)}>

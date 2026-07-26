@@ -103,7 +103,7 @@ test('the tool page shows the short link and points Open at it', async ({ page }
     port: 8000,
   });
 
-  await page.goto(`/catalog/${tool.id}`);
+  await page.goto(`/services/${tool.id}`);
   await expect(page.getByText(`/go/${tool.slug}`)).toBeVisible();
   await expect(page.getByRole('link', { name: /open/i })).toHaveAttribute('href', `/go/${tool.slug}`);
 });

@@ -133,15 +133,19 @@ the machine; both run the same installer.
 
 ### Pushed from the server over SSH
 
-On the host row, **Install over SSH**. Give it the machine's address, an SSH
+On the host row, **Install over SSH** — shown on any host that is not already
+online and on the published build, since a machine that is fine needs nothing
+done to it. Give it the machine's address, an SSH
 user, and a password or private key (plus a sudo password unless the user is
 root or has NOPASSWD). The server shows the host key fingerprint for you to
 confirm, then copies the matching agent build and the installer over and runs
 it. A fresh enrollment token is minted for each push. The login is kept as a
 credential on that host so the next person does not have to hunt for it —
 untick "Save this login as a credential" to skip that; an uninstall never
-stores anything. **Remove agent** does the reverse and
-leaves the host in the catalog with its history.
+stores anything. **Remove agent over SSH** does the reverse and leaves the host
+in the catalog with its history; it lives on the host's own page, next to
+Delete, rather than in the list — both end a host, and neither belongs one click
+away in a row you are scrolling past.
 
 The address the agent is told to push to defaults to whatever host you reached
 the UI on, so opening it at `http://<lan-ip>:8080` needs no configuration. Set
@@ -173,7 +177,9 @@ unreachable): append `--github` or set `REEVE_INSTALL_SOURCE=github`.
 
 **Auto-update.** By default the server paces the fleet's self-update rollout
 and tells each agent when to check (Hosts page, admin-only: pause, resume,
-force a single host). Current means "running the binary this server publishes":
+force a single host — **Update** appears on a row whose host is online and not
+on the published build, unless its auto-update is off, where the policy on its
+page is the thing to change). Current means "running the binary this server publishes":
 the agent reports the sha256 of its own binary and the server compares it to
 the build it serves, the same comparison the agent's self-update makes. Version
 strings decide nothing, so a rebuild at the same version still rolls out. A host
@@ -219,7 +225,7 @@ sudo reeve-agent-uninstall
 ```
 
 Local teardown only; remove the host from the catalog in the UI separately.
-**Remove agent** on the host row does the same thing over SSH.
+**Remove agent over SSH**, on the host's page, does the same thing remotely.
 
 ### Docker (alternative)
 

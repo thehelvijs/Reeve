@@ -15,10 +15,13 @@ test('signup, create tool, store and reveal a host credential', async ({ page })
   await page.click('button[type=submit]');
   await expect(page).toHaveURL('/');
 
-  // Create a tool via the dedicated form page.
-  await page.goto('/catalog');
-  await page.click('button:has-text("Add for monitoring")');
-  await expect(page).toHaveURL('/catalog/new');
+  // "Add for monitoring" opens the host picker; manual entry is the direct path
+  // and the only one available before any host has reported anything.
+  await page.goto('/services');
+  await page.locator('button:text-is("Add for monitoring")').first().click();
+  await expect(page.locator('[role=dialog]')).toBeVisible();
+  await page.locator('[role=dialog] button:text-is("Add manually")').click();
+  await expect(page).toHaveURL('/services/new');
   await page.fill('input[required]', 'Grafana');
   await page.fill('input[placeholder="10.0.0.5"]', '10.0.0.9');
   await page.click('button[type=submit]');
@@ -42,8 +45,11 @@ test('signup, create tool, store and reveal a host credential', async ({ page })
   await page.fill('input[type=text]', 'secret-token-xyz');
   await page.click('button:has-text("Save credential")');
 
-  // Reveal it and assert the secret is shown.
+  // A revealed secret comes up masked — a reveal often happens on a shared
+  // screen — and shows only when asked for.
   await page.click('button:has-text("Reveal")');
+  await expect(page.locator('pre:has-text("secret-token-xyz")')).toHaveCount(0);
+  await page.locator('button:text-is("show")').click();
   await expect(page.locator('pre:has-text("secret-token-xyz")')).toBeVisible();
 });
 
