@@ -21,7 +21,7 @@ func TestGatherDockerLogErrorsSkipsStoppedContainers(t *testing.T) {
 	events := gatherDockerLogErrors([]contracts.ContainerState{
 		{ID: "c1", State: "exited"},
 		{ID: "", State: "running"},
-	})
+	}, time.Minute)
 	if events != nil {
 		t.Errorf("events = %+v, want none", events)
 	}
@@ -104,5 +104,27 @@ func TestLocalIPForRejectsUnusableServerURLs(t *testing.T) {
 		if got := localIPFor(url); got != "" {
 			t.Errorf("localIPFor(%q) = %q, want an empty string", url, got)
 		}
+	}
+}
+
+// The log window covers exactly the ground since the last scan. A fixed window
+// wider than the tick re-sends every error it still contains, once per tick,
+// and the server stores each copy.
+func TestSinceLastCoversOnlyNewGround(t *testing.T) {
+	now := time.Now()
+	if got := sinceLast(time.Time{}, now, 15*time.Second); got != 15*time.Second {
+		t.Errorf("first scan window = %v, want one interval", got)
+	}
+	if got := sinceLast(now.Add(-15*time.Second), now, 15*time.Second); got != 15*time.Second {
+		t.Errorf("steady-state window = %v, want one interval", got)
+	}
+	if got := sinceLast(now.Add(-2*time.Minute), now, 15*time.Second); got != 2*time.Minute {
+		t.Errorf("catch-up window = %v, want the whole gap", got)
+	}
+	if got := sinceLast(now.Add(-24*time.Hour), now, 15*time.Second); got != maxLogWindow {
+		t.Errorf("window after an outage = %v, want it clamped to %v", got, maxLogWindow)
+	}
+	if got := durationArg(90 * time.Second); got != "90s" {
+		t.Errorf("durationArg = %q, want 90s", got)
 	}
 }

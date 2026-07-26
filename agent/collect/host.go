@@ -4,15 +4,34 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
 )
 
-// SampleHostMetrics reads a single host-level metric sample from /proc and the
-// root filesystem. Best-effort: a missing source yields a zero section rather
-// than an error. Blocks ~200ms to compute CPU utilization over a window.
-func SampleHostMetrics() contracts.HostMetrics {
+// HostSampler reads host-level metrics, deriving CPU utilization from the
+// /proc/stat delta between calls the way ProcSampler does per process. The push
+// loop supplies the window, so nothing sleeps to create one.
+//
+// A window of its own would be a window the agent spends collecting, and the
+// number that came back was mostly the agent measuring its own burst: an idle
+// two-core box reported a median 13% and peaks near 50% while its load average
+// sat at zero.
+//
+// Not safe for concurrent use: one sampler belongs to one serial tick loop.
+type HostSampler struct {
+	prev CPUSample
+	seen bool
+}
+
+// NewHostSampler returns a sampler with no previous CPU reading.
+func NewHostSampler() *HostSampler {
+	return &HostSampler{}
+}
+
+// Sample reads one host-level metric snapshot from /proc and the root
+// filesystem. Best-effort: a missing source yields a zero section rather than
+// an error. The first call reports 0% CPU, having no interval to measure.
+func (s *HostSampler) Sample() contracts.HostMetrics {
 	var m contracts.HostMetrics
 	if c, err := os.ReadFile("/proc/meminfo"); err == nil {
 		m.MemUsed, m.MemTotal = ParseMemInfo(string(c))
@@ -26,7 +45,7 @@ func SampleHostMetrics() contracts.HostMetrics {
 	if c, err := os.ReadFile("/proc/loadavg"); err == nil {
 		m.Load1, m.Load5, m.Load15 = ParseLoadAvg(string(c))
 	}
-	m.CPUPct = sampleCPU()
+	m.CPUPct = s.cpuPercent()
 	m.DiskUsed, m.DiskTotal = diskUsage("/")
 	sampleGPU(&m)
 	return m
@@ -49,22 +68,18 @@ func sampleGPU(m *contracts.HostMetrics) {
 	m.GPUMemTotal = memTotal * (1 << 20)
 }
 
-func sampleCPU() float64 {
-	c1, err := os.ReadFile("/proc/stat")
+func (s *HostSampler) cpuPercent() float64 {
+	content, err := os.ReadFile("/proc/stat")
 	if err != nil {
 		return 0
 	}
-	prev, ok := ParseCPUStat(string(c1))
+	cur, ok := ParseCPUStat(string(content))
 	if !ok {
 		return 0
 	}
-	time.Sleep(200 * time.Millisecond)
-	c2, err := os.ReadFile("/proc/stat")
-	if err != nil {
-		return 0
-	}
-	cur, ok := ParseCPUStat(string(c2))
-	if !ok {
+	prev, seen := s.prev, s.seen
+	s.prev, s.seen = cur, true
+	if !seen {
 		return 0
 	}
 	return CPUPercent(prev, cur)

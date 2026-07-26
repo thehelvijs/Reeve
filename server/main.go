@@ -19,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/thehelvijs/Reeve/agent/collect"
 	"github.com/thehelvijs/Reeve/server/internal/crypto"
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
@@ -176,7 +175,7 @@ func every(ctx context.Context, d time.Duration, fn func()) {
 // page can chart them like any monitored host.
 func (a *app) runServerSampleLoop(ctx context.Context) {
 	sample := func() {
-		if err := a.db.InsertHostMetric(store.ServerHostID, collect.SampleHostMetrics(), time.Now().UTC()); err != nil {
+		if err := a.db.InsertHostMetric(store.ServerHostID, a.sampleHost(), time.Now().UTC()); err != nil {
 			log.Printf("server sample: %v", err)
 		}
 	}

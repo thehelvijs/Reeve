@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/thehelvijs/Reeve/agent/collect"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
@@ -191,6 +190,6 @@ func (a *app) handleServerInfo(w http.ResponseWriter, _ *http.Request) {
 			"hosts": hosts,
 			"users": users,
 		},
-		"host": collect.SampleHostMetrics(),
+		"host": a.sampleHost(),
 	})
 }

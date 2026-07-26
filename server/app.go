@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thehelvijs/Reeve/agent/collect"
+	"github.com/thehelvijs/Reeve/contracts"
 	"github.com/thehelvijs/Reeve/server/internal/auth"
 	"github.com/thehelvijs/Reeve/server/internal/crypto"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
@@ -44,6 +46,11 @@ type app struct {
 	scriptFS       fs.FS
 	sumsOnce       sync.Once
 	sums           map[string]bool
+	// hostSampler measures this machine's CPU across the gap between reads, so
+	// nothing sleeps in a request or a loop to create a window of its own. Both
+	// the sample loop and the admin endpoint read it, hence the lock.
+	hostMu      sync.Mutex
+	hostSampler *collect.HostSampler
 	// send delivers one webhook payload; nil uses the real HTTP transport. A
 	// field so tests can substitute a fake.
 	send         func(notifyChannel, string) error
@@ -51,6 +58,17 @@ type app struct {
 	throttle     *auth.Throttle
 	// googleEndpoints redirects the OAuth legs at a stub provider in tests.
 	googleEndpoints *oauthEndpoints
+}
+
+// sampleHost reads this machine's metrics, measuring CPU against the previous
+// read rather than a sleep of its own.
+func (a *app) sampleHost() contracts.HostMetrics {
+	a.hostMu.Lock()
+	defer a.hostMu.Unlock()
+	if a.hostSampler == nil {
+		a.hostSampler = collect.NewHostSampler()
+	}
+	return a.hostSampler.Sample()
 }
 
 // oauthEndpoints is the provider's three URLs.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,10 +29,50 @@ const maxLogReaders = 4
 // rankings contributes to a push.
 const topProcsPerDimension = 25
 
-// procs carries the previous tick's CPU counters, which is what makes a
-// per-process percentage a real average over the interval rather than over the
-// process's whole lifetime. Ticks are serial, so it needs no lock.
+// procs and host carry the previous tick's CPU counters, which is what makes a
+// percentage a real average over the interval rather than over the process's
+// whole lifetime. Ticks are serial, so they need no lock.
 var procs = collect.NewProcSampler("/proc")
+var host = collect.NewHostSampler()
+
+// containerStatsInterval paces `docker stats`, which is the most expensive
+// thing a tick does: it costs the daemon a full snapshot of every container and
+// takes over a second. Per-container usage is graphed, not alerted on, so it
+// does not need every push.
+const containerStatsInterval = time.Minute
+
+// lastLogScan and lastStats are when each throttled collector last ran, so a
+// window is exactly the ground it has not covered yet. A fixed window wider
+// than the push interval re-reads and re-sends the same log lines every tick:
+// at 15s ticks the old 60s journal window sent each error four times, and the
+// 90s docker window six.
+var lastLogScan, lastStats time.Time
+
+// maxLogWindow bounds the catch-up after a long outage: an agent that has been
+// unable to push for a day must not then ask journald for a day of logs.
+const maxLogWindow = 10 * time.Minute
+
+// sinceLast returns how far back a collector should read to cover the ground
+// since last, clamped to maxLogWindow, and never shorter than one interval.
+func sinceLast(last, now time.Time, interval time.Duration) time.Duration {
+	window := interval
+	if !last.IsZero() && now.Sub(last) > window {
+		window = now.Sub(last)
+	}
+	if window > maxLogWindow {
+		return maxLogWindow
+	}
+	if window < time.Second {
+		return time.Second
+	}
+	return window
+}
+
+// durationArg renders a window as whole seconds, the one form both
+// `journalctl --since` and `docker logs --since` read the same way.
+func durationArg(d time.Duration) string {
+	return strconv.Itoa(int(d.Seconds())) + "s"
+}
 
 // control runs the actions an ack delivers. Replaced in main once the config
 // is read; the zero value refuses everything, which is the safe default if a
@@ -41,9 +82,9 @@ var control = newController(false)
 // gather collects a full telemetry snapshot from the host. Every collector is
 // best-effort: a missing command or file yields an empty section rather than a
 // failure, so one broken source never blocks the push. The collectors run
-// concurrently, so a tick costs the slowest source rather than their sum:
-// `docker stats --no-stream` alone takes over a second, and the CPU sample
-// spends 200ms inside its own measurement window.
+// concurrently, so a tick costs the slowest source rather than their sum, and
+// the two most expensive sources are paced: `docker stats` runs once a minute,
+// and the log scans read only the ground since the last tick.
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
 		AgentVersion:     version,
@@ -63,6 +104,14 @@ func gather(version string, cfg config) contracts.Push {
 	var processes []contracts.ProcessSample
 	var journalErrors, dockerErrors []contracts.LogEvent
 
+	now := time.Now()
+	logWindow := sinceLast(lastLogScan, now, cfg.Interval)
+	lastLogScan = now
+	wantStats := now.Sub(lastStats) >= containerStatsInterval
+	if wantStats {
+		lastStats = now
+	}
+
 	var wg sync.WaitGroup
 	run := func(fn func()) {
 		wg.Add(1)
@@ -77,17 +126,19 @@ func gather(version string, cfg config) contracts.Push {
 			services = collect.ParseSystemctl(out)
 		}
 	})
-	run(func() {
-		if out, err := runCmd("docker", "stats", "--no-stream", "--format", "{{json .}}"); err == nil {
-			stats = collect.ParseDockerStats(out)
-		}
-	})
+	if wantStats {
+		run(func() {
+			if out, err := runCmd("docker", "stats", "--no-stream", "--format", "{{json .}}"); err == nil {
+				stats = collect.ParseDockerStats(out)
+			}
+		})
+	}
 	run(func() { crons = gatherCron() })
-	run(func() { metrics = collect.SampleHostMetrics() })
+	run(func() { metrics = host.Sample() })
 	run(func() {
 		processes = collect.TopProcs(procs.Sample(time.Now()), topProcsPerDimension)
 	})
-	run(func() { journalErrors = gatherLogErrors() })
+	run(func() { journalErrors = gatherLogErrors(logWindow) })
 	// The container list feeds both the inventory and the per-container log
 	// scan, so one `docker ps` serves both.
 	run(func() {
@@ -96,7 +147,7 @@ func gather(version string, cfg config) contracts.Push {
 			return
 		}
 		containers = collect.ParseDockerPS(out)
-		dockerErrors = gatherDockerLogErrors(containers)
+		dockerErrors = gatherDockerLogErrors(containers, logWindow)
 	})
 	wg.Wait()
 
@@ -161,8 +212,8 @@ func gatherCron() []contracts.CronState {
 	return jobs
 }
 
-func gatherLogErrors() []contracts.LogEvent {
-	out, err := runCmd("journalctl", "-p", "err", "--since", "-1min", "--no-pager", "-q")
+func gatherLogErrors(window time.Duration) []contracts.LogEvent {
+	out, err := runCmd("journalctl", "-p", "err", "--since", "-"+durationArg(window), "--no-pager", "-q")
 	if err != nil {
 		return nil
 	}
@@ -171,7 +222,7 @@ func gatherLogErrors() []contracts.LogEvent {
 
 // gatherDockerLogErrors scans the recent logs of every running container,
 // reading them concurrently since each is an independent docker call.
-func gatherDockerLogErrors(containers []contracts.ContainerState) []contracts.LogEvent {
+func gatherDockerLogErrors(containers []contracts.ContainerState, window time.Duration) []contracts.LogEvent {
 	perContainer := make([][]contracts.LogEvent, len(containers))
 	slots := make(chan struct{}, maxLogReaders)
 	var wg sync.WaitGroup
@@ -184,7 +235,7 @@ func gatherDockerLogErrors(containers []contracts.ContainerState) []contracts.Lo
 			defer wg.Done()
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			logs, err := runCmdCombined("docker", "logs", "--since", "90s", "--tail", "500", id)
+			logs, err := runCmdCombined("docker", "logs", "--since", durationArg(window), "--tail", "500", id)
 			if err != nil {
 				return
 			}
