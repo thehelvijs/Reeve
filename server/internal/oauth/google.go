@@ -153,6 +153,11 @@ func (c Config) UserInfo(ctx context.Context, accessToken string) (Profile, erro
 	if p.Email == "" || !strings.Contains(p.Email, "@") {
 		return Profile{}, errors.New("userinfo: no email on the account")
 	}
+	// The subject is what an account is pinned to; without it there is nothing
+	// stable to recognize this identity by on the next sign-in.
+	if strings.TrimSpace(p.Subject) == "" {
+		return Profile{}, errors.New("userinfo: the provider returned no subject id")
+	}
 	if !p.EmailVerified {
 		return Profile{}, errors.New("userinfo: the provider has not verified that email address")
 	}

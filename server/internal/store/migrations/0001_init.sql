@@ -6,6 +6,10 @@ CREATE TABLE users (
     active        INTEGER NOT NULL DEFAULT 1,
     display_name  TEXT NOT NULL DEFAULT '',
     avatar_path   TEXT NOT NULL DEFAULT '',
+    -- The identity provider's immutable subject id, pinned on the first
+    -- federated sign-in. An email address can be reassigned by whoever runs
+    -- the domain; this cannot, so later sign-ins are matched against it.
+    oauth_subject TEXT NOT NULL DEFAULT '',
     created_at    TEXT NOT NULL
 );
 

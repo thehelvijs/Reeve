@@ -129,6 +129,7 @@ function oauthErrorMessage(code: string | null): string {
     no_account: 'No account exists for that address, and sign-up is closed.',
     account_disabled: 'That account is deactivated.',
     provision_failed: 'Could not create an account for that address.',
+    subject_mismatch: 'That address belongs to a different Google account here. Ask an admin.',
   };
   return messages[code] ?? 'Sign-in failed.';
 }

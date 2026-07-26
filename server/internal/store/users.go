@@ -25,6 +25,9 @@ type User struct {
 	CreatedAt    time.Time
 	DisplayName  string
 	AvatarPath   string
+	// OAuthSubject is the identity provider's subject id, empty until the
+	// account signs in through one.
+	OAuthSubject string
 }
 
 // CreateUser inserts a user and returns it. The caller supplies the hash.
@@ -58,19 +61,19 @@ func (db *DB) CountUsers() (int, error) {
 // GetUserByEmail looks up a user by email.
 func (db *DB) GetUserByEmail(email string) (User, error) {
 	return db.scanUser(db.sql.QueryRow(
-		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path FROM users WHERE email = ?`, email))
+		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path, oauth_subject FROM users WHERE email = ?`, email))
 }
 
 // GetUserByID looks up a user by id.
 func (db *DB) GetUserByID(id string) (User, error) {
 	return db.scanUser(db.sql.QueryRow(
-		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path FROM users WHERE id = ?`, id))
+		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path, oauth_subject FROM users WHERE id = ?`, id))
 }
 
 // ListUsers returns all users ordered by creation time.
 func (db *DB) ListUsers() ([]User, error) {
 	rows, err := db.sql.Query(
-		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path FROM users ORDER BY created_at`)
+		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path, oauth_subject FROM users ORDER BY created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +113,11 @@ func (db *DB) SetUserPassword(id, hash string) error {
 	return db.exec1(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, id)
 }
 
+// SetUserOAuthSubject pins the identity provider's subject id to an account.
+func (db *DB) SetUserOAuthSubject(id, subject string) error {
+	return db.exec1(`UPDATE users SET oauth_subject = ? WHERE id = ?`, subject, id)
+}
+
 // SetUserAvatarPath sets (or clears, when empty) a user's stored avatar path.
 func (db *DB) SetUserAvatarPath(id, path string) error {
 	return db.exec1(`UPDATE users SET avatar_path = ? WHERE id = ?`, path, id)
@@ -133,7 +141,7 @@ func (db *DB) CountActiveAdmins() (int, error) {
 // OldestAdminExcluding returns the earliest-created admin other than excludeID.
 func (db *DB) OldestAdminExcluding(excludeID string) (User, error) {
 	return db.scanUser(db.sql.QueryRow(
-		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path
+		`SELECT id, email, password_hash, role, active, created_at, display_name, avatar_path, oauth_subject
 		 FROM users WHERE role = ? AND id != ? ORDER BY created_at LIMIT 1`, RoleAdmin, excludeID))
 }
 
@@ -182,7 +190,7 @@ func scanUserRow(row scanner) (User, error) {
 	var u User
 	var created string
 	var active int
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &active, &created, &u.DisplayName, &u.AvatarPath); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &active, &created, &u.DisplayName, &u.AvatarPath, &u.OAuthSubject); err != nil {
 		return User{}, err
 	}
 	u.Active = active == 1
