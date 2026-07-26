@@ -212,10 +212,24 @@ function AgentUpdateSection({
   );
 }
 
+// The read view carries password_set, which the server's strict JSON decoder
+// rejects on the way back in, so the draft is built field by field.
+function smtpDraft(s: Settings['smtp']): SMTPInput {
+  return {
+    enabled: s.enabled,
+    host: s.host,
+    port: s.port,
+    username: s.username,
+    from: s.from,
+    tls: s.tls,
+    password: '',
+  };
+}
+
 function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
-  const [draft, setDraft] = useState<SMTPInput>({ ...settings.smtp, password: '' });
+  const [draft, setDraft] = useState<SMTPInput>(smtpDraft(settings.smtp));
   const [testing, setTesting] = useState('');
-  useEffect(() => setDraft({ ...settings.smtp, password: '' }), [settings.smtp]);
+  useEffect(() => setDraft(smtpDraft(settings.smtp)), [settings.smtp]);
 
   const sendTest = async () => {
     setTesting('sending');
