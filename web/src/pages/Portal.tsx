@@ -245,18 +245,20 @@ export default function Portal() {
               </div>
             )}
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {/* The toggle is a button, so it sits beside the card's button
+                  rather than inside it: a button within a button is invalid
+                  HTML that the parser silently splits, and the card then stops
+                  responding at all. */}
               {g.tools.map((t) => (
-                <button key={t.id} type="button" onClick={() => openTool(t.id)} className="text-left">
-                  <Card className="flex h-full flex-col px-4 py-3 transition-colors hover:bg-surface-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <EntityIcon url={t.icon_url} name={t.name} size={36} />
-                      <div className="flex items-center gap-1.5">
-                        <VisibilityToggle tool={t} onChanged={replaceTool} />
-                        <StatusPill status={t.status} />
-                      </div>
-                    </div>
-                    <p className="mt-2 truncate text-sm font-medium text-content">{t.name}</p>
-                    <p className="truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
+                <Card key={t.id} className="relative flex h-full flex-col px-4 py-3 transition-colors hover:bg-surface-2">
+                  <div className="absolute right-4 top-3 flex items-center gap-1.5">
+                    <VisibilityToggle tool={t} onChanged={replaceTool} />
+                    <StatusPill status={t.status} />
+                  </div>
+                  <button type="button" onClick={() => openTool(t.id)} className="flex h-full flex-col text-left">
+                    <EntityIcon url={t.icon_url} name={t.name} size={36} />
+                    <p className="mt-2 w-full truncate text-sm font-medium text-content">{t.name}</p>
+                    <p className="w-full truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
                     {t.collections.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {t.collections.map((c) => (
@@ -264,8 +266,8 @@ export default function Portal() {
                         ))}
                       </div>
                     )}
-                  </Card>
-                </button>
+                  </button>
+                </Card>
               ))}
             </div>
           </section>
