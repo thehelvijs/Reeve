@@ -67,8 +67,11 @@ on further attempts, so the lockout cannot be used to keep someone out.
 admin, a reset link, or the CLI, signs that account out everywhere.
 
 **SSH push install** verifies the host key fingerprint an admin confirmed before
-sending any credential, never stores the SSH credentials it is given, and mints a
-fresh enrollment token for each push.
+sending any credential, and mints a fresh enrollment token for each push. By
+default it then keeps that login as a credential on the host — encrypted like
+any other, revealable by admins and by the admin who ran the install, and
+requestable by anyone else. Untick the box in the modal to install without
+keeping it. A failed install stores nothing.
 
 ## Deployment expectations
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/thehelvijs/Reeve/server/internal/auth"
+	"github.com/thehelvijs/Reeve/server/internal/rbac"
 	"github.com/thehelvijs/Reeve/server/internal/sshinstall"
 )
 
@@ -26,8 +27,9 @@ var unameToArch = map[string]string{
 	"riscv64": "riscv64",
 }
 
-// sshTargetInput is the connection detail an admin supplies. None of it is
-// stored: it lives for the length of the request only.
+// sshTargetInput is the connection detail an admin supplies. It lives for the
+// length of the request, except that a successful install keeps the login as a
+// host credential unless SkipCredentialSave says otherwise.
 type sshTargetInput struct {
 	Address      string `json:"address"`
 	Port         int    `json:"port"`
@@ -37,6 +39,11 @@ type sshTargetInput struct {
 	Passphrase   string `json:"passphrase"`
 	SudoPassword string `json:"sudo_password"`
 	Fingerprint  string `json:"fingerprint"`
+	// SkipCredentialSave inverts the default: an install keeps what it was
+	// given as a host credential unless the admin opts out. Phrased as a
+	// negative so an absent field means "save", which is what the checkbox in
+	// the modal says.
+	SkipCredentialSave bool `json:"skip_credential_save"`
 }
 
 func (in sshTargetInput) target() sshinstall.Target {
@@ -79,6 +86,7 @@ func (a *app) handleSSHProbe(w http.ResponseWriter, r *http.Request) {
 // enrollment token is minted here and never leaves the server: it goes straight
 // into the installer's environment on the target.
 func (a *app) handleSSHInstall(w http.ResponseWriter, r *http.Request) {
+	principal, _ := rbac.FromContext(r.Context())
 	id := r.PathValue("id")
 	h, err := a.db.GetHost(id)
 	if err != nil {
@@ -129,7 +137,58 @@ func (a *app) handleSSHInstall(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"host_id": h.ID, "output": out})
+	saved := false
+	if !in.SkipCredentialSave {
+		if err := a.saveInstallCredential(h.ID, in, principal); err != nil {
+			// The agent is installed and running; failing the whole request now
+			// would be a lie. Say what happened instead.
+			log.Printf("ssh install on %s: storing the credential: %v", target.Address, err)
+		} else {
+			saved = true
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"host_id": h.ID, "output": out, "credential_saved": saved})
+}
+
+// saveInstallCredential keeps the login the install just proved works, so the
+// next person does not have to find it again. It is stored against the host,
+// like every other credential, and the installing admin gets an explicit grant:
+// they already have access by role, but the grant survives losing it and is
+// what the audit trail reads back.
+func (a *app) saveInstallCredential(hostID string, in sshTargetInput, p auth.Principal) error {
+	secret := map[string]string{"username": strings.TrimSpace(in.Username)}
+	ctype := "ssh_password"
+	switch {
+	case in.PrivateKey != "":
+		ctype = "ssh_key"
+		secret["private_key"] = in.PrivateKey
+		if in.Passphrase != "" {
+			secret["passphrase"] = in.Passphrase
+		}
+	case in.Password != "":
+		secret["password"] = in.Password
+	default:
+		return nil // key agent or passwordless: there is nothing to keep
+	}
+	if in.SudoPassword != "" && in.SudoPassword != in.Password {
+		secret["sudo_password"] = in.SudoPassword
+	}
+
+	ct, nonce, err := a.sealSecret(secret)
+	if err != nil {
+		return err
+	}
+	label := "SSH (saved on install)"
+	c, err := a.db.CreateCredential(hostID, ctype, label, ct, nonce, p.UserID)
+	if err != nil {
+		return err
+	}
+	if err := a.db.GrantCredentialAccess(hostID, "user", p.UserID, p.UserID); err != nil {
+		return err
+	}
+	a.db.RecordGrant(hostID, "user", p.UserID, "grant", p.UserID)
+	log.Printf("ssh install: stored %s credential %s for host %s", ctype, c.ID, hostID)
+	return nil
 }
 
 // handleSSHUninstall removes the agent from a host over SSH, leaving the host in

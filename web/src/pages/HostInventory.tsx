@@ -9,7 +9,8 @@ import {
   type ThresholdsPayload,
 } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, ErrorText, Field, Form, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
+import Modal from '../components/Modal';
 import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
 import BackLink from '../components/BackLink';
 import EntityIcon from '../components/EntityIcon';
@@ -174,6 +175,8 @@ export default function HostInventory() {
         control={controlFor('container')}
       />
       <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} />
+
+      {id && host && user?.role === 'admin' && <DeleteHost hostId={id} host={host} />}
     </div>
   );
 }
@@ -384,6 +387,70 @@ function RowControls({
         </button>
       ))}
     </div>
+  );
+}
+
+// DeleteHost removes the host and everything the schema hangs off it. The
+// confirm names what goes with it, because credentials and history cascade and
+// a catalogued service does not: tools keep a host_id that no longer resolves.
+function DeleteHost({ hostId, host }: { hostId: string; host: Host }) {
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [error, setError] = useState('');
+
+  const remove = async () => {
+    setError('');
+    try {
+      await api.del(`/api/admin/hosts/${hostId}`);
+      navigate('/hosts');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not delete this host');
+    }
+  };
+
+  return (
+    <Card className="mt-6 border-red-900/50 p-5">
+      <p className="text-sm font-medium text-content">Delete host</p>
+      <p className="mt-1 text-xs text-muted">
+        Removes {host.name}, its stored credentials, metrics, events and command history. The agent
+        on the machine keeps running until you uninstall it, and any service pinned to this host
+        keeps a reference that no longer resolves.
+      </p>
+      <div className="mt-4">
+        <Button variant="danger" onClick={() => setConfirming(true)}>
+          Delete this host
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
+
+      {confirming && (
+        <Modal title={`Delete ${host.name}?`} onClose={() => setConfirming(false)}>
+          <Form onSubmit={remove}>
+            <p className="text-sm text-muted">
+              This cannot be undone. Its credentials are destroyed with it. Type the host name to
+              confirm.
+            </p>
+            <div className="mt-4">
+              <Input
+                value={typed}
+                autoFocus
+                placeholder={host.name}
+                onChange={(e) => setTyped(e.target.value)}
+              />
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="danger" disabled={typed !== host.name}>
+                Delete
+              </Button>
+            </div>
+          </Form>
+        </Modal>
+      )}
+    </Card>
   );
 }
 

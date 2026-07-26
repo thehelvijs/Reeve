@@ -292,6 +292,21 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
   (see Agent updates above).
 
+### SSH install and the credential it keeps
+
+`POST /admin/hosts/{id}/ssh-install` pushes the agent over SSH. By default it
+then stores the login it was given as a credential on that host — `ssh_password`
+or `ssh_key` — and grants the installing admin standing access to it. Send
+`"skip_credential_save": true` to opt out; the checkbox in the deploy modal is
+worded as the opt-out so an absent field means save. Nothing is stored when the
+install fails, or when there was no secret to keep (agent-forwarded key, or
+NOPASSWD sudo). The response carries `credential_saved`.
+
+`DELETE /admin/hosts/{id}` removes a host along with its credentials, metrics,
+events and command history. A tool pinned to it keeps a `host_id` that no
+longer resolves, and the agent on the machine keeps running until it is
+uninstalled.
+
 ## Host controls (admin only)
 
 `POST /admin/hosts/{id}/commands` with `{action, target}` queues one action for

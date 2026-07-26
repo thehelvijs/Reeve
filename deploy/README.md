@@ -137,8 +137,10 @@ On the host row, **Install over SSH**. Give it the machine's address, an SSH
 user, and a password or private key (plus a sudo password unless the user is
 root or has NOPASSWD). The server shows the host key fingerprint for you to
 confirm, then copies the matching agent build and the installer over and runs
-it. Credentials are used for that one operation and never stored, and a fresh
-enrollment token is minted for each push. **Remove agent** does the reverse and
+it. A fresh enrollment token is minted for each push. The login is kept as a
+credential on that host so the next person does not have to hunt for it —
+untick "Save this login as a credential" to skip that; an uninstall never
+stores anything. **Remove agent** does the reverse and
 leaves the host in the catalog with its history.
 
 The address the agent is told to push to defaults to whatever host you reached
@@ -178,6 +180,12 @@ longer drives routine updates; it now only paces the recovery check that fires
 when no valid server ack has arrived in `2 × REEVE_UPDATE_INTERVAL`, so an
 agent that falls out of contact with the server still updates itself
 unattended.
+
+**Credentials from an install.** An SSH push-install keeps the login it just
+proved works as a credential on that host, encrypted at rest, with a standing
+grant for the admin who ran it. Untick "Save this login as a credential" in the
+modal to skip it. Nothing is kept when the install fails or when there was no
+secret (forwarded key, NOPASSWD sudo).
 
 **Remote control.** An admin can queue a fixed set of actions for a host from
 its page — restart, shut down, and start/stop/restart of a systemd unit or a

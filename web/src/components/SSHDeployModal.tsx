@@ -39,6 +39,9 @@ export default function SSHDeployModal({
   const [keyType, setKeyType] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
+  // Saving is the default: the login just proved it works, and the next person
+  // should not have to go looking for it.
+  const [saveCredential, setSaveCredential] = useState(true);
 
   const set = <K extends keyof SSHTarget>(k: K, v: SSHTarget[K]) => setTarget((t) => ({ ...t, [k]: v }));
 
@@ -68,8 +71,9 @@ export default function SSHDeployModal({
       private_key: auth === 'key' ? target.private_key : '',
       passphrase: auth === 'key' ? target.passphrase : '',
     };
+    const body = { ...payload, skip_credential_save: !saveCredential };
     try {
-      const res = await api.post<{ output: string }>(`/api/admin/hosts/${hostId}/${path}`, payload);
+      const res = await api.post<{ output: string }>(`/api/admin/hosts/${hostId}/${path}`, body);
       setOutput(res.output);
       setStage('done');
       onDone();
@@ -107,7 +111,10 @@ export default function SSHDeployModal({
         <div className="mt-4 space-y-3">
           <p className="text-sm text-muted">
             The server connects to the machine over SSH and runs the {mode === 'install' ? 'installer' : 'uninstaller'}{' '}
-            itself. These credentials are used once and never stored.
+            itself.{' '}
+            {mode === 'install'
+              ? 'Saved as a credential for this host unless you untick the box below.'
+              : 'These credentials are used once and never stored.'}
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
@@ -180,6 +187,23 @@ export default function SSHDeployModal({
                 onChange={(e) => set('sudo_password', e.target.value)}
               />
             </Field>
+          )}
+
+          {mode === 'install' && (
+            <label className="flex items-start gap-2 text-sm text-content">
+              <input
+                type="checkbox"
+                checked={saveCredential}
+                onChange={(e) => setSaveCredential(e.target.checked)}
+                className="mt-0.5 accent-accent"
+              />
+              <span>
+                Save this login as a credential for {hostName}
+                <span className="block text-xs text-muted">
+                  Encrypted at rest. Visible to admins and to you; anyone else has to request access.
+                </span>
+              </span>
+            </label>
           )}
 
           <ErrorText>{error}</ErrorText>
