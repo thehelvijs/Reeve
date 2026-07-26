@@ -20,7 +20,6 @@ async function reportAddress(req: APIRequestContext, token: string, ip: string) 
   const res = await req.post('/api/v1/ingest', {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      protocol_version: 1,
       agent_version: '9.9.9',
       ip_address: ip,
       sent_at: new Date().toISOString(),

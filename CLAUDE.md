@@ -23,9 +23,10 @@ them. `make dist` produces the full release set.
 
 - `agent/` must not import `server/`. The agent runs as root on other people's
   machines; its dependency surface stays as small as it is today.
-- Protocol changes touch both sides in one commit. Bumping
-  `contracts.PushProtocolVersion` means updating producer, consumer and tests
-  together, since the server hard-rejects a mismatch at ingest.
+- Push-payload changes touch both sides in one commit: producer, consumer and
+  tests together. There is no protocol version to negotiate. Reeve is
+  pre-release with no agent in the world older than the server, so a shape
+  change is a plain edit, not a compatibility problem.
 - The schema is one file, `server/internal/store/migrations/0001_init.sql`.
   Reeve is pre-release with no installed base, so a schema change edits that
   file in place. There are no numbered migrations and no data to migrate.

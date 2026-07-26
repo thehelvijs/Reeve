@@ -55,7 +55,6 @@ func timeMinus(t *testing.T, secs int) time.Time {
 func reportVersion(t *testing.T, ts *testServer, hostID, version string) {
 	t.Helper()
 	push := contracts.Push{
-		ProtocolVersion: contracts.PushProtocolVersion,
 		AgentVersion:    version,
 		SentAt:          time.Now().UTC(),
 	}

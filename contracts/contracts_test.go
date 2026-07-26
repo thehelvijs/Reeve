@@ -11,7 +11,6 @@ func TestPushRoundTrip(t *testing.T) {
 	exit := 0
 	last := time.Unix(1_700_000_000, 0).UTC()
 	in := Push{
-		ProtocolVersion: PushProtocolVersion,
 		AgentVersion:    "0.1.0",
 		SentAt:          last,
 		Services:        []ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
@@ -30,9 +29,6 @@ func TestPushRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if out.ProtocolVersion != PushProtocolVersion {
-		t.Errorf("protocol version = %d, want %d", out.ProtocolVersion, PushProtocolVersion)
-	}
 	if len(out.Services) != 1 || out.Services[0].Unit != "nginx.service" {
 		t.Errorf("services did not round-trip: %+v", out.Services)
 	}
@@ -44,12 +40,6 @@ func TestPushRoundTrip(t *testing.T) {
 	}
 	if len(out.LogEvents) != 1 || out.LogEvents[0].Message != "boom" {
 		t.Errorf("log events did not round-trip: %+v", out.LogEvents)
-	}
-}
-
-func TestPushProtocolVersionIsOne(t *testing.T) {
-	if PushProtocolVersion != 1 {
-		t.Errorf("protocol version = %d, want 1", PushProtocolVersion)
 	}
 }
 

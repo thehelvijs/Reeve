@@ -49,9 +49,9 @@ Two rules about that layout:
 
 1. **`agent/` must not import `server/`.** The agent runs as root on other
    people's machines; its dependency surface stays as small as it is today.
-2. **Protocol changes touch both sides in one commit.** Bumping
-   `contracts.PushProtocolVersion` means updating producer, consumer, and tests
-   together, since the server hard-rejects a mismatch at ingest.
+2. **Push-payload changes touch both sides in one commit.** Producer, consumer,
+   and tests move together. There is no protocol version to negotiate; Reeve is
+   pre-release, so a shape change is a plain edit.
 
 ## Design
 

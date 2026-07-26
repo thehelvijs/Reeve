@@ -27,7 +27,6 @@ async function push(
   const res = await req.post('/api/v1/ingest', {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      protocol_version: 1,
       agent_version: agentVersion,
       auto_update_vetoed: vetoed,
       sent_at: new Date().toISOString(),

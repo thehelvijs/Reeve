@@ -65,7 +65,7 @@ func TestLoadIngest(t *testing.T) {
 }
 
 func realisticPush() contracts.Push {
-	p := contracts.Push{ProtocolVersion: contracts.PushProtocolVersion, AgentVersion: "load", SentAt: time.Now().UTC()}
+	p := contracts.Push{AgentVersion: "load", SentAt: time.Now().UTC()}
 	for i := 0; i < 50; i++ {
 		p.Services = append(p.Services, contracts.ServiceState{
 			Unit: fmt.Sprintf("svc-%d.service", i), ActiveState: "active", SubState: "running"})

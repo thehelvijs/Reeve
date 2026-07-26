@@ -46,7 +46,6 @@ func TestApplyPushRecordsVeto(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	push := contracts.Push{
-		ProtocolVersion:  contracts.PushProtocolVersion,
 		AgentVersion:     "0.1.0",
 		AutoUpdateVetoed: true,
 	}
@@ -66,7 +65,7 @@ func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	db.StartHostUpdate(h.ID, time.Now().UTC())
 
-	vetoed := contracts.Push{ProtocolVersion: contracts.PushProtocolVersion, AgentVersion: "0.1.0", AutoUpdateVetoed: true}
+	vetoed := contracts.Push{AgentVersion: "0.1.0", AutoUpdateVetoed: true}
 	if err := db.ApplyPush(h.ID, vetoed, time.Now().UTC()); err != nil {
 		t.Fatalf("apply push: %v", err)
 	}
@@ -78,7 +77,7 @@ func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
 	// A push without a veto must leave a live slot alone, or every heartbeat
 	// would cancel the update the host is in the middle of.
 	db.StartHostUpdate(h.ID, time.Now().UTC())
-	plain := contracts.Push{ProtocolVersion: contracts.PushProtocolVersion, AgentVersion: "0.1.0"}
+	plain := contracts.Push{AgentVersion: "0.1.0"}
 	if err := db.ApplyPush(h.ID, plain, time.Now().UTC()); err != nil {
 		t.Fatalf("apply push: %v", err)
 	}

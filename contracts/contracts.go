@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// PushProtocolVersion is bumped when the agent->server payload shape changes.
-const PushProtocolVersion = 1
-
 // Per-section ceilings on one push. A host runs as many services and
 // containers as it runs, but an enrolled agent is a credential sitting on
 // someone else's machine: these bound what one compromised host writes per
@@ -22,7 +19,6 @@ const (
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {
-	ProtocolVersion  int    `json:"protocol_version"`
 	AgentVersion     string `json:"agent_version"`
 	AutoUpdateVetoed bool   `json:"auto_update_vetoed"`
 	// IPAddress is the host's address on the route to the server, so a tool

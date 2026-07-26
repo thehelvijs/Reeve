@@ -292,7 +292,7 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 
 `POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
-or wrong-protocol pushes with the standard error envelope.
+or oversized pushes with the standard error envelope.
 
 The agent reports `auto_update_vetoed` (`true` when the host set
 `REEVE_AUTO_UPDATE=false` and will refuse any update) and `ip_address`, the

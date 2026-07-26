@@ -13,7 +13,6 @@ func TestApplyPushStoresEverySection(t *testing.T) {
 	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 
 	push := contracts.Push{
-		ProtocolVersion: contracts.PushProtocolVersion,
 		AgentVersion:    "1.2.3",
 		Services:        []contracts.ServiceState{{Unit: "web.service", ActiveState: "active", SubState: "running"}},
 		Containers:      []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},

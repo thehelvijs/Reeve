@@ -44,11 +44,6 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_push", "invalid push body")
 		return
 	}
-	if push.ProtocolVersion != contracts.PushProtocolVersion {
-		a.ingestRejected.Add(1)
-		writeError(w, http.StatusBadRequest, "bad_protocol", "unsupported push protocol version")
-		return
-	}
 	if section := push.TooLarge(); section != "" {
 		a.ingestRejected.Add(1)
 		log.Printf("ingest: host %s sent an oversized %s section", host.ID, section)

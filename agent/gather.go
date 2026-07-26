@@ -32,7 +32,6 @@ const maxLogReaders = 4
 // spends 200ms inside its own measurement window.
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
-		ProtocolVersion:  contracts.PushProtocolVersion,
 		AgentVersion:     version,
 		AutoUpdateVetoed: !cfg.AutoUpdate,
 		IPAddress:        localIPFor(cfg.ServerURL),

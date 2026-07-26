@@ -29,7 +29,6 @@ func enrollHost(t *testing.T, ts *testServer, admin *http.Client, name string) (
 
 func samplePush() contracts.Push {
 	return contracts.Push{
-		ProtocolVersion: contracts.PushProtocolVersion,
 		AgentVersion:    "0.1.0",
 		SentAt:          time.Unix(1_700_000_000, 0).UTC(),
 		Services:        []contracts.ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
@@ -132,19 +131,6 @@ func TestIngestBadTokenRejected(t *testing.T) {
 	}
 	if ts.app.ingestRejected.Load() != before+1 {
 		t.Error("rejected counter not incremented")
-	}
-}
-
-func TestIngestBadProtocolRejected(t *testing.T) {
-	ts := newTestServer(t)
-	admin := adminClient(t, ts)
-	_, token := enrollHost(t, ts, admin, "host-a")
-	p := samplePush()
-	p.ProtocolVersion = 999
-	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
-		map[string]string{"Authorization": "Bearer " + token})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("bad protocol ingest = %d, want 400", resp.StatusCode)
 	}
 }
 

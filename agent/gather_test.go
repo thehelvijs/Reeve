@@ -34,9 +34,6 @@ func TestGatherCollectsConcurrently(t *testing.T) {
 		t.Skip("gather reads /proc")
 	}
 	push := gather("test", config{})
-	if push.ProtocolVersion != contracts.PushProtocolVersion {
-		t.Errorf("protocol version = %d, want %d", push.ProtocolVersion, contracts.PushProtocolVersion)
-	}
 	if push.AgentVersion != "test" {
 		t.Errorf("agent version = %q, want test", push.AgentVersion)
 	}

@@ -24,7 +24,7 @@ func TestSendReturnsTheAck(t *testing.T) {
 	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
 	p.bufferDir = t.TempDir()
 
-	ack, err := p.send(contracts.Push{ProtocolVersion: contracts.PushProtocolVersion})
+	ack, err := p.send(contracts.Push{})
 	if err != nil {
 		t.Fatalf("send: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestMalformedAckIsNotContact(t *testing.T) {
 	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
 	p.bufferDir = t.TempDir()
 
-	ack, err := p.send(contracts.Push{ProtocolVersion: contracts.PushProtocolVersion})
+	ack, err := p.send(contracts.Push{})
 	if err != nil {
 		t.Fatalf("send returned an error for an accepted push: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestNon2xxBuffersThePush(t *testing.T) {
 	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
 	p.bufferDir = t.TempDir()
 
-	_, err := p.send(contracts.Push{ProtocolVersion: contracts.PushProtocolVersion})
+	_, err := p.send(contracts.Push{})
 	if err == nil {
 		t.Fatal("send returned no error for a 400 response")
 	}
