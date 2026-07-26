@@ -3,8 +3,8 @@ import {
   api,
   type AdminUser,
   type GrantAuditEntry,
+  type Host,
   type RevealAuditEntry,
-  type Tool,
 } from '../api';
 import { Card, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
@@ -13,7 +13,7 @@ export default function AdminAudit() {
   const [reveals, setReveals] = useState<RevealAuditEntry[]>([]);
   const [grants, setGrants] = useState<GrantAuditEntry[]>([]);
   const [users, setUsers] = useState<Record<string, string>>({});
-  const [tools, setTools] = useState<Record<string, string>>({});
+  const [hosts, setHosts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.get<RevealAuditEntry[]>('/api/admin/audit/reveals').then((r) => setReveals(r ?? []));
@@ -23,15 +23,15 @@ export default function AdminAudit() {
       (us ?? []).forEach((u) => (m[u.id] = u.email));
       setUsers(m);
     });
-    api.get<Tool[]>('/api/tools').then((ts) => {
+    api.get<Host[]>('/api/hosts').then((hs) => {
       const m: Record<string, string> = {};
-      (ts ?? []).forEach((t) => (m[t.id] = t.name));
-      setTools(m);
+      (hs ?? []).forEach((h) => (m[h.id] = h.name));
+      setHosts(m);
     });
   }, []);
 
   const u = (id: string) => users[id] ?? id;
-  const tl = (id: string) => tools[id] ?? id;
+  const hn = (id: string) => hosts[id] ?? id;
 
   return (
     <div>
@@ -43,7 +43,7 @@ export default function AdminAudit() {
         {reveals.map((r) => (
           <div key={r.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
             <span className="text-content">{u(r.user_id)}</span>
-            <span className="text-muted">revealed on {tl(r.tool_id)}</span>
+            <span className="text-muted">revealed on {hn(r.host_id)}</span>
             <span className="font-mono text-xs text-muted">{r.source_ip}</span>
             <span className="text-xs text-muted">{new Date(r.revealed_at).toLocaleString()}</span>
           </div>
@@ -58,7 +58,7 @@ export default function AdminAudit() {
             <span className="text-content">{u(g.actor_id)}</span>
             <Pill tone={g.action === 'grant' ? 'up' : 'down'}>{g.action}</Pill>
             <span className="text-muted">
-              {g.principal_type}:{g.principal_type === 'user' ? u(g.principal_id) : g.principal_id} on {tl(g.tool_id)}
+              {g.principal_type}:{g.principal_type === 'user' ? u(g.principal_id) : g.principal_id} on {hn(g.host_id)}
             </span>
             <span className="text-xs text-muted">{new Date(g.at).toLocaleString()}</span>
           </div>

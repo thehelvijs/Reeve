@@ -12,23 +12,28 @@ import (
 
 type requestView struct {
 	ID          string `json:"id"`
-	ToolID      string `json:"tool_id"`
+	HostID      string `json:"host_id"`
+	HostName    string `json:"host_name"`
 	RequesterID string `json:"requester_id"`
 	Status      string `json:"status"`
 	Note        string `json:"note"`
 	CreatedAt   string `json:"created_at"`
 }
 
-func toRequestView(r store.AccessRequest) requestView {
+func (a *app) toRequestView(r store.AccessRequest) requestView {
+	name := ""
+	if h, err := a.db.GetHost(r.HostID); err == nil {
+		name = h.Name
+	}
 	return requestView{
-		ID: r.ID, ToolID: r.ToolID, RequesterID: r.RequesterID, Status: r.Status,
-		Note: r.Note, CreatedAt: r.CreatedAt.Format(time.RFC3339),
+		ID: r.ID, HostID: r.HostID, HostName: name, RequesterID: r.RequesterID,
+		Status: r.Status, Note: r.Note, CreatedAt: r.CreatedAt.Format(time.RFC3339),
 	}
 }
 
 func (a *app) handleCreateAccessRequest(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadVisibleTool(w, r, p)
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
@@ -39,22 +44,23 @@ func (a *app) handleCreateAccessRequest(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	req, err := a.db.CreateAccessRequest(t.ID, p.UserID, strings.TrimSpace(in.Note))
+	req, err := a.db.CreateAccessRequest(h.ID, p.UserID, strings.TrimSpace(in.Note))
 	if err == store.ErrDuplicateRequest {
-		writeError(w, http.StatusConflict, "duplicate_request", "you already have an open request for this tool")
+		writeError(w, http.StatusConflict, "duplicate_request", "you already have an open request for this host")
 		return
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create request")
 		return
 	}
-	// In-app notification is the inbox; also fire a webhook if any is configured.
-	a.notifyToolEvent(t.ID, map[string]any{
-		"event": "access_request", "tool": t.Name, "tool_id": t.ID,
+	// In-app notification is the inbox; webhook ownership has no host kind, so
+	// an empty owner resolves the global channels and nothing tool-scoped.
+	a.notifyToolEvent("", map[string]any{
+		"event": "access_request", "host": h.Name, "host_id": h.ID,
 		"requester": p.Email, "note": req.Note,
 		"timestamp": req.CreatedAt.UTC().Format(time.RFC3339),
 	}, time.Now().UTC())
-	writeJSON(w, http.StatusCreated, toRequestView(req))
+	writeJSON(w, http.StatusCreated, a.toRequestView(req))
 }
 
 func (a *app) handleListAccessRequests(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +78,7 @@ func (a *app) handleListAccessRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]requestView, 0, len(reqs))
 	for _, req := range reqs {
-		out = append(out, toRequestView(req))
+		out = append(out, a.toRequestView(req))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -92,13 +98,12 @@ func (a *app) decideAccessRequest(w http.ResponseWriter, r *http.Request, status
 		writeError(w, http.StatusNotFound, "not_found", "request not found")
 		return
 	}
-	t, err := a.db.GetTool(req.ToolID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "not_found", "tool not found")
+	if _, err := a.db.GetHost(req.HostID); err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "host not found")
 		return
 	}
-	if !p.IsAdmin() && t.CreatorID != p.UserID {
-		writeError(w, http.StatusForbidden, "forbidden", "only the tool creator or an admin can decide this")
+	if !p.IsAdmin() {
+		writeError(w, http.StatusForbidden, "forbidden", "only an admin can decide this")
 		return
 	}
 
@@ -127,8 +132,8 @@ func (a *app) decideAccessRequest(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 	if status == store.RequestApproved {
-		a.db.GrantCredentialAccess(t.ID, ptype, pid, p.UserID)
-		a.db.RecordGrant(t.ID, ptype, pid, "grant", p.UserID)
+		a.db.GrantCredentialAccess(req.HostID, ptype, pid, p.UserID)
+		a.db.RecordGrant(req.HostID, ptype, pid, "grant", p.UserID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -141,13 +146,12 @@ type accessGrantView struct {
 	GrantedBy     string `json:"granted_by"`
 }
 
-func (a *app) handleListToolAccess(w http.ResponseWriter, r *http.Request) {
-	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadEditableTool(w, r, p)
+func (a *app) handleListHostAccess(w http.ResponseWriter, r *http.Request) {
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
-	grants, err := a.db.ListCredentialAccess(t.ID)
+	grants, err := a.db.ListCredentialAccess(h.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list access")
 		return
@@ -159,9 +163,9 @@ func (a *app) handleListToolAccess(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-func (a *app) handleGrantToolAccess(w http.ResponseWriter, r *http.Request) {
+func (a *app) handleGrantHostAccess(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadEditableTool(w, r, p)
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
@@ -169,14 +173,14 @@ func (a *app) handleGrantToolAccess(w http.ResponseWriter, r *http.Request) {
 	if !validPrincipalType(w, ptype) || !a.principalExists(w, ptype, pid) {
 		return
 	}
-	a.db.GrantCredentialAccess(t.ID, ptype, pid, p.UserID)
-	a.db.RecordGrant(t.ID, ptype, pid, "grant", p.UserID)
+	a.db.GrantCredentialAccess(h.ID, ptype, pid, p.UserID)
+	a.db.RecordGrant(h.ID, ptype, pid, "grant", p.UserID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *app) handleRevokeToolAccess(w http.ResponseWriter, r *http.Request) {
+func (a *app) handleRevokeHostAccess(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadEditableTool(w, r, p)
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
@@ -184,8 +188,8 @@ func (a *app) handleRevokeToolAccess(w http.ResponseWriter, r *http.Request) {
 	if !validPrincipalType(w, ptype) {
 		return
 	}
-	a.db.RevokeCredentialAccess(t.ID, ptype, pid)
-	a.db.RecordGrant(t.ID, ptype, pid, "revoke", p.UserID)
+	a.db.RevokeCredentialAccess(h.ID, ptype, pid)
+	a.db.RecordGrant(h.ID, ptype, pid, "revoke", p.UserID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -216,15 +220,12 @@ func (a *app) principalExists(w http.ResponseWriter, ptype, pid string) bool {
 	return true
 }
 
-// pendingForApprover returns pending requests an approver may act on: all for an
-// admin, or those on tools they created.
+// pendingForApprover returns the pending requests an approver may act on.
+// Credentials belong to hosts, and a host has no owner but an admin, so a
+// non-admin has an empty inbox rather than one built from what they created.
 func (a *app) pendingForApprover(p auth.Principal) ([]store.AccessRequest, error) {
 	if p.IsAdmin() {
 		return a.db.ListAllPendingRequests()
 	}
-	toolIDs, err := a.db.ToolIDsByCreator(p.UserID)
-	if err != nil {
-		return nil, err
-	}
-	return a.db.ListPendingRequestsForTools(toolIDs)
+	return nil, nil
 }

@@ -17,6 +17,7 @@ import IconUploader from '../components/IconUploader';
 import ThumbnailUploader from '../components/ThumbnailUploader';
 import MapPicker from '../components/MapPicker';
 import HostMetrics from '../components/HostMetrics';
+import CredentialsSection from '../components/CredentialsSection';
 import EventHistory from '../components/EventHistory';
 import UptimeSummary from '../components/UptimeSummary';
 import ThresholdFields, {
@@ -107,6 +108,8 @@ export default function HostInventory() {
           </div>
         </Card>
       )}
+
+      {id && <CredentialsSection hostId={id} canManage={user?.role === 'admin'} />}
 
       {host && user?.role === 'admin' && <AgentCard host={host} onChanged={load} />}
 

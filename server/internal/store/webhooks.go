@@ -92,6 +92,10 @@ func (db *DB) GlobalChannels(severity string) ([]Webhook, error) {
 // ResolveWebhooksForTool returns the channels to notify for a tool alert:
 // tool-specific plus any group (visibility or access) channels; if none, the
 // global channels are the fallback.
+//
+// Credential access is held against a host, not a tool, so the second branch
+// reaches it through the tool's host: the groups that can get into the machine
+// this tool runs on. A tool with no host matches nothing there.
 func (db *DB) ResolveWebhooksForTool(toolID string) ([]Webhook, error) {
 	q := `
 		SELECT ` + webhookCols + ` FROM webhooks
@@ -100,7 +104,9 @@ func (db *DB) ResolveWebhooksForTool(toolID string) ([]Webhook, error) {
 			OR (owner_type='group' AND owner_id IN (
 				SELECT principal_id FROM tool_visibility WHERE tool_id = ? AND principal_type='group'
 				UNION
-				SELECT principal_id FROM credential_access WHERE tool_id = ? AND principal_type='group'
+				SELECT principal_id FROM credential_access
+				WHERE principal_type='group'
+				  AND host_id = (SELECT host_id FROM tools WHERE id = ?)
 			))
 		)`
 	hooks, err := db.queryWebhooks(q, toolID, toolID, toolID)

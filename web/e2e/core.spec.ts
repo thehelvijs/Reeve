@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 const admin = `admin@example.com`;
 const pass = 'password123';
 
-test('signup, create tool, store and reveal a credential', async ({ page }) => {
+test('signup, create tool, store and reveal a host credential', async ({ page }) => {
   // First account bootstraps as admin.
   await page.goto('/signup');
   // On a fresh DB the app redirects /signup -> /setup once auth status loads;
@@ -25,7 +25,16 @@ test('signup, create tool, store and reveal a credential', async ({ page }) => {
   // Saving lands on the new tool's detail page.
   await expect(page.locator('h1:has-text("Grafana")')).toBeVisible();
 
-  // Add an API-token credential.
+  // Credentials hang off the machine, not the service, so they are added on
+  // the host page.
+  await page.goto('/hosts');
+  await page.click('button:has-text("Add host")');
+  await page.fill('input[placeholder="db-server-1"]', 'cred-host');
+  await page.click('button:has-text("Create")');
+  // Creating shows the enrollment token modal; dismiss it before navigating.
+  await page.click('button:has-text("Done")');
+  await page.click('text=cred-host');
+
   await page.click('button:has-text("Add credential")');
   // Default type is ssh_password; switch to api_token for a single field.
   await page.selectOption('select', 'api_token');

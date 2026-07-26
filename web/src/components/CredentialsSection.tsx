@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type AccessRequest, type Credential, type RevealedCredential, type Tool } from '../api';
+import { api, type AccessRequest, type Credential, type RevealedCredential } from '../api';
 import { Button, Card } from './ui';
 import CredentialForm from './CredentialForm';
 import RevealModal from './RevealModal';
 
-export default function CredentialsSection({ tool }: { tool: Tool }) {
+// CredentialsSection lists how to get into a host. Credentials belong to the
+// machine, not to a service running on it, so this lives on the host page.
+// canManage is admin-only; revealing is a separate right a grant can carry.
+export default function CredentialsSection({
+  hostId,
+  canManage,
+}: {
+  hostId: string;
+  canManage: boolean;
+}) {
   const [creds, setCreds] = useState<Credential[]>([]);
   const [adding, setAdding] = useState(false);
   const [revealed, setRevealed] = useState<RevealedCredential | null>(null);
@@ -12,11 +21,11 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    api.get<Credential[]>(`/api/tools/${tool.id}/credentials`).then((c) => setCreds(c ?? []));
+    api.get<Credential[]>(`/api/hosts/${hostId}/credentials`).then((c) => setCreds(c ?? []));
     api.get<AccessRequest[]>('/api/access-requests?box=mine').then((rs) => {
-      setPending((rs ?? []).some((r) => r.tool_id === tool.id && r.status === 'pending'));
+      setPending((rs ?? []).some((r) => r.host_id === hostId && r.status === 'pending'));
     });
-  }, [tool.id]);
+  }, [hostId]);
   useEffect(() => {
     load();
   }, [load]);
@@ -30,32 +39,36 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
     }
   };
   const remove = async (id: string) => {
-    await api.del(`/api/credentials/${id}`);
+    await api.del(`/api/admin/credentials/${id}`);
     load();
   };
   const requestAccess = async () => {
-    await api.post(`/api/tools/${tool.id}/access-requests`, { note: '' });
-    setPending(true);
+    setError('');
+    try {
+      await api.post(`/api/hosts/${hostId}/access-requests`, { note: '' });
+      setPending(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not request access');
+    }
   };
 
   const canReveal = creds.length > 0 && creds[0].can_reveal;
-  const needsAccess = creds.length > 0 && !canReveal && !tool.can_edit;
+  const needsAccess = creds.length > 0 && !canReveal && !canManage;
 
   return (
-    <Card className="mt-6 p-5">
+    <Card className="mt-4 p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-content">Credentials</p>
-        {tool.can_edit && (
+        <div>
+          <p className="text-sm font-medium text-content">Credentials</p>
+          <p className="mt-1 text-xs text-muted">How to connect to this machine.</p>
+        </div>
+        {canManage && (
           <Button variant="secondary" onClick={() => setAdding(true)}>
             Add credential
           </Button>
         )}
-        {needsAccess &&
-          (pending ? (
-            <span className="text-xs text-muted">Access requested</span>
-          ) : (
-            <Button onClick={requestAccess}>Request access</Button>
-          ))}
+        {needsAccess && !pending && <Button onClick={requestAccess}>Request access</Button>}
+        {needsAccess && pending && <span className="text-xs text-muted">Access requested</span>}
       </div>
 
       {creds.length === 0 && <p className="mt-3 text-sm text-muted">No credentials stored.</p>}
@@ -76,7 +89,7 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
                   Reveal
                 </Button>
               )}
-              {tool.can_edit && (
+              {canManage && (
                 <Button variant="danger" onClick={() => remove(c.id)}>
                   Delete
                 </Button>
@@ -89,7 +102,7 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
 
       {adding && (
         <CredentialForm
-          toolId={tool.id}
+          hostId={hostId}
           onClose={() => setAdding(false)}
           onSaved={() => {
             setAdding(false);

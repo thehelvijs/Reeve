@@ -99,6 +99,7 @@ func (a *app) routes() http.Handler {
 
 	// Authenticated.
 	authed := rbac.RequireAuth
+	admin := rbac.RequireAdmin
 	mux.Handle("GET /api/me", authed(http.HandlerFunc(a.handleMe)))
 	mux.Handle("PATCH /api/me", authed(http.HandlerFunc(a.handleUpdateMe)))
 	mux.Handle("DELETE /api/me", authed(http.HandlerFunc(a.handleDeleteMe)))
@@ -142,20 +143,22 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
 
 	// Credentials.
-	mux.Handle("GET /api/tools/{id}/credentials", authed(http.HandlerFunc(a.handleListCredentials)))
-	mux.Handle("POST /api/tools/{id}/credentials", authed(http.HandlerFunc(a.handleCreateCredential)))
-	mux.Handle("PATCH /api/credentials/{cid}", authed(http.HandlerFunc(a.handleUpdateCredential)))
-	mux.Handle("DELETE /api/credentials/{cid}", authed(http.HandlerFunc(a.handleDeleteCredential)))
+	// Credentials belong to hosts: anyone signed in can see one exists and ask
+	// for it, only an admin can add, rotate or delete it.
+	mux.Handle("GET /api/hosts/{id}/credentials", authed(http.HandlerFunc(a.handleListCredentials)))
+	mux.Handle("POST /api/admin/hosts/{id}/credentials", admin(http.HandlerFunc(a.handleCreateCredential)))
+	mux.Handle("PATCH /api/admin/credentials/{cid}", admin(http.HandlerFunc(a.handleUpdateCredential)))
+	mux.Handle("DELETE /api/admin/credentials/{cid}", admin(http.HandlerFunc(a.handleDeleteCredential)))
 	mux.Handle("POST /api/credentials/{cid}/reveal", authed(http.HandlerFunc(a.handleRevealCredential)))
 
 	// Access requests and standing grants.
-	mux.Handle("POST /api/tools/{id}/access-requests", authed(http.HandlerFunc(a.handleCreateAccessRequest)))
+	mux.Handle("POST /api/hosts/{id}/access-requests", authed(http.HandlerFunc(a.handleCreateAccessRequest)))
 	mux.Handle("GET /api/access-requests", authed(http.HandlerFunc(a.handleListAccessRequests)))
 	mux.Handle("POST /api/access-requests/{rid}/approve", authed(http.HandlerFunc(a.handleApproveAccessRequest)))
 	mux.Handle("POST /api/access-requests/{rid}/deny", authed(http.HandlerFunc(a.handleDenyAccessRequest)))
-	mux.Handle("GET /api/tools/{id}/access", authed(http.HandlerFunc(a.handleListToolAccess)))
-	mux.Handle("PUT /api/tools/{id}/access/{ptype}/{pid}", authed(http.HandlerFunc(a.handleGrantToolAccess)))
-	mux.Handle("DELETE /api/tools/{id}/access/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRevokeToolAccess)))
+	mux.Handle("GET /api/admin/hosts/{id}/access", admin(http.HandlerFunc(a.handleListHostAccess)))
+	mux.Handle("PUT /api/admin/hosts/{id}/access/{ptype}/{pid}", admin(http.HandlerFunc(a.handleGrantHostAccess)))
+	mux.Handle("DELETE /api/admin/hosts/{id}/access/{ptype}/{pid}", admin(http.HandlerFunc(a.handleRevokeHostAccess)))
 
 	// Hosts (list + inventory for any user; create/delete admin-only).
 	mux.Handle("GET /api/hosts", authed(http.HandlerFunc(a.handleListHosts)))
@@ -169,7 +172,6 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/tools/{id}/uptime", authed(http.HandlerFunc(a.handleToolUptime)))
 
 	// Admin only.
-	admin := rbac.RequireAdmin
 	mux.Handle("GET /api/admin/users", admin(http.HandlerFunc(a.handleListUsers)))
 	mux.Handle("PATCH /api/admin/users/{id}", admin(http.HandlerFunc(a.handleUpdateUser)))
 	mux.Handle("DELETE /api/admin/users/{id}", admin(http.HandlerFunc(a.handleDeleteUser)))

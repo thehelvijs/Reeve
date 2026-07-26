@@ -26,7 +26,7 @@ database as a full map of what the team runs and where; only the secrets
 attached to those entries are encrypted.
 
 **Revealing a credential is audited.** Every reveal records who, which
-credential, when, and the source IP. Grants and revocations are recorded too.
+credential, which host it opens, when, and the source IP. Grants and revocations are recorded too.
 The source IP is the peer address unless `REEVE_TRUST_PROXY=true` declares a
 reverse proxy in front, in which case it is the left-most `X-Forwarded-For`
 entry. Do not set that without a proxy that overwrites the header: the value
@@ -102,9 +102,14 @@ pre-create the path and steer what a root process writes and later replays.
   unreadable.
 - Single-tenant. Any admin can see every host, service, and audit record.
 - Any signed-in user, at any role, can list every host and its full
-  systemd/Docker/cron inventory, read every account's email address, and mark
-  a tool public on the anonymous portal. Visibility rules cover which *tools*
-  and *credentials* someone sees, not the infrastructure they run on.
+  systemd/Docker/cron inventory and running processes, see that a host holds
+  credentials (labels and types, never the secret), read every account's email
+  address, and mark a tool public on the anonymous portal. Visibility rules
+  cover which *tools* someone sees and which *secrets* they can reveal, not the
+  infrastructure those run on.
+- Credentials belong to hosts, and a host has no owner but an admin. Adding,
+  rotating, deleting and granting are therefore admin-only, and an admin can
+  reveal every secret in the system.
 - A per-account lockout is reachable by anyone who knows the address: five
   wrong passwords hold it for fifteen minutes. The deadline does not extend, so
   it cannot be held shut indefinitely, but it can be re-triggered.

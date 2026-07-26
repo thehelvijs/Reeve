@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type AccessRequest, type Tool } from '../api';
+import { api, type AccessRequest } from '../api';
 import { Button, Card, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
@@ -8,15 +8,9 @@ import EmptyState from '../components/EmptyState';
 export default function Requests() {
   const [box, setBox] = useState<'inbox' | 'mine'>('inbox');
   const [reqs, setReqs] = useState<AccessRequest[]>([]);
-  const [tools, setTools] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     api.get<AccessRequest[]>(`/api/access-requests?box=${box}`).then((r) => setReqs(r ?? []));
-    api.get<Tool[]>('/api/tools').then((ts) => {
-      const m: Record<string, string> = {};
-      (ts ?? []).forEach((t) => (m[t.id] = t.name));
-      setTools(m);
-    });
   }, [box]);
   useEffect(() => {
     load();
@@ -29,7 +23,7 @@ export default function Requests() {
 
   return (
     <div>
-      <PageHeader title="Access requests" subtitle="Approve or track requests to reveal tool credentials." />
+      <PageHeader title="Access requests" subtitle="Approve or track requests to reveal host credentials." />
       <div className="mt-6 flex gap-2">
         <Tab active={box === 'inbox'} onClick={() => setBox('inbox')}>
           To review
@@ -45,7 +39,7 @@ export default function Requests() {
             title={box === 'inbox' ? 'Nothing to review' : 'No requests yet'}
             description={
               box === 'inbox'
-                ? 'Requests to reveal credentials you own will show up here.'
+                ? 'Requests to reveal host credentials will show up here.'
                 : 'Credential access you request will show up here.'
             }
           />
@@ -53,8 +47,8 @@ export default function Requests() {
         {reqs.map((r) => (
           <Card key={r.id} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
-              <Link to={`/catalog/${r.tool_id}`} className="text-sm text-content hover:text-accent">
-                {tools[r.tool_id] ?? r.tool_id}
+              <Link to={`/hosts/${r.host_id}`} className="text-sm text-content hover:text-accent">
+                {r.host_name || r.host_id}
               </Link>
               {r.note && <p className="truncate text-xs text-muted">“{r.note}”</p>}
               <p className="text-xs text-muted">{new Date(r.created_at).toLocaleString()}</p>

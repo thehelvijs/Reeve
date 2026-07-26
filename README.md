@@ -7,10 +7,12 @@ telemetry to it.
 - **Catalog.** Every service the team runs, with owner, host, address and tags.
   Services are discovered from systemd, Docker and cron, or added by hand.
 - **Monitoring.** CPU, memory, disk, network, load, temperature and GPU per
-  host, plus service and container state, cron results and log errors.
+  host, the processes using the most CPU and memory, plus service and container
+  state, cron results and log errors.
   Thresholds fire alerts to webhooks and email.
-- **Credentials.** Per-service secrets encrypted at rest, revealed only to the
-  people and groups granted access, with every reveal audited.
+- **Credentials.** Per-host secrets encrypted at rest — how to get into the
+  machine — revealed only to the people and groups granted access, with every
+  reveal audited.
 - **Portal.** A public front door listing the tools marked public; everything
   else is behind sign-in with per-user and per-group visibility.
 

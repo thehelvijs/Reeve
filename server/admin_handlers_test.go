@@ -67,7 +67,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 }
 
 // The audit endpoints are the read side of the hash-chained trail: an admin has
-// to be able to see who revealed what, and narrow it by user and by tool.
+// to be able to see who revealed what, and narrow it by user and by host.
 func TestAuditListsAndFilters(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)
@@ -75,15 +75,15 @@ func TestAuditListsAndFilters(t *testing.T) {
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 
-	toolA := createTool(t, ts, admin, toolInput{Name: "Box A"})
-	toolB := createTool(t, ts, admin, toolInput{Name: "Box B"})
-	credA := createCred(t, ts, admin, toolA.ID, credentialInput{Type: "kv", Secret: map[string]string{"k": "a"}})
-	credB := createCred(t, ts, admin, toolB.ID, credentialInput{Type: "kv", Secret: map[string]string{"k": "b"}})
+	hostA := newHost(t, ts, admin, "Box A")
+	hostB := newHost(t, ts, admin, "Box B")
+	credA := createCred(t, ts, admin, hostA, credentialInput{Type: "kv", Secret: map[string]string{"k": "a"}})
+	credB := createCred(t, ts, admin, hostB, credentialInput{Type: "kv", Secret: map[string]string{"k": "b"}})
 
-	// One reveal per tool by the admin, one by the dev after a grant.
+	// One reveal per host by the admin, one by the dev after a grant.
 	revealSecret(t, ts, admin, credA.ID)
 	revealSecret(t, ts, admin, credB.ID)
-	ts.do(t, admin, http.MethodPut, "/api/tools/"+toolA.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+hostA+"/access/user/"+devUser.ID, nil, nil)
 	if code, _ := revealSecret(t, ts, dev, credA.ID); code != http.StatusOK {
 		t.Fatalf("granted reveal = %d", code)
 	}
@@ -102,14 +102,14 @@ func TestAuditListsAndFilters(t *testing.T) {
 	if got := len(reveals("")); got != 3 {
 		t.Fatalf("unfiltered reveals = %d, want 3", got)
 	}
-	if got := len(reveals("?tool=" + toolA.ID)); got != 2 {
-		t.Errorf("reveals for tool A = %d, want 2", got)
+	if got := len(reveals("?host=" + hostA)); got != 2 {
+		t.Errorf("reveals for host A = %d, want 2", got)
 	}
 	if got := len(reveals("?user=" + devUser.ID)); got != 1 {
 		t.Errorf("reveals by dev = %d, want 1", got)
 	}
-	if got := len(reveals("?user=" + adminUser.ID + "&tool=" + toolB.ID)); got != 1 {
-		t.Errorf("reveals by admin on tool B = %d, want 1", got)
+	if got := len(reveals("?user=" + adminUser.ID + "&host=" + hostB)); got != 1 {
+		t.Errorf("reveals by admin on host B = %d, want 1", got)
 	}
 	if got := len(reveals("?user=nobody")); got != 0 {
 		t.Errorf("reveals for an unknown user = %d, want 0", got)
@@ -119,14 +119,14 @@ func TestAuditListsAndFilters(t *testing.T) {
 		t.Errorf("reveals before the epoch window = %d, want 0", got)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/audit/grants?tool="+toolA.ID, nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/audit/grants?host="+hostA, nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("grants = %d: %s", resp.StatusCode, data)
 	}
 	var grants []map[string]any
 	json.Unmarshal(data, &grants)
 	if len(grants) != 1 || grants[0]["action"] != "grant" {
-		t.Errorf("grant audit for tool A = %s", data)
+		t.Errorf("grant audit for host A = %s", data)
 	}
 }
 

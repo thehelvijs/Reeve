@@ -145,7 +145,7 @@ CREATE INDEX IF NOT EXISTS idx_tool_visibility_principal ON tool_visibility(prin
 
 CREATE TABLE IF NOT EXISTS credentials (
     id         TEXT PRIMARY KEY,
-    tool_id    TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+    host_id    TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     type       TEXT NOT NULL CHECK (type IN ('ssh_password', 'ssh_key', 'api_token', 'db', 'kv')),
     label      TEXT NOT NULL DEFAULT '',
     ciphertext BLOB NOT NULL,
@@ -154,21 +154,21 @@ CREATE TABLE IF NOT EXISTS credentials (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_credentials_tool ON credentials(tool_id);
+CREATE INDEX IF NOT EXISTS idx_credentials_host ON credentials(host_id);
 
 CREATE TABLE IF NOT EXISTS credential_access (
-    tool_id        TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+    host_id        TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     principal_type TEXT NOT NULL CHECK (principal_type IN ('user', 'group')),
     principal_id   TEXT NOT NULL,
     granted_by     TEXT NOT NULL,
     granted_at     TEXT NOT NULL,
-    PRIMARY KEY (tool_id, principal_type, principal_id)
+    PRIMARY KEY (host_id, principal_type, principal_id)
 );
 CREATE INDEX IF NOT EXISTS idx_credential_access_principal ON credential_access(principal_type, principal_id);
 
 CREATE TABLE IF NOT EXISTS access_requests (
     id           TEXT PRIMARY KEY,
-    tool_id      TEXT NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+    host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status       TEXT NOT NULL DEFAULT 'pending'
                    CHECK (status IN ('pending', 'approved', 'denied')),
@@ -177,30 +177,30 @@ CREATE TABLE IF NOT EXISTS access_requests (
     decided_at   TEXT,
     created_at   TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_access_requests_tool ON access_requests(tool_id);
+CREATE INDEX IF NOT EXISTS idx_access_requests_host ON access_requests(host_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_requester ON access_requests(requester_id);
 
 CREATE TABLE IF NOT EXISTS reveal_audit (
     id            TEXT PRIMARY KEY,
     credential_id TEXT NOT NULL,
-    tool_id       TEXT NOT NULL,
+    host_id       TEXT NOT NULL,
     user_id       TEXT NOT NULL,
     source_ip     TEXT NOT NULL DEFAULT '',
     revealed_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_reveal_audit_user ON reveal_audit(user_id);
-CREATE INDEX IF NOT EXISTS idx_reveal_audit_tool ON reveal_audit(tool_id);
+CREATE INDEX IF NOT EXISTS idx_reveal_audit_host ON reveal_audit(host_id);
 
 CREATE TABLE IF NOT EXISTS grant_audit (
     id             TEXT PRIMARY KEY,
-    tool_id        TEXT NOT NULL,
+    host_id        TEXT NOT NULL,
     principal_type TEXT NOT NULL,
     principal_id   TEXT NOT NULL,
     action         TEXT NOT NULL CHECK (action IN ('grant', 'revoke')),
     actor_id       TEXT NOT NULL,
     at             TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_grant_audit_tool ON grant_audit(tool_id);
+CREATE INDEX IF NOT EXISTS idx_grant_audit_host ON grant_audit(host_id);
 
 CREATE TABLE IF NOT EXISTS service_status (
     host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,

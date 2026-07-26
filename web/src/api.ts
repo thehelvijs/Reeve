@@ -279,7 +279,7 @@ export type CredentialType = 'ssh_password' | 'ssh_key' | 'api_token' | 'db' | '
 
 export interface Credential {
   id: string;
-  tool_id: string;
+  host_id: string;
   type: CredentialType;
   label: string;
   can_reveal: boolean;
@@ -294,7 +294,8 @@ export interface RevealedCredential {
 
 export interface AccessRequest {
   id: string;
-  tool_id: string;
+  host_id: string;
+  host_name: string;
   requester_id: string;
   status: 'pending' | 'approved' | 'denied';
   note: string;
@@ -304,7 +305,7 @@ export interface AccessRequest {
 export interface RevealAuditEntry {
   id: string;
   credential_id: string;
-  tool_id: string;
+  host_id: string;
   user_id: string;
   source_ip: string;
   revealed_at: string;
@@ -312,7 +313,7 @@ export interface RevealAuditEntry {
 
 export interface GrantAuditEntry {
   id: string;
-  tool_id: string;
+  host_id: string;
   principal_type: string;
   principal_id: string;
   action: 'grant' | 'revoke';

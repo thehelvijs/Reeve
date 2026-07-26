@@ -93,13 +93,13 @@ func TestBackupKeepsCredentialsEncrypted(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
-	tool := createTool(t, ts, c, toolInput{Name: "db-server", Address: "10.0.0.9", Port: 5432})
+	host := newHost(t, ts, c, "db-server")
 	body := map[string]any{
 		"type":   "api_token",
 		"label":  "prod token",
 		"secret": map[string]string{"token": "super-secret-value"},
 	}
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/tools/"+tool.ID+"/credentials", body, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+host+"/credentials", body, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create credential status = %d", resp.StatusCode)
 	}

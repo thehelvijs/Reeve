@@ -22,34 +22,46 @@ type credentialInput struct {
 
 type credentialView struct {
 	ID        string `json:"id"`
-	ToolID    string `json:"tool_id"`
+	HostID    string `json:"host_id"`
 	Type      string `json:"type"`
 	Label     string `json:"label"`
 	CanReveal bool   `json:"can_reveal"`
 }
 
+// loadHost resolves the {id} path segment. Every signed-in user may see that a
+// host exists, so this needs no visibility check; revealing a secret is what is
+// gated, not knowing the machine is there.
+func (a *app) loadHost(w http.ResponseWriter, r *http.Request) (store.Host, bool) {
+	h, err := a.db.GetHost(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "host not found")
+		return store.Host{}, false
+	}
+	return h, true
+}
+
 func (a *app) handleListCredentials(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadVisibleTool(w, r, p)
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
-	creds, err := a.db.ListCredentials(t.ID)
+	creds, err := a.db.ListCredentials(h.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list credentials")
 		return
 	}
-	canReveal := a.canReveal(t, p)
+	canReveal := a.canReveal(h.ID, p)
 	out := make([]credentialView, 0, len(creds))
 	for _, c := range creds {
-		out = append(out, credentialView{ID: c.ID, ToolID: c.ToolID, Type: c.Type, Label: c.Label, CanReveal: canReveal})
+		out = append(out, credentialView{ID: c.ID, HostID: c.HostID, Type: c.Type, Label: c.Label, CanReveal: canReveal})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (a *app) handleCreateCredential(w http.ResponseWriter, r *http.Request) {
 	p, _ := rbac.FromContext(r.Context())
-	t, ok := a.loadEditableTool(w, r, p)
+	h, ok := a.loadHost(w, r)
 	if !ok {
 		return
 	}
@@ -71,17 +83,16 @@ func (a *app) handleCreateCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt secret")
 		return
 	}
-	c, err := a.db.CreateCredential(t.ID, in.Type, in.Label, ct, nonce, p.UserID)
+	c, err := a.db.CreateCredential(h.ID, in.Type, in.Label, ct, nonce, p.UserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not store credential")
 		return
 	}
-	writeJSON(w, http.StatusCreated, credentialView{ID: c.ID, ToolID: c.ToolID, Type: c.Type, Label: c.Label, CanReveal: true})
+	writeJSON(w, http.StatusCreated, credentialView{ID: c.ID, HostID: c.HostID, Type: c.Type, Label: c.Label, CanReveal: true})
 }
 
 func (a *app) handleUpdateCredential(w http.ResponseWriter, r *http.Request) {
-	p, _ := rbac.FromContext(r.Context())
-	c, _, ok := a.loadManageableCredential(w, r, p)
+	c, ok := a.loadCredential(w, r)
 	if !ok {
 		return
 	}
@@ -107,8 +118,7 @@ func (a *app) handleUpdateCredential(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleDeleteCredential(w http.ResponseWriter, r *http.Request) {
-	p, _ := rbac.FromContext(r.Context())
-	c, _, ok := a.loadManageableCredential(w, r, p)
+	c, ok := a.loadCredential(w, r)
 	if !ok {
 		return
 	}
@@ -127,17 +137,7 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "credential not found")
 		return
 	}
-	t, err := a.db.GetTool(c.ToolID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "not_found", "credential not found")
-		return
-	}
-	// Hide existence from users who can't even see the tool.
-	if canSee, _ := a.db.CanSeeTool(p.UserID, p.IsAdmin(), t.ID); !canSee {
-		writeError(w, http.StatusNotFound, "not_found", "credential not found")
-		return
-	}
-	if !a.canReveal(t, p) {
+	if !a.canReveal(c.HostID, p) {
 		writeError(w, http.StatusForbidden, "forbidden", "you do not have access to this credential")
 		return
 	}
@@ -157,50 +157,39 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.db.RecordReveal(c.ID, t.ID, p.UserID, a.clientIP(r))
+	a.db.RecordReveal(c.ID, c.HostID, p.UserID, a.clientIP(r))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id": c.ID, "type": c.Type, "label": c.Label, "secret": secret,
 	})
 }
 
-// canReveal reports whether the principal may reveal a tool's credentials. A
-// lookup that fails denies, and says so in the log: a silent false is
-// indistinguishable from a real denial when someone is trying to explain one.
-func (a *app) canReveal(t store.Tool, p auth.Principal) bool {
-	if p.IsAdmin() || t.CreatorID == p.UserID {
+// canReveal reports whether the principal may reveal a host's credentials. A
+// host has no creator to inherit access from, unlike a tool, so it is an admin
+// or an explicit standing grant and nothing else. A lookup that fails denies,
+// and says so in the log: a silent false is indistinguishable from a real
+// denial when someone is trying to explain one.
+func (a *app) canReveal(hostID string, p auth.Principal) bool {
+	if p.IsAdmin() {
 		return true
 	}
-	ok, err := a.db.HasCredentialAccess(p.UserID, t.ID)
+	ok, err := a.db.HasCredentialAccess(p.UserID, hostID)
 	if err != nil {
-		log.Printf("credentials: access lookup for user %s on tool %s: %v", p.UserID, t.ID, err)
+		log.Printf("credentials: access lookup for user %s on host %s: %v", p.UserID, hostID, err)
 		return false
 	}
 	return ok
 }
 
-// loadManageableCredential fetches a credential and requires the principal to be
-// the tool creator or an admin.
-func (a *app) loadManageableCredential(w http.ResponseWriter, r *http.Request, p auth.Principal) (store.Credential, store.Tool, bool) {
-	cid := r.PathValue("cid")
-	c, err := a.db.GetCredential(cid)
+// loadCredential fetches a credential by id. Callers sit behind the admin
+// middleware, which is the whole authorization check now that credentials
+// belong to admin-managed hosts.
+func (a *app) loadCredential(w http.ResponseWriter, r *http.Request) (store.Credential, bool) {
+	c, err := a.db.GetCredential(r.PathValue("cid"))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not_found", "credential not found")
-		return store.Credential{}, store.Tool{}, false
+		return store.Credential{}, false
 	}
-	t, err := a.db.GetTool(c.ToolID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "not_found", "credential not found")
-		return store.Credential{}, store.Tool{}, false
-	}
-	if canSee, _ := a.db.CanSeeTool(p.UserID, p.IsAdmin(), t.ID); !canSee {
-		writeError(w, http.StatusNotFound, "not_found", "credential not found")
-		return store.Credential{}, store.Tool{}, false
-	}
-	if !p.IsAdmin() && t.CreatorID != p.UserID {
-		writeError(w, http.StatusForbidden, "forbidden", "only the creator or an admin can manage credentials")
-		return store.Credential{}, store.Tool{}, false
-	}
-	return c, t, true
+	return c, true
 }
 
 func (a *app) sealSecret(secret map[string]string) (ct, nonce []byte, err error) {

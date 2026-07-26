@@ -8,11 +8,11 @@ const TYPES: CredentialType[] = ['ssh_password', 'ssh_key', 'api_token', 'db', '
 // CredentialForm creates a credential on a tool (rotate reuses the same shape
 // via a PATCH, but the UI here is create-only; rotate is a future refinement).
 export default function CredentialForm({
-  toolId,
+  hostId,
   onClose,
   onSaved,
 }: {
-  toolId: string;
+  hostId: string;
   onClose: () => void;
   onSaved: (c: Credential) => void;
 }) {
@@ -42,7 +42,7 @@ export default function CredentialForm({
     }
     setBusy(true);
     try {
-      const c = await api.post<Credential>(`/api/tools/${toolId}/credentials`, { type, label, secret });
+      const c = await api.post<Credential>(`/api/admin/hosts/${hostId}/credentials`, { type, label, secret });
       onSaved(c);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed');

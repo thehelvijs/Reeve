@@ -135,7 +135,7 @@ func (a *app) auditFilter(r *http.Request) store.AuditFilter {
 	q := r.URL.Query()
 	return store.AuditFilter{
 		UserID: q.Get("user"),
-		ToolID: q.Get("tool"),
+		HostID: q.Get("host"),
 		From:   q.Get("from"),
 		To:     q.Get("to"),
 	}

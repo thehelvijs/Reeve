@@ -14,7 +14,6 @@ import { Button, Card, Pill } from '../components/ui';
 import BackLink from '../components/BackLink';
 import StatusPill from '../components/StatusPill';
 import EntityIcon from '../components/EntityIcon';
-import CredentialsSection from '../components/CredentialsSection';
 import EventHistory from '../components/EventHistory';
 import UptimeSummary from '../components/UptimeSummary';
 
@@ -137,7 +136,18 @@ export default function ToolDetail() {
         <Detail label="Tags" value={tool.tags.join(', ')} />
       </div>
 
-      <CredentialsSection tool={tool} />
+      {tool.host_id && (
+        <Card className="mt-4 p-5">
+          <p className="text-sm font-medium text-content">Credentials</p>
+          <p className="mt-1 text-xs text-muted">
+            Logins live on the machine, not the service.{' '}
+            <Link to={`/hosts/${tool.host_id}`} className="text-accent hover:underline">
+              View this host
+            </Link>{' '}
+            to see or request them.
+          </p>
+        </Card>
+      )}
 
       <EventHistory path={`/api/tools/${tool.id}/events`} />
 

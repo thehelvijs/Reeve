@@ -117,8 +117,12 @@ test('enter saves the service form, and the nested collection field keeps it ope
 
 test('enter stores and reveals a credential', async ({ page }) => {
   await loginAdmin(page);
-  await page.goto('/catalog');
-  await page.click('text=EnterService');
+  await page.goto('/hosts');
+  await page.getByRole('button', { name: 'Add host' }).click();
+  await page.getByPlaceholder('db-server-1').fill('EnterHost');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.click('text=EnterHost');
   await page.getByRole('button', { name: 'Add credential' }).click();
   await page.getByRole('textbox', { name: 'Label' }).fill('enter-cred');
   await page.getByRole('textbox', { name: 'username' }).fill('root');

@@ -277,12 +277,16 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 - Tools: `POST /tools`, `PATCH/DELETE /tools/{id}`, visibility grants under
   `/tools/{id}/visibility/{ptype}/{pid}`.
 - Collections: see the Collections section above; `GET /principals`.
-- Credentials: `GET/POST /tools/{id}/credentials`, `PATCH/DELETE
-  /credentials/{id}`, `POST /credentials/{id}/reveal`.
-- Access: `POST /tools/{id}/access-requests`, `GET /access-requests?box=`,
-  `POST /access-requests/{id}/approve|deny`, `/tools/{id}/access/{ptype}/{pid}`.
+- Credentials belong to a **host**, not a tool: `GET /hosts/{id}/credentials`
+  (any signed-in user, metadata only), `POST /admin/hosts/{id}/credentials`,
+  `PATCH/DELETE /admin/credentials/{id}`, `POST /credentials/{id}/reveal`
+  (admin or a standing grant; every reveal is audited against the host).
+- Access: `POST /hosts/{id}/access-requests`, `GET /access-requests?box=`,
+  `POST /access-requests/{id}/approve|deny` (admin only — a host has no other
+  owner), `/admin/hosts/{id}/access/{ptype}/{pid}`.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
-  `/hosts/{id}/uptime`.
+  `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
+  carries `processes`, the latest top-by-CPU-and-memory snapshot).
 - Admin (`role=admin`): `/admin/users`, `/admin/groups`, `/admin/hosts`,
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
