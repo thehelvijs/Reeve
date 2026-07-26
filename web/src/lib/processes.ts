@@ -27,3 +27,38 @@ export function sortProcesses(procs: ProcessSample[], by: ProcessSort): ProcessS
   });
   return copy;
 }
+
+// ProcessUsage is one command averaged over a window, as the server returns it.
+export interface ProcessUsage {
+  command: string;
+  cpu_avg: number;
+  cpu_max: number;
+  mem_avg: number;
+  mem_max: number;
+  samples: number;
+}
+
+// 'last' is the snapshot from the host's last push; the rest are windows the
+// server averages over, and match the ranges the charts already offer.
+export const USAGE_WINDOWS = ['last', '1h', '12h', '24h', '7d'] as const;
+
+export type UsageWindow = (typeof USAGE_WINDOWS)[number];
+
+// sortUsage orders a window by one dimension, descending, without mutating the
+// caller's array. Ties break on command so rows do not shuffle between polls.
+export function sortUsage(rows: ProcessUsage[], by: ProcessSort): ProcessUsage[] {
+  const copy = [...rows];
+  copy.sort((a, b) => {
+    let diff = 0;
+    if (by === 'cpu') {
+      diff = b.cpu_avg - a.cpu_avg;
+    } else {
+      diff = b.mem_avg - a.mem_avg;
+    }
+    if (diff !== 0) {
+      return diff;
+    }
+    return a.command.localeCompare(b.command);
+  });
+  return copy;
+}

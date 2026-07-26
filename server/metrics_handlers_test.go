@@ -228,3 +228,55 @@ func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
 		t.Fatalf("basic server-metrics = %d, want 403", resp2.StatusCode)
 	}
 }
+
+func TestHostProcessUsageEndpoint(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	hostID, token := enrollHost(t, ts, admin, "busy-host")
+
+	push := samplePush()
+	push.Processes = []contracts.ProcessSample{
+		{PID: 1, User: "plex", Command: "Plex Transcoder", CPUPct: 40, MemRSS: 1 << 20},
+		{PID: 2, User: "root", Command: "dockerd", CPUPct: 5, MemRSS: 1 << 30},
+	}
+	for i := 0; i < 2; i++ {
+		resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+			map[string]string{"Authorization": "Bearer " + token})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+		}
+	}
+
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/process-usage?window=1h", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("process-usage = %d: %s", resp.StatusCode, data)
+	}
+	var body struct {
+		Window    string               `json:"window"`
+		Processes []store.ProcessUsage `json:"processes"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Window != time.Hour.String() {
+		t.Errorf("window = %q, want %q", body.Window, time.Hour.String())
+	}
+	if len(body.Processes) != 2 {
+		t.Fatalf("processes = %+v, want both commands: %s", body.Processes, data)
+	}
+	top := body.Processes[0]
+	if top.Command != "Plex Transcoder" || top.CPUAvg != 40 || top.Samples != 2 {
+		t.Errorf("top = %+v, want the transcoder averaged over two pushes", top)
+	}
+}
+
+// An unknown host must 404 rather than answer with an empty window, which would
+// read as "this machine does nothing".
+func TestHostProcessUsageUnknownHost(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	resp, _ := ts.do(t, admin, http.MethodGet, "/api/hosts/nope/process-usage", nil, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}

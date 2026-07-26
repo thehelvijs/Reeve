@@ -298,6 +298,23 @@ CREATE TABLE IF NOT EXISTS host_processes (
     procs   TEXT NOT NULL DEFAULT '[]'
 );
 
+-- Per-command usage accumulated into 5-minute buckets, so an average over any
+-- window is SUM(cpu_sum)/SUM(samples) and no per-push row has to be kept. Keyed
+-- by command, not pid: a process that restarts is the same thing to whoever is
+-- hunting for what a machine spends its day on.
+CREATE TABLE IF NOT EXISTS process_usage (
+    host_id  TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+    bucket   TEXT NOT NULL,
+    command  TEXT NOT NULL,
+    samples  INTEGER NOT NULL DEFAULT 0,
+    cpu_sum  REAL NOT NULL DEFAULT 0,
+    cpu_max  REAL NOT NULL DEFAULT 0,
+    mem_sum  REAL NOT NULL DEFAULT 0,
+    mem_max  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (host_id, bucket, command)
+);
+CREATE INDEX IF NOT EXISTS idx_process_usage_window ON process_usage(host_id, bucket);
+
 CREATE TABLE IF NOT EXISTS container_stats (
     host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     container_id TEXT NOT NULL,

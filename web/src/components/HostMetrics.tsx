@@ -3,7 +3,15 @@ import { api } from '../api';
 import { Card } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
-import { sortProcesses, type ProcessSample, type ProcessSort } from '../lib/processes';
+import {
+  sortProcesses,
+  sortUsage,
+  USAGE_WINDOWS,
+  type ProcessSample,
+  type ProcessSort,
+  type ProcessUsage,
+  type UsageWindow,
+} from '../lib/processes';
 
 interface HostPoint {
   ts: string;
@@ -192,19 +200,43 @@ export default function HostMetrics({ path }: { path: string }) {
         </div>
       )}
 
-      <ProcessTable procs={procs} />
+      <ProcessTable procs={procs} path={path} />
     </div>
   );
 }
 
-// ProcessTable shows the latest snapshot, so it carries no range control: the
-// numbers are as of the host's last push, whatever window the charts show.
-function ProcessTable({ procs }: { procs: ProcessSample[] }) {
+// ProcessTable answers two different questions from one card: what is running
+// right now, and what a machine has actually been spending itself on over a
+// window. The second is the one that finds waste, since a single push catches
+// whatever happened to be busy in that instant.
+function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string }) {
   const [by, setBy] = useState<ProcessSort>('cpu');
-  if (procs.length === 0) {
-    return null;
-  }
-  const rows = sortProcesses(procs, by);
+  const [window, setWindow] = useState<UsageWindow>('last');
+  const [usage, setUsage] = useState<ProcessUsage[]>([]);
+  const usagePath = path.replace(/\/metrics$/, '/process-usage');
+
+  useEffect(() => {
+    if (window === 'last') {
+      return;
+    }
+    let live = true;
+    const load = () => {
+      api
+        .get<{ processes: ProcessUsage[] }>(`${usagePath}?window=${window}`)
+        .then((d) => {
+          if (live) {
+            setUsage(d.processes ?? []);
+          }
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const poll = setInterval(load, 30000);
+    return () => {
+      live = false;
+      clearInterval(poll);
+    };
+  }, [usagePath, window]);
 
   const heading = (label: string, key: ProcessSort) => {
     let className = 'text-right font-medium hover:text-content';
@@ -212,45 +244,91 @@ function ProcessTable({ procs }: { procs: ProcessSample[] }) {
       className = 'text-right font-medium text-content';
     }
     return (
-      <th scope="col" className="py-2 pl-3">
+      <th scope="col" className="sticky top-0 z-10 bg-surface-1 py-2 pl-3">
         <button type="button" onClick={() => setBy(key)} className={className}>
           {label}
         </button>
       </th>
     );
   };
+  const plain = (label: string) => (
+    <th scope="col" className="sticky top-0 z-10 bg-surface-1 py-2 pr-3 text-left font-medium">
+      {label}
+    </th>
+  );
+
+  const rows = sortProcesses(procs, by);
+  const usageRows = sortUsage(usage, by);
+  const empty = window === 'last' ? rows.length === 0 : usageRows.length === 0;
 
   return (
     <Card className="mt-4 p-4">
-      <p className="mb-2 text-xs font-medium text-muted">
-        Top processes <span className="text-muted">(at the last push)</span>
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-xs text-muted">
-            <tr className="border-b border-hairline">
-              <th scope="col" className="py-2 pr-3 text-left font-medium">PID</th>
-              <th scope="col" className="py-2 pr-3 text-left font-medium">User</th>
-              <th scope="col" className="py-2 pr-3 text-left font-medium">Command</th>
-              {heading('CPU', 'cpu')}
-              {heading('Memory', 'mem')}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p) => (
-              <tr key={p.pid} className="border-b border-hairline last:border-0">
-                <td className="py-1.5 pr-3 font-mono text-xs text-muted">{p.pid}</td>
-                <td className="py-1.5 pr-3 text-xs text-muted">{p.user}</td>
-                <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={p.command}>
-                  {p.command}
-                </td>
-                <td className="py-1.5 pl-3 text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</td>
-                <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-muted">
+          Top processes{' '}
+          <span className="text-muted">
+            {window === 'last' ? '(at the last push)' : `(average over the last ${window})`}
+          </span>
+        </p>
+        <div className="inline-flex rounded-button border border-hairline p-0.5">
+          {USAGE_WINDOWS.map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => setWindow(w)}
+              className={`rounded-[5px] px-2 py-0.5 text-xs transition-colors ${
+                window === w ? 'bg-surface-2 text-content' : 'text-muted hover:text-content'
+              }`}
+            >
+              {w === 'last' ? 'last push' : w}
+            </button>
+          ))}
+        </div>
       </div>
+      {empty && <p className="py-2 text-sm text-muted">Nothing reported for this window yet.</p>}
+      {!empty && (
+        <div className="max-h-80 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                {window === 'last' && plain('PID')}
+                {window === 'last' && plain('User')}
+                {plain('Command')}
+                {heading(window === 'last' ? 'CPU' : 'CPU avg', 'cpu')}
+                {window !== 'last' && plain('CPU peak')}
+                {heading(window === 'last' ? 'Memory' : 'Memory avg', 'mem')}
+                {window !== 'last' && plain('Memory peak')}
+              </tr>
+            </thead>
+            <tbody>
+              {window === 'last' &&
+                rows.map((p) => (
+                  <tr key={p.pid} className="border-t border-hairline">
+                    <td className="py-1.5 pr-3 font-mono text-xs text-muted">{p.pid}</td>
+                    <td className="py-1.5 pr-3 text-xs text-muted">{p.user}</td>
+                    <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={p.command}>
+                      {p.command}
+                    </td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</td>
+                  </tr>
+                ))}
+              {window !== 'last' &&
+                usageRows.map((u) => (
+                  <tr key={u.command} className="border-t border-hairline">
+                    <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={u.command}>
+                      {u.command}
+                    </td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{u.cpu_avg.toFixed(1)}%</td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-muted">{u.cpu_max.toFixed(1)}%</td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(u.mem_avg)}</td>
+                    <td className="py-1.5 pl-3 text-right tabular-nums text-muted">{fmtBytes(u.mem_max)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }

@@ -186,6 +186,7 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /api/hosts/{id}/thumbnail", a.serveImage(hostThumbnail))
 	mux.Handle("GET /api/hosts/{id}/inventory", authed(http.HandlerFunc(a.handleHostInventory)))
 	mux.Handle("GET /api/hosts/{id}/metrics", authed(http.HandlerFunc(a.handleHostMetrics)))
+	mux.Handle("GET /api/hosts/{id}/process-usage", authed(http.HandlerFunc(a.handleHostProcessUsage)))
 	mux.Handle("GET /api/hosts/{id}/events", authed(http.HandlerFunc(a.handleHostEvents)))
 	mux.Handle("GET /api/hosts/{id}/uptime", authed(http.HandlerFunc(a.handleHostUptime)))
 	mux.Handle("GET /api/tools/{id}/events", authed(http.HandlerFunc(a.handleToolEvents)))

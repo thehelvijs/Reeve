@@ -126,5 +126,11 @@ func (db *DB) prune(now time.Time, ret Retention) error {
 			return err
 		}
 	}
+	// Process usage has one tier, already bucketed at five minutes, so it
+	// follows the 5m window rather than getting a rollup of its own.
+	usageCutoff := now.Add(-ret.FiveMin).UTC().Format(metricTimeFmt)
+	if _, err := db.sql.Exec(`DELETE FROM process_usage WHERE bucket < ?`, usageCutoff); err != nil {
+		return err
+	}
 	return nil
 }

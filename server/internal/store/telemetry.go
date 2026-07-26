@@ -38,6 +38,9 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 		if err := replaceHostProcesses(tx, hostID, p.Processes, now); err != nil {
 			return err
 		}
+		if err := accumulateProcessUsage(tx, hostID, p.Processes, now); err != nil {
+			return err
+		}
 		if err := insertLogEvents(tx, hostID, p.LogEvents); err != nil {
 			return err
 		}

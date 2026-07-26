@@ -291,6 +291,13 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
   `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
   carries `processes`, the latest top-by-CPU-and-memory snapshot).
+- `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
+  question over time instead of at one instant: per command, `cpu_avg`,
+  `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each
+  of the two dimensions. Pushes are folded into five-minute buckets on ingest,
+  so that is the floor on how finely a window can be sliced, and a week of it
+  costs thousands of rows rather than millions. Kept for the 5m retention
+  window; "Clear metrics" drops it with the rest.
 - Admin (`role=admin`): `/admin/users`, `/admin/groups`, `/admin/hosts`,
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`

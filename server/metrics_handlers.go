@@ -79,6 +79,29 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// topProcessUsage is how many commands one window reports, per dimension.
+const topProcessUsage = 25
+
+// handleHostProcessUsage answers "what has this machine actually been spending
+// itself on", averaged over a window rather than sampled at the last push.
+func (a *app) handleHostProcessUsage(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := a.db.GetHost(id); err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "host not found")
+		return
+	}
+	spec, ok := rangeSpec[r.URL.Query().Get("window")]
+	if !ok {
+		spec = rangeSpec["24h"]
+	}
+	usage, err := a.db.ProcessUsageSince(id, time.Now().UTC().Add(-spec.window), topProcessUsage)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not read process usage")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"window": spec.window.String(), "processes": usage})
+}
+
 type uptimeResponse struct {
 	Range     string  `json:"range"`
 	UptimePct float64 `json:"uptime_pct"`
