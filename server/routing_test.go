@@ -148,3 +148,16 @@ func TestCreateRejectsMissingURLForHTTPKind(t *testing.T) {
 		t.Fatalf("missing url status = %d, want 400", resp.StatusCode)
 	}
 }
+
+// An unrouted /api/ path must answer with the error envelope, not the SPA: a
+// non-browser caller reads a 200 full of HTML as a successful request.
+func TestUnknownAPIPathIsNotSwallowedBySPA(t *testing.T) {
+	ts := newTestServer(t)
+	resp, data := ts.do(t, nil, http.MethodGet, "/api/v1/hosts", nil, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404: %s", resp.StatusCode, data)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("content-type = %q, want json", ct)
+	}
+}

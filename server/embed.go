@@ -62,6 +62,13 @@ func (a *app) uiHandler() http.Handler {
 	}
 	fileServer := http.FileServer(http.FS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// An unrouted /api/ path is a caller's mistake, not a client-side
+		// route. Falling through would answer it with the SPA and a 200, which
+		// a non-browser caller reads as success.
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			writeError(w, http.StatusNotFound, "not_found", "no such endpoint")
+			return
+		}
 		p := strings.TrimPrefix(r.URL.Path, "/")
 		if p == "" {
 			p = "index.html"
