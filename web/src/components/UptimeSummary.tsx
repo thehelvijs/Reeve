@@ -1,14 +1,11 @@
-import { useEffect, useState } from 'react';
 import { api, type UptimeSummary as Summary } from '../api';
+import { useResource } from '../lib/cache';
 
 export default function UptimeSummary({ path }: { path: string }) {
-  const [day, setDay] = useState<Summary | null>(null);
-  const [week, setWeek] = useState<Summary | null>(null);
-
-  useEffect(() => {
-    api.get<Summary>(`${path}?range=24h`).then(setDay).catch(() => setDay(null));
-    api.get<Summary>(`${path}?range=7d`).then(setWeek).catch(() => setWeek(null));
-  }, [path]);
+  const dayKey = `${path}?range=24h`;
+  const weekKey = `${path}?range=7d`;
+  const { data: day } = useResource<Summary>(dayKey, () => api.get<Summary>(dayKey));
+  const { data: week } = useResource<Summary>(weekKey, () => api.get<Summary>(weekKey));
 
   if (!day && !week) {
     return null;

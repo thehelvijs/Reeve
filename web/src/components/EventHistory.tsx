@@ -1,16 +1,10 @@
-import { useEffect, useState } from 'react';
 import { api, type AlertEvent } from '../api';
+import { useResource } from '../lib/cache';
 import { Card, Pill } from '../components/ui';
 
 export default function EventHistory({ path }: { path: string }) {
-  const [events, setEvents] = useState<AlertEvent[]>([]);
-
-  useEffect(() => {
-    const load = () => api.get<AlertEvent[]>(path).then((e) => setEvents(e ?? [])).catch(() => setEvents([]));
-    load();
-    const poll = setInterval(load, 15000);
-    return () => clearInterval(poll);
-  }, [path]);
+  const { data } = useResource<AlertEvent[]>(path, () => api.get<AlertEvent[]>(path), 15000);
+  const events = data ?? [];
 
   return (
     <div className="mt-6">
