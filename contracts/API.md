@@ -244,18 +244,10 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 
 `POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
-or out-of-range-protocol pushes with the standard error envelope.
-
-**Accepted protocol versions: 1 and 2.** A `protocol_version` outside
-`contracts.MinAcceptedPushVersion … contracts.PushProtocolVersion` is rejected
-`400 bad_protocol`. v1 is accepted **for one release only**, so a server upgrade
-does not black-hole a fleet of agents that have not updated yet; the release
-after this one raises `MinAcceptedPushVersion` to 2 and drops v1.
+or wrong-protocol pushes with the standard error envelope.
 
 **Protocol v2:** The agent reports `auto_update_vetoed` (`true` when the host set
-`REEVE_AUTO_UPDATE=false` and will refuse any update). A v1 body omits the field
-entirely, which decodes to `false` — the right default for an agent with no
-opinion about updates. The endpoint replies `200` with `{"check_now": bool}` (a
-`contracts.PushAck`) to both versions, where `check_now` is the server's
-instruction to run a self-update immediately; servers before v2 replied
-`204 No Content`.
+`REEVE_AUTO_UPDATE=false` and will refuse any update). The endpoint replies
+`200` with `{"check_now": bool}` (a `contracts.PushAck`), where `check_now` is
+the server's instruction to run a self-update immediately; earlier versions
+reply `204 No Content`.

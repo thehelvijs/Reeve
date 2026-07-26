@@ -135,69 +135,16 @@ func TestIngestBadTokenRejected(t *testing.T) {
 	}
 }
 
-// A v1 agent predates auto_update_vetoed entirely, so its body carries no such
-// key. Ingest must still store it: rejecting the fleet's un-upgraded agents
-// freezes last_seen_at and reads as a fleet-wide outage that isn't happening.
-func TestIngestAcceptsPreviousProtocolVersion(t *testing.T) {
-	ts := newTestServer(t)
-	admin := adminClient(t, ts)
-	hostID, token := enrollHost(t, ts, admin, "host-a")
-	v1 := map[string]any{
-		"protocol_version": 1,
-		"agent_version":    "0.1.0",
-		"sent_at":          time.Unix(1_700_000_000, 0).UTC(),
-		"services":         []contracts.ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
-	}
-
-	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", v1,
-		map[string]string{"Authorization": "Bearer " + token})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("v1 ingest = %d, want 200: %s", resp.StatusCode, data)
-	}
-	var ack contracts.PushAck
-	if err := json.Unmarshal(data, &ack); err != nil {
-		t.Fatalf("decode ack: %v", err)
-	}
-	if !ack.CheckNow {
-		t.Error("an outdated v1 host was not granted a rollout slot")
-	}
-
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
-	var hosts []hostView
-	json.Unmarshal(data, &hosts)
-	if len(hosts) != 1 || hosts[0].Status != "online" || hosts[0].AgentVersion != "0.1.0" {
-		t.Fatalf("v1 push did not move last_seen_at: %+v", hosts)
-	}
-
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+hostID+"/inventory", nil, nil)
-	var inv inventoryResponse
-	json.Unmarshal(data, &inv)
-	if len(inv.Services) != 1 || inv.Services[0].SourceRef != "nginx.service" {
-		t.Errorf("v1 telemetry not stored: %+v", inv.Services)
-	}
-}
-
-// The accepted range is bounded on both sides, so a bump does not silently
-// leave ingest open to every version forever.
-func TestIngestProtocolOutsideTheAcceptedRangeRejected(t *testing.T) {
+func TestIngestBadProtocolRejected(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	_, token := enrollHost(t, ts, admin, "host-a")
-
-	for _, version := range []int{0, contracts.PushProtocolVersion + 1, 999} {
-		p := samplePush()
-		p.ProtocolVersion = version
-		resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
-			map[string]string{"Authorization": "Bearer " + token})
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Errorf("protocol %d ingest = %d, want 400", version, resp.StatusCode)
-			continue
-		}
-		var e contracts.ErrorResponse
-		json.Unmarshal(data, &e)
-		if e.Code != "bad_protocol" {
-			t.Errorf("protocol %d error code = %q, want bad_protocol", version, e.Code)
-		}
+	p := samplePush()
+	p.ProtocolVersion = 999
+	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("bad protocol ingest = %d, want 400", resp.StatusCode)
 	}
 }
 

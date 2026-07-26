@@ -7,15 +7,7 @@ import (
 )
 
 // PushProtocolVersion is bumped when the agent->server payload shape changes.
-// Agents always send this version.
 const PushProtocolVersion = 2
-
-// MinAcceptedPushVersion is the oldest push the server still ingests. A fleet
-// upgrades one agent at a time, so ingest accepts a range: raise this to
-// PushProtocolVersion only in the release after an additive bump, once no
-// agent is left speaking the old version. A breaking change raises both at once
-// and strands every agent that has not updated yet.
-const MinAcceptedPushVersion = 1
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {

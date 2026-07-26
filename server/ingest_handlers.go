@@ -44,7 +44,7 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_push", "invalid push body")
 		return
 	}
-	if push.ProtocolVersion < contracts.MinAcceptedPushVersion || push.ProtocolVersion > contracts.PushProtocolVersion {
+	if push.ProtocolVersion != contracts.PushProtocolVersion {
 		a.ingestRejected.Add(1)
 		writeError(w, http.StatusBadRequest, "bad_protocol", "unsupported push protocol version")
 		return
