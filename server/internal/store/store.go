@@ -1,4 +1,4 @@
-// Package store owns the SQLite database: connection, schema migrations, and
+// Package store owns the SQLite database: connection, schema, and
 // the typed queries the rest of the server uses.
 package store
 
@@ -20,7 +20,7 @@ type DB struct {
 	sql *sql.DB
 }
 
-// Open opens the SQLite DB at path (WAL, FKs, busy timeout) and migrates it.
+// Open opens the SQLite DB at path (WAL, FKs, busy timeout) and applies the schema.
 func Open(path string) (*DB, error) {
 	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)", path)
 	sqlDB, err := sql.Open("sqlite", dsn)
@@ -31,7 +31,7 @@ func Open(path string) (*DB, error) {
 	// a single write connection with WAL keeps writes serialized and correct.
 	sqlDB.SetMaxOpenConns(1)
 	db := &DB{sql: sqlDB}
-	if err := db.migrate(); err != nil {
+	if err := db.applySchema(); err != nil {
 		sqlDB.Close()
 		return nil, err
 	}
@@ -159,8 +159,11 @@ func StagedRestorePath(dbPath string) string {
 }
 
 // ValidateBackup reports whether path is a SQLite database this server can
-// adopt: right magic, openable, and carrying the tables a Reeve database
-// must have. Staging an unvalidated file would brick the next startup.
+// adopt: right magic, openable, and already carrying the tables a Reeve
+// database must have. Staging an unvalidated file would brick the next startup.
+//
+// It opens the candidate query-only rather than through Open, which would apply
+// the schema and so create the very tables this is checking for.
 func ValidateBackup(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -173,14 +176,15 @@ func ValidateBackup(path string) error {
 		return errors.New("not a SQLite database file")
 	}
 
-	db, err := Open(path)
+	dsn := fmt.Sprintf("file:%s?_pragma=query_only(true)&_pragma=busy_timeout(5000)", path)
+	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return fmt.Errorf("cannot open as a Reeve database: %w", err)
 	}
-	defer db.Close()
-	for _, table := range []string{"users", "tools", "credentials", "schema_migrations"} {
+	defer sqlDB.Close()
+	for _, table := range []string{"users", "tools", "credentials", "hosts"} {
 		var name string
-		err := db.sql.QueryRow(
+		err := sqlDB.QueryRow(
 			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
 		if err != nil {
 			return fmt.Errorf("database is missing the %s table", table)

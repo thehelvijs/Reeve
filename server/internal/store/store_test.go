@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,52 +20,82 @@ func openTemp(t *testing.T) *DB {
 	return db
 }
 
-func TestOpenRunsMigrations(t *testing.T) {
+func TestOpenAppliesSchema(t *testing.T) {
 	db := openTemp(t)
 
-	tables := []string{"users", "sessions", "settings", "schema_migrations"}
+	tables := []string{"users", "sessions", "settings", "hosts", "credentials"}
 	for _, tbl := range tables {
 		var name string
 		err := db.SQL().QueryRow(
 			"SELECT name FROM sqlite_master WHERE type='table' AND name=?", tbl,
 		).Scan(&name)
 		if err != nil {
-			t.Errorf("table %q missing after migrate: %v", tbl, err)
+			t.Errorf("table %q missing after Open: %v", tbl, err)
 		}
 	}
 }
 
-func TestMigrationsAreIdempotent(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test.db")
+// The schema is re-executed on every Open, so a second one must neither fail on
+// an existing object nor duplicate a seeded row.
+func TestSchemaIsIdempotent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
 	db1, err := Open(path)
 	if err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
-	first := migrationCount(t, db1)
+	first := thresholdCount(t, db1)
 	db1.Close()
 
 	db2, err := Open(path)
 	if err != nil {
-		t.Fatalf("second Open (re-migrate): %v", err)
+		t.Fatalf("second Open: %v", err)
 	}
 	defer db2.Close()
 
-	if second := migrationCount(t, db2); second != first {
-		t.Errorf("migration count changed on re-open: %d -> %d", first, second)
+	if second := thresholdCount(t, db2); second != first {
+		t.Errorf("seeded thresholds changed on re-open: %d -> %d", first, second)
 	}
 	if first == 0 {
-		t.Error("no migrations were applied")
+		t.Error("the schema seeded no default thresholds")
 	}
 }
 
-func migrationCount(t *testing.T, db *DB) int {
+func thresholdCount(t *testing.T, db *DB) int {
 	t.Helper()
 	var n int
-	if err := db.SQL().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&n); err != nil {
-		t.Fatalf("count migrations: %v", err)
+	if err := db.SQL().QueryRow("SELECT COUNT(*) FROM alert_thresholds").Scan(&n); err != nil {
+		t.Fatalf("count thresholds: %v", err)
 	}
 	return n
+}
+
+// Validation must read the candidate, never open it through Open: applying the
+// schema would create the tables it is checking for and pass anything.
+func TestValidateBackupRejectsAForeignDatabaseWithoutTouchingIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "foreign.db")
+	sqlDB, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatalf("open foreign: %v", err)
+	}
+	if _, err := sqlDB.Exec(`CREATE TABLE unrelated (id TEXT)`); err != nil {
+		t.Fatalf("seed foreign: %v", err)
+	}
+	sqlDB.Close()
+
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBackup(path); err == nil {
+		t.Fatal("a database with none of Reeve's tables was accepted")
+	}
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Size() != before.Size() {
+		t.Errorf("validation wrote to the candidate: %d -> %d bytes", before.Size(), after.Size())
+	}
 }
 
 func TestForeignKeysEnforced(t *testing.T) {
@@ -170,7 +201,7 @@ func TestThresholdSetOverrideAndFallback(t *testing.T) {
 		return set
 	}
 
-	// migration seeds global cpu=90 and load disabled at 4
+	// the schema seeds global cpu=90 and load disabled at 4
 	set := loadSet()
 	if got, ok := set.Effective("host-x", "cpu"); !ok || got.Value != 90 || !got.Enabled {
 		t.Fatalf("global cpu default = %+v ok=%v, want 90 enabled", got, ok)

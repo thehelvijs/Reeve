@@ -27,9 +27,10 @@ them. `make dist` produces the full release set.
   tests together. There is no protocol version to negotiate. Reeve is
   pre-release with no agent in the world older than the server, so a shape
   change is a plain edit, not a compatibility problem.
-- The schema is one file, `server/internal/store/migrations/0001_init.sql`.
-  Reeve is pre-release with no installed base, so a schema change edits that
-  file in place. There are no numbered migrations and no data to migrate.
+- The schema is one file, `server/internal/store/schema.sql`, re-executed on
+  every open. A schema change edits it in place; keep every statement
+  idempotent (`IF NOT EXISTS`, `INSERT OR IGNORE`). There are no migrations,
+  no version table and no data to migrate.
 
 ## Implementation discipline
 
