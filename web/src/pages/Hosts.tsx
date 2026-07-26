@@ -219,8 +219,18 @@ function EnrollModal({
     }
   };
 
+  const submitAction = () => {
+    if (result) {
+      return () => onSSH(result.host);
+    }
+    if (name.trim()) {
+      return create;
+    }
+    return undefined;
+  };
+
   return (
-    <Modal title="Add host" onClose={onClose}>
+    <Modal title="Add host" onClose={onClose} onSubmit={submitAction()}>
         {!result ? (
           <div className="mt-4 space-y-3">
             <Field label="Name">
@@ -283,7 +293,7 @@ function CmdBlock({ label, cmd }: { label: string; cmd: string }) {
 
 function TutorialModal({ onClose, onAdd }: { onClose: () => void; onAdd: () => void }) {
   return (
-    <Modal title="How to add a host" onClose={onClose}>
+    <Modal title="How to add a host" onClose={onClose} onSubmit={onAdd}>
       <ol className="mt-4 space-y-4">
         <Step n={1} title="Create the host here">
           Click “Add host” and give it a name. You get a one-line install command with a unique enrollment token.

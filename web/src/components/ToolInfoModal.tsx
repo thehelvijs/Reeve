@@ -20,8 +20,15 @@ export default function ToolInfoModal({
   onOpen: () => void;
   onClose: () => void;
 }) {
+  const submitAction = () => {
+    if (canOpen) {
+      return onOpen;
+    }
+    return undefined;
+  };
+
   return (
-    <Modal title="Service" onClose={onClose}>
+    <Modal title="Service" onClose={onClose} onSubmit={submitAction()}>
       {tool.thumbnail_url && (
         <img src={tool.thumbnail_url} alt="" className="mt-4 h-32 w-full rounded-card border border-hairline object-cover" />
       )}

@@ -129,8 +129,15 @@ function CreateGroupModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
     }
   };
 
+  const submitAction = () => {
+    if (busy || !name.trim()) {
+      return undefined;
+    }
+    return create;
+  };
+
   return (
-    <Modal title="New group" onClose={onClose} size="md">
+    <Modal title="New group" onClose={onClose} size="md" onSubmit={submitAction()}>
       <div className="mt-4 space-y-3">
         <Field label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ops" />

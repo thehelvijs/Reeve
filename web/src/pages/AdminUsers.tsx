@@ -102,7 +102,7 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUser; onClose: () =>
 
   if (done) {
     return (
-      <Modal title="Password reset" onClose={onClose} size="md">
+      <Modal title="Password reset" onClose={onClose} size="md" onSubmit={onClose}>
         <p className="mt-2 text-sm text-muted">
           {user.email} is signed out everywhere and must use the new password. Hand it over out of band.
         </p>
@@ -113,8 +113,15 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUser; onClose: () =>
     );
   }
 
+  const submitAction = () => {
+    if (busy || password === '') {
+      return undefined;
+    }
+    return submit;
+  };
+
   return (
-    <Modal title="Reset password" onClose={onClose} size="md">
+    <Modal title="Reset password" onClose={onClose} size="md" onSubmit={submitAction()}>
       <p className="mt-2 text-sm text-muted">{user.email} will be signed out everywhere.</p>
       <div className="mt-4">
         <Field label="New password">

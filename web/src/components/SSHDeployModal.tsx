@@ -88,8 +88,21 @@ export default function SSHDeployModal({
   const title = mode === 'install' ? `Install agent on ${hostName}` : `Remove agent from ${hostName}`;
   const verb = mode === 'install' ? 'Install' : 'Uninstall';
 
+  const submitAction = () => {
+    if (stage === 'form' && target.address.trim() && target.username.trim()) {
+      return probe;
+    }
+    if (stage === 'confirm') {
+      return run;
+    }
+    if (stage === 'done') {
+      return onClose;
+    }
+    return undefined;
+  };
+
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={onClose} onSubmit={submitAction()}>
       {stage === 'form' && (
         <div className="mt-4 space-y-3">
           <p className="text-sm text-muted">

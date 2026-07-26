@@ -8,22 +8,35 @@ export default function Modal({
   children,
   size = 'lg',
   headerRight,
+  onSubmit,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   size?: 'md' | 'lg';
   headerRight?: ReactNode;
+  // Fires on Enter, so a modal's primary action is reachable from the keyboard.
+  // Pass undefined while the action is unavailable; the modal then ignores Enter.
+  onSubmit?: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
+      if (e.key !== 'Enter' || !onSubmit || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+      const el = e.target as HTMLElement | null;
+      if (el instanceof HTMLTextAreaElement || el instanceof HTMLButtonElement || el instanceof HTMLAnchorElement) {
+        return;
+      }
+      e.preventDefault();
+      onSubmit();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onSubmit]);
 
   const width = size === 'md' ? 'max-w-md' : 'max-w-lg';
   return (

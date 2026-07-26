@@ -89,8 +89,15 @@ export default function CollectionEditor({
     title = 'Edit collection';
   }
 
+  const submitAction = () => {
+    if (busy || !name.trim()) {
+      return undefined;
+    }
+    return save;
+  };
+
   return (
-    <Modal title={title} onClose={onClose} size="lg">
+    <Modal title={title} onClose={onClose} size="lg" onSubmit={submitAction()}>
       <div className="mt-4 max-h-[60vh] space-y-4 overflow-y-auto pr-1">
         <Field label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Manufacturing" />

@@ -12,7 +12,7 @@ export default function RevealModal({ cred, onClose }: { cred: RevealedCredentia
     </span>
   );
   return (
-    <Modal title={cred.label || cred.type} onClose={onClose} size="md" headerRight={typePill}>
+    <Modal title={cred.label || cred.type} onClose={onClose} size="md" headerRight={typePill} onSubmit={onClose}>
       <div className="mt-4 space-y-3">
         {Object.entries(cred.secret).map(([k, v]) => (
           <SecretField key={k} name={k} value={v} />

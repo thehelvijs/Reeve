@@ -32,6 +32,15 @@ test('create a group via the header modal', async ({ page }) => {
   await expect(page.locator('h2:has-text("e2e-group")')).toBeVisible();
 });
 
+test('enter submits a modal', async ({ page }) => {
+  await login(page);
+  await page.goto('/admin/groups');
+  await page.click('button:has-text("New group")');
+  await page.fill('input[placeholder="ops"]', 'e2e-enter-group');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('h2:has-text("e2e-enter-group")')).toBeVisible();
+});
+
 test('create a webhook', async ({ page }) => {
   await login(page);
   await page.goto('/admin/webhooks');
