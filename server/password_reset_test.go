@@ -125,6 +125,26 @@ func TestAdminResetPasswordRejects(t *testing.T) {
 	}
 }
 
+// Every path that sets a password enforces the same floor; a reset link must
+// not be the way around the rule signup applies.
+func TestEveryPasswordPathEnforcesTheMinimum(t *testing.T) {
+	ts := newTestServer(t)
+	adminClient := ts.client(t)
+	signup(t, ts, adminClient, "boss@example.com", "password123")
+	userClient := ts.client(t)
+	_, target := signup(t, ts, userClient, "dev@example.com", "password123")
+
+	if resp, _ := adminResetPassword(t, ts, adminClient, target.ID, "short"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("admin reset with a 5-char password = %d, want 400", resp.StatusCode)
+	}
+	if resp := doReset(t, ts, "any-token", "short", "10.2.0.1"); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("mailed reset with a 5-char password = %d, want 400", resp.StatusCode)
+	}
+	if err := setPassword(ts.app.db, target.ID, "short"); err == nil {
+		t.Error("setPassword accepted a 5-char password")
+	}
+}
+
 // A password change must sign other devices out while keeping the caller in.
 func TestChangePasswordDropsOtherSessions(t *testing.T) {
 	ts := newTestServer(t)
