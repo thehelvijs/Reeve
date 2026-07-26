@@ -50,7 +50,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 		IPAddress:   h.IPAddress,
 		UpdateState: updateStateFor(h, uc, now),
 		Status:      hostStatus(h, now), LastSeenAt: last,
-		IconURL: iconURL("hosts", h.ID, h.IconPath), ThumbnailURL: thumbnailURL("hosts", h.ID, h.ThumbnailPath),
+		IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath),
 		Latitude: h.Latitude, Longitude: h.Longitude,
 	}
 }
@@ -114,7 +114,7 @@ func (a *app) handleListPublicHosts(w http.ResponseWriter, _ *http.Request) {
 	now := time.Now().UTC()
 	out := make([]publicHostView, 0, len(hosts))
 	for _, h := range hosts {
-		out = append(out, publicHostView{ID: h.ID, Name: h.Name, Status: hostStatus(h, now), IconURL: iconURL("hosts", h.ID, h.IconPath), ThumbnailURL: thumbnailURL("hosts", h.ID, h.ThumbnailPath), Latitude: h.Latitude, Longitude: h.Longitude})
+		out = append(out, publicHostView{ID: h.ID, Name: h.Name, Status: hostStatus(h, now), IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath), Latitude: h.Latitude, Longitude: h.Longitude})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

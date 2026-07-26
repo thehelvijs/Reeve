@@ -86,8 +86,8 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 		CanEdit:         p.IsAdmin() || t.CreatorID == p.UserID,
 		LogAlertEnabled: t.LogAlertEnabled,
 		Tags:            t.Tags,
-		IconURL:         iconURL("tools", t.ID, t.IconPath),
-		ThumbnailURL:    thumbnailURL("tools", t.ID, t.ThumbnailPath),
+		IconURL:         assetURL("tools", t.ID, "icon", t.IconPath),
+		ThumbnailURL:    assetURL("tools", t.ID, "thumbnail", t.ThumbnailPath),
 	}
 }
 
@@ -110,7 +110,7 @@ func (a *app) visibleCollectionRefs(toolIDs []string, p *auth.Principal) map[str
 				continue
 			}
 			refs = append(refs, contracts.CollectionRef{
-				ID: c.ID, Name: c.Name, IconURL: iconURL("collections", c.ID, c.IconPath),
+				ID: c.ID, Name: c.Name, IconURL: assetURL("collections", c.ID, "icon", c.IconPath),
 			})
 		}
 		out[toolID] = refs
@@ -218,8 +218,8 @@ func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 			HostID:           t.HostID,
 			SourceType:       t.SourceType,
 			Status:           a.toolStatus(t, hosts, now),
-			IconURL:          iconURL("tools", t.ID, t.IconPath),
-			ThumbnailURL:     thumbnailURL("tools", t.ID, t.ThumbnailPath),
+			IconURL:          assetURL("tools", t.ID, "icon", t.IconPath),
+			ThumbnailURL:     assetURL("tools", t.ID, "thumbnail", t.ThumbnailPath),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

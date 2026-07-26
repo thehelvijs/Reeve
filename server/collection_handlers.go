@@ -41,7 +41,7 @@ func (a *app) collectionToView(c store.Collection, canEdit bool) collectionView 
 		Description: c.Description,
 		Visibility:  c.Visibility,
 		CreatorID:   c.CreatorID,
-		IconURL:     iconURL("collections", c.ID, c.IconPath),
+		IconURL:     assetURL("collections", c.ID, "icon", c.IconPath),
 		ToolCount:   n,
 		CanEdit:     canEdit,
 		CreatedAt:   c.CreatedAt.Format(time.RFC3339),

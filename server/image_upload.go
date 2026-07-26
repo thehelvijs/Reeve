@@ -61,18 +61,11 @@ func writeImageFile(dir, base, ext string, data []byte, oldPath string) (string,
 	return dest, nil
 }
 
-// iconURL builds the public icon URL for an entity, empty when it has no icon.
-func iconURL(kind, id, path string) string {
+// assetURL builds the public URL for an entity's icon or thumbnail, empty when
+// no file is stored for it.
+func assetURL(kind, id, leaf, path string) string {
 	if path == "" {
 		return ""
 	}
-	return "/api/v1/" + kind + "/" + id + "/icon"
-}
-
-// thumbnailURL builds the public thumbnail URL for an entity, empty when unset.
-func thumbnailURL(kind, id, path string) string {
-	if path == "" {
-		return ""
-	}
-	return "/api/v1/" + kind + "/" + id + "/thumbnail"
+	return "/api/v1/" + kind + "/" + id + "/" + leaf
 }
