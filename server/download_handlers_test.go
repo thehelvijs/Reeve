@@ -115,6 +115,34 @@ func TestServeInstallScript(t *testing.T) {
 	}
 }
 
+// The SSH uninstall push copies this script over and runs it, so a build that
+// forgot to stage it must 404 rather than serve an empty file the remote shell
+// would happily execute.
+func TestServeUninstallScript(t *testing.T) {
+	a := newDownloadApp(fstest.MapFS{}, fstest.MapFS{
+		"scripts/uninstall.sh": {Data: []byte("#!/usr/bin/env bash\nsystemctl stop reeve-agent\n")},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/uninstall.sh", nil)
+	rr := httptest.NewRecorder()
+	a.handleUninstallScript(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "reeve-agent") {
+		t.Errorf("uninstall.sh body wrong: %q", rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); !strings.Contains(ct, "shellscript") {
+		t.Errorf("content-type = %q, want a shellscript type", ct)
+	}
+
+	missing := newDownloadApp(fstest.MapFS{}, fstest.MapFS{})
+	rr = httptest.NewRecorder()
+	missing.handleUninstallScript(rr, req)
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("unstaged script = %d, want 404", rr.Code)
+	}
+}
+
 // The agent asks for a signature next to the binary; without one it refuses to
 // update, so serving and 404ing both have to behave predictably.
 func TestServeAgentSignature(t *testing.T) {

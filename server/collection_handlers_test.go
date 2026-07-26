@@ -158,7 +158,7 @@ func TestCollectionValidation(t *testing.T) {
 func TestCollectionToolsAndGrantRoutes(t *testing.T) {
 	ts := newTestServer(t)
 	owner, _ := newUser(t, ts, "boss@example.com")
-	_, viewer := newUser(t, ts, "viewer@example.com")
+	viewerClient, viewer := newUser(t, ts, "viewer@example.com")
 
 	_, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
 		map[string]any{"name": "Metrics"}, nil)
@@ -207,6 +207,23 @@ func TestCollectionToolsAndGrantRoutes(t *testing.T) {
 	json.Unmarshal(body, &grants)
 	if len(grants) != 1 || grants[0].PrincipalID != viewer.ID {
 		t.Errorf("editor grants = %+v", grants)
+	}
+
+	// Removing the editor takes the edit right with it, or a demoted editor
+	// would keep writing to the collection.
+	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/v1/collections/"+id, map[string]any{"name": "Theirs"}, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("granted editor cannot edit: %d", resp.StatusCode)
+	}
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/collections/"+id+"/editors/user/"+viewer.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("remove editor = %d, want 204", resp.StatusCode)
+	}
+	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id+"/editors", nil, nil)
+	json.Unmarshal(body, &grants)
+	if len(grants) != 0 {
+		t.Errorf("editor grants after removal = %+v", grants)
+	}
+	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/v1/collections/"+id, map[string]any{"name": "Mine"}, nil); resp.StatusCode != http.StatusForbidden {
+		t.Errorf("removed editor can still edit: %d, want 403", resp.StatusCode)
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/thehelvijs/Reeve/server/internal/store"
@@ -107,6 +108,58 @@ func TestRestrictedToolVisibleViaGroup(t *testing.T) {
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 {
 		t.Fatalf("group-granted tool not visible: %+v", tools)
+	}
+}
+
+// Listing and removing a visibility grant is how an owner audits and undoes who
+// can see a restricted tool, so removal has to actually hide it again.
+func TestToolVisibilityListAndRemove(t *testing.T) {
+	ts := newTestServer(t)
+	owner := ts.client(t)
+	signup(t, ts, owner, "boss@example.com", "password123")
+	tr := createTool(t, ts, owner, toolInput{Name: "Restricted", Visibility: "restricted"})
+
+	dev := ts.client(t)
+	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
+
+	resp, data := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list visibility = %d: %s", resp.StatusCode, data)
+	}
+	if got := strings.TrimSpace(string(data)); got != "[]" {
+		t.Errorf("visibility on a fresh tool = %s, want []", got)
+	}
+
+	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	var grants []visibilityGrantView
+	json.Unmarshal(data, &grants)
+	if len(grants) != 1 || grants[0].PrincipalType != "user" || grants[0].PrincipalID != devUser.ID {
+		t.Fatalf("visibility grants = %+v", grants)
+	}
+	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("granted user cannot see the tool: %d", resp.StatusCode)
+	}
+
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("remove visibility = %d", resp.StatusCode)
+	}
+	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	json.Unmarshal(data, &grants)
+	if len(grants) != 0 {
+		t.Errorf("grants after removal = %+v", grants)
+	}
+	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("tool still visible after removal: %d, want 404", resp.StatusCode)
+	}
+
+	// A removal naming a principal kind that does not exist is a typo, not a
+	// no-op, and only someone who may edit the tool may touch its visibility.
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tr.ID+"/visibility/robot/x", nil, nil); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("bad principal type = %d, want 400", resp.StatusCode)
+	}
+	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("outsider listing visibility = %d, want 404", resp.StatusCode)
 	}
 }
 

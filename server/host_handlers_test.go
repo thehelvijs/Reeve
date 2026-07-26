@@ -92,6 +92,100 @@ func TestAgentCommandsFallBackToRequestHost(t *testing.T) {
 	}
 }
 
+// Deleting a host has to take its telemetry with it. Every one of these tables
+// hangs off hosts(id) ON DELETE CASCADE, which only fires because the store
+// opens SQLite with foreign_keys(ON) — without that pragma the rows would
+// silently outlive the host they describe.
+func TestDeleteHostTakesItsTelemetryWithIt(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "admin@example.com", "password123")
+
+	h, err := ts.app.db.CreateHost("doomed", "linux", "", "tok", 60)
+	if err != nil {
+		t.Fatalf("create host: %v", err)
+	}
+	keep, err := ts.app.db.CreateHost("survivor", "linux", "", "tok2", 60)
+	if err != nil {
+		t.Fatalf("create second host: %v", err)
+	}
+	sql := ts.app.db.SQL()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, h := range []string{h.ID, keep.ID} {
+		sql.Exec(`INSERT INTO metric_samples(host_id, ts, resolution, cpu_pct) VALUES (?,?,'raw',9)`, h, now)
+		sql.Exec(`INSERT INTO log_events(id, host_id, level, message, at) VALUES (?,?,'error','boom',?)`, "le-"+h, h, now)
+		sql.Exec(`INSERT INTO service_status(host_id, unit, updated_at) VALUES (?,'nginx.service',?)`, h, now)
+		sql.Exec(`INSERT INTO container_status(host_id, container_id, updated_at) VALUES (?,'abc',?)`, h, now)
+		sql.Exec(`INSERT INTO cron_jobs(host_id, name, updated_at) VALUES (?,'backup',?)`, h, now)
+		sql.Exec(`INSERT INTO container_stats(host_id, container_id, ts, resolution) VALUES (?,'abc',?,'raw')`, h, now)
+		sql.Exec(`INSERT INTO alert_thresholds(host_id, metric, threshold) VALUES (?,'cpu',50)`, h)
+	}
+
+	resp, data := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete host = %d: %s", resp.StatusCode, data)
+	}
+	if _, err := ts.app.db.GetHost(h.ID); err == nil {
+		t.Error("host still resolves after delete")
+	}
+
+	// alert_thresholds has no foreign key, so the handler clears it explicitly;
+	// the rest ride the cascade. Either way nothing may be left behind.
+	for _, table := range []string{
+		"metric_samples", "log_events", "service_status", "container_status",
+		"cron_jobs", "container_stats", "alert_thresholds",
+	} {
+		if n := countRows(t, ts, `SELECT COUNT(*) FROM `+table+` WHERE host_id = ?`, h.ID); n != 0 {
+			t.Errorf("%s kept %d rows for the deleted host", table, n)
+		}
+		if n := countRows(t, ts, `SELECT COUNT(*) FROM `+table+` WHERE host_id = ?`, keep.ID); n != 1 {
+			t.Errorf("%s lost the other host's row (%d left)", table, n)
+		}
+	}
+
+	// The global thresholds live in the same table under host_id '' and must
+	// survive, or deleting one host would disarm alerting for the whole fleet.
+	if n := countRows(t, ts, `SELECT COUNT(*) FROM alert_thresholds WHERE host_id = ''`); n == 0 {
+		t.Error("deleting a host wiped the global thresholds")
+	}
+
+	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("second delete = %d, want 404", resp.StatusCode)
+	}
+}
+
+// tools.host_id carries no foreign key, so a linked tool outlives its host with
+// a dangling reference. It has to keep listing rather than 500 — the tool is
+// still a real service someone catalogued.
+func TestDeleteHostLeavesLinkedToolsListable(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "admin@example.com", "password123")
+
+	h, err := ts.app.db.CreateHost("doomed", "linux", "", "tok", 60)
+	if err != nil {
+		t.Fatalf("create host: %v", err)
+	}
+	tool := createTool(t, ts, admin, toolInput{Name: "Orphan", HostID: h.ID})
+
+	if resp, _ := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete host = %d", resp.StatusCode)
+	}
+
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/tools", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list tools after host delete = %d: %s", resp.StatusCode, data)
+	}
+	if !bytes.Contains(data, []byte("Orphan")) {
+		t.Errorf("the tool vanished with its host: %s", data)
+	}
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/v1/tools/"+tool.ID, nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("tool detail after host delete = %d: %s", resp.StatusCode, data)
+	}
+}
+
 func TestUpdateHostLocation(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)

@@ -116,6 +116,9 @@ func (a *app) handleListAlertEvents(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list alerts")
 		return
 	}
+	if events == nil {
+		events = []store.AlertEvent{}
+	}
 	writeJSON(w, http.StatusOK, events)
 }
 
@@ -124,6 +127,9 @@ func (a *app) handleListDeliveries(w http.ResponseWriter, _ *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not list deliveries")
 		return
+	}
+	if deliveries == nil {
+		deliveries = []store.Delivery{}
 	}
 	writeJSON(w, http.StatusOK, deliveries)
 }

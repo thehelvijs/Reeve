@@ -31,6 +31,8 @@ func TestToolStatusDerivation(t *testing.T) {
 
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "nginx.service"})
 	createTool(t, ts, admin, toolInput{Name: "Container", HostID: hostID, SourceType: "docker", SourceRef: "c1"})
+	createTool(t, ts, admin, toolInput{Name: "Nightly", HostID: hostID, SourceType: "cron", SourceRef: "backup"})
+	createTool(t, ts, admin, toolInput{Name: "Ghost", HostID: hostID, SourceType: "cron", SourceRef: "no-such-job"})
 	createTool(t, ts, admin, toolInput{Name: "Manual"})
 
 	if s := toolByName(t, ts, admin, "Web").Status; s != contracts.StatusUp {
@@ -38,6 +40,14 @@ func TestToolStatusDerivation(t *testing.T) {
 	}
 	if s := toolByName(t, ts, admin, "Container").Status; s != contracts.StatusUp {
 		t.Errorf("running healthy container status = %q, want up", s)
+	}
+	// A cron job has no running state to read: present in the host's crontab is
+	// the most the agent can say, and absent is unknown rather than down.
+	if s := toolByName(t, ts, admin, "Nightly").Status; s != contracts.StatusUp {
+		t.Errorf("present cron job status = %q, want up", s)
+	}
+	if s := toolByName(t, ts, admin, "Ghost").Status; s != contracts.StatusUnknown {
+		t.Errorf("missing cron job status = %q, want unknown", s)
 	}
 	if s := toolByName(t, ts, admin, "Manual").Status; s != contracts.StatusUnknown {
 		t.Errorf("manual tool status = %q, want unknown", s)
