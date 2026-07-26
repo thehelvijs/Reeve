@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   api,
+  type AutoUpdatePolicy,
   type Host,
   type HostInventory as Inv,
   type InventoryItem,
   type ThresholdsPayload,
 } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, ErrorText, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Pill } from '../components/ui';
+import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
 import BackLink from '../components/BackLink';
 import EntityIcon from '../components/EntityIcon';
 import IconUploader from '../components/IconUploader';
@@ -106,6 +108,8 @@ export default function HostInventory() {
         </Card>
       )}
 
+      {host && user?.role === 'admin' && <AgentCard host={host} onChanged={load} />}
+
       {id && host && user?.role === 'admin' && (
         <Card className="mt-4 p-5">
           <p className="text-sm font-medium text-content">Location</p>
@@ -143,6 +147,88 @@ export default function HostInventory() {
       <Section title="Containers" items={inv.containers} onCreate={createFrom} />
       <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} />
     </div>
+  );
+}
+
+function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const setPolicy = async (policy: AutoUpdatePolicy) => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.put(`/api/v1/admin/hosts/${host.id}/auto-update`, { policy });
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not save the policy');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateNow = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.post(`/api/v1/admin/hosts/${host.id}/update-now`, {});
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not start the update');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  let versionText = 'never reported';
+  if (host.agent_version) {
+    versionText = host.agent_version;
+  }
+
+  // A non-off policy still landing on `disabled` means the host's own REEVE_AUTO_UPDATE=false vetoed it.
+  let disabledReason = '';
+  if (host.update_state === 'disabled') {
+    if (host.auto_update === 'off') {
+      disabledReason = 'This host will not self-update because its policy is set to never update. Change it below.';
+    } else {
+      disabledReason =
+        'This host will not self-update: the machine itself runs the agent with REEVE_AUTO_UPDATE=false, which the server cannot override.';
+    }
+  }
+
+  return (
+    <Card className="mt-4 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-content">Agent</p>
+          <p className="mt-1 text-xs text-muted">Version {versionText}</p>
+        </div>
+        <Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>
+      </div>
+
+      {disabledReason && <p className="mt-3 text-xs text-muted">{disabledReason}</p>}
+
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <Field label="Auto-update">
+          <select
+            value={host.auto_update}
+            onChange={(e) => setPolicy(e.target.value as AutoUpdatePolicy)}
+            disabled={busy}
+            className="rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            {(['default', 'on', 'off'] as const).map((p) => (
+              <option key={p} value={p}>
+                {POLICY_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Button variant="secondary" onClick={updateNow} disabled={busy}>
+          Update now
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </Card>
   );
 }
 
