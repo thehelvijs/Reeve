@@ -104,24 +104,26 @@ func effectiveAutoUpdate(policy string, fleetDefault bool) bool {
 	return fleetDefault
 }
 
-// comparable reports whether there is a build on both sides to compare. An
-// agent that reported no checksum, or a server that ships no agents, has
-// nothing to chase and is never called outdated.
-func (uc updateContext) comparable(h store.Host) bool {
-	return len(uc.Published) > 0 && h.AgentChecksum != ""
-}
-
 func updateStateFor(h store.Host, uc updateContext, now time.Time) string {
 	if h.AutoUpdateVetoed || !effectiveAutoUpdate(h.AutoUpdate, uc.FleetDefault) {
 		return updateStateDisabled
 	}
-	if !uc.comparable(h) {
+	// A server with no builds has nothing to chase, whatever a host reports.
+	if len(uc.Published) == 0 {
 		return updateStateUnknown
 	}
-	if uc.Published[h.AgentChecksum] {
+	if h.AgentChecksum != "" && uc.Published[h.AgentChecksum] {
 		return updateStateUpToDate
 	}
+	// A host that has not said what it runs is not chased on its own: an agent
+	// that can never answer would be granted a slot on every push and hold it
+	// until the stall window paused the fleet. Once an operator stamps a slot by
+	// hand it is a real update, and the state has to say so, or the next push
+	// would release the slot as belonging to a host with nothing to do.
 	if h.UpdateStartedAt == nil {
+		if h.AgentChecksum == "" {
+			return updateStateUnknown
+		}
 		return updateStateOutdated
 	}
 	if now.Sub(*h.UpdateStartedAt) < uc.Stall {

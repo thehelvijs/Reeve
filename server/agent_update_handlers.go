@@ -105,12 +105,17 @@ func (a *app) handleHostUpdateNow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uc := a.updateContext()
-	if !uc.comparable(h) {
+	// Only the server having nothing to serve is a real refusal. A host that has
+	// not reported a checksum is precisely the host this button exists for: the
+	// agent compares its own binary against the published one itself, so it does
+	// not need the server to know what it is running. Refusing here left the one
+	// state an operator cannot fix from the UI with a button that did nothing.
+	if len(uc.Published) == 0 {
 		writeError(w, http.StatusConflict, "version_unknown",
-			"no agent build to compare on the server or the host, so there is nothing to update to")
+			"this server ships no agent builds, so there is nothing to update to")
 		return
 	}
-	if uc.Published[h.AgentChecksum] {
+	if h.AgentChecksum != "" && uc.Published[h.AgentChecksum] {
 		writeError(w, http.StatusConflict, "already_up_to_date", "host is already running the published build")
 		return
 	}

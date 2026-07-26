@@ -228,3 +228,67 @@ func TestDecideCheckNowReleasesSlotOnMatchingVersion(t *testing.T) {
 		t.Error("the slot was not released when the host reported the target version")
 	}
 }
+
+// A host that has not reported a checksum is not chased on its own, but a slot
+// an operator stamped by hand is a real update: if the state read "unknown"
+// while the slot existed, the next push would release it and the button an
+// operator just pressed would do nothing.
+func TestUpdateStateForHostWithNoChecksum(t *testing.T) {
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	fresh := now.Add(-time.Minute)
+	old := now.Add(-time.Hour)
+	uc := updateContext{Published: map[string]bool{"cur": true}, FleetDefault: true, Stall: 15 * time.Minute}
+
+	silent := store.Host{AgentVersion: "0.1.0", AutoUpdate: store.AutoUpdateDefault}
+	if got := updateStateFor(silent, uc, now); got != updateStateUnknown {
+		t.Errorf("no checksum, no slot: state = %q, want %q", got, updateStateUnknown)
+	}
+
+	granted := silent
+	granted.UpdateStartedAt = &fresh
+	if got := updateStateFor(granted, uc, now); got != updateStateUpdating {
+		t.Errorf("no checksum, fresh slot: state = %q, want %q", got, updateStateUpdating)
+	}
+
+	granted.UpdateStartedAt = &old
+	if got := updateStateFor(granted, uc, now); got != updateStateStalled {
+		t.Errorf("no checksum, slot past the window: state = %q, want %q", got, updateStateStalled)
+	}
+}
+
+// The manual grant has to survive the next push, which is the only thing that
+// turns it into an ack telling the agent to check.
+func TestDecideCheckNowKeepsAManualSlotForASilentAgent(t *testing.T) {
+	ts := newTestServer(t)
+	publishAgent(t, ts.app)
+	now := time.Now().UTC()
+	h, _ := ts.app.db.CreateHost("silent", "linux", "", "hash-s", 60)
+	if err := ts.app.db.StartHostUpdate(h.ID, now); err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	h, _ = ts.app.db.GetHost(h.ID)
+
+	if !ts.app.decideCheckNow(h, "", false, now) {
+		t.Error("a host holding an operator's slot was not told to check")
+	}
+	got, _ := ts.app.db.GetHost(h.ID)
+	if got.UpdateStartedAt == nil {
+		t.Error("the operator's slot was released on the next push")
+	}
+}
+
+// An agent that has never reported a checksum cannot be judged, and that is the
+// one state an operator cannot fix any other way from the UI.
+func TestDecideCheckNowLeavesASilentAgentAloneWithoutASlot(t *testing.T) {
+	ts := newTestServer(t)
+	publishAgent(t, ts.app)
+	h, _ := ts.app.db.CreateHost("silent", "linux", "", "hash-s2", 60)
+
+	if ts.app.decideCheckNow(h, "", false, time.Now().UTC()) {
+		t.Error("a host that cannot say what it runs was chased on its own")
+	}
+	got, _ := ts.app.db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Error("a slot was stamped for a host the server cannot judge")
+	}
+}

@@ -228,7 +228,7 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
   }
   if (host.update_state === 'unknown') {
     stateNote =
-      'There is no build to compare: this host has not reported which agent binary it runs, or this server ships none. Reinstalling the agent fixes the first case.';
+      'This host has not reported which agent binary it runs, so the server cannot tell whether it is current. Update now installs the published build anyway; the agent checks its own binary against it.';
   }
 
   return (

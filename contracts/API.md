@@ -206,7 +206,9 @@ never does:
     (`REEVE_AUTO_UPDATE=false`) or by policy (fleet default off with no
     per-host override, or an explicit `off` override).
   - `unknown` — the host has never reported a checksum, or the server ships no
-    agent builds, so there is nothing to compare.
+    agent builds, so there is nothing to compare. Such a host is never chased by
+    the rollout on its own; `update-now` still grants it a slot, and while it
+    holds one the state reads `updating` (then `stalled`) like any other.
 
 ### `GET /api/admin/agent-updates`
 
@@ -251,9 +253,10 @@ the host by policy; `409 already_up_to_date` if the host already
 reported the published build's checksum — stamping a slot for a host with
 nothing to do would occupy a concurrency slot indefinitely if that host is
 offline, silently pausing the rest of the fleet;
-`409 version_unknown` if the server ships no agent builds or the host has never
-reported a checksum, since a slot granted with nothing to compare can never
-clear; `404 not_found` for an unknown host.
+`409 version_unknown` only if the server ships no agent builds — a host that has
+never reported a checksum is granted a slot, since the agent compares its own
+binary against the published one and does not need the server to know what it is
+running, and that state cannot be fixed from the UI any other way; `404 not_found` for an unknown host.
 
 Setting the host's policy to `off` also releases any slot it holds, so "Never
 update" reliably takes a host out of a rollout it is wedging. So does a push

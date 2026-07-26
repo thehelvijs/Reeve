@@ -207,28 +207,30 @@ func TestUpdateNowRefusesUpToDateHost(t *testing.T) {
 	}
 }
 
-// Neither a host that has never reported nor a server shipping no agent builds
-// has a build to compare, so update-now would stamp a slot that can never clear
-// and would pause the whole fleet once the stall window passed.
-func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
-	t.Run("host never reported", func(t *testing.T) {
+// Only a server with nothing to serve is a real refusal. A host that has never
+// reported a checksum is exactly what the button is for: the agent compares its
+// own binary against the published one itself, so it does not need the server to
+// know what it is running.
+func TestUpdateNowRefusesOnlyWhenTheServerShipsNothing(t *testing.T) {
+	t.Run("host never reported a checksum, server has builds", func(t *testing.T) {
 		ts := newTestServer(t)
+		publishAgent(t, ts.app)
 		c := adminClient(t, ts)
-		h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
+		h, _ := ts.app.db.CreateHost("silent", "linux", "", "hash-s", 60)
+		reportBuild(t, ts, h.ID, "")
 
 		resp, body := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
-		if resp.StatusCode != http.StatusConflict {
-			t.Fatalf("status = %d, want 409: %s", resp.StatusCode, body)
+		if resp.StatusCode != http.StatusNoContent {
+			t.Fatalf("status = %d, want 204: %s", resp.StatusCode, body)
 		}
 		got, _ := ts.app.db.GetHost(h.ID)
-		if got.UpdateStartedAt != nil {
-			t.Error("refused update-now still stamped a slot")
+		if got.UpdateStartedAt == nil {
+			t.Error("no slot stamped: this is the one state an operator cannot fix any other way")
 		}
 	})
 
 	t.Run("server ships no agent builds", func(t *testing.T) {
 		ts := newTestServer(t)
-		publishAgent(t, ts.app)
 		c := adminClient(t, ts)
 		ts.app.agentFS = nil
 		h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
