@@ -40,7 +40,6 @@ func newTestServerKey(t *testing.T, key []byte) *testServer {
 	}
 	t.Cleanup(func() { db.Close() })
 	a := &app{db: db, cipher: cipher, cfg: config{DBPath: dbPath, SessionTTL: time.Hour, Version: "test"}, startedAt: time.Now().UTC(), agentFS: agentDistFS(), scriptFS: installScripts}
-	a.notifiers = newNotifiers()
 	srv := httptest.NewServer(a.routes())
 	t.Cleanup(srv.Close)
 	return &testServer{app: a, srv: srv}

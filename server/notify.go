@@ -19,31 +19,16 @@ type notifyChannel struct {
 	Config map[string]string
 }
 
-// Notifier sends one already-formatted payload over a channel's transport.
-type Notifier interface {
-	Send(ch notifyChannel, payload string, now time.Time) error
-}
-
 // secretConfigKeys are redacted from every API read of a channel's config.
 var secretConfigKeys = map[string]bool{"token": true}
 
-// newNotifiers builds the transport registry keyed by channel kind. Both kinds
-// share the generic HTTP notifier.
-func newNotifiers() map[string]Notifier {
-	httpN := &httpNotifier{client: &http.Client{Timeout: 10 * time.Second}}
-	return map[string]Notifier{
-		"generic": httpN,
-		"webhook": httpN,
-	}
-}
+// webhookClient bounds every outbound webhook, so a receiver that never answers
+// cannot hold a dispatch tick open.
+var webhookClient = &http.Client{Timeout: 10 * time.Second}
 
-// httpNotifier POSTs the JSON payload to the channel URL, adding a bearer token
-// when config carries one.
-type httpNotifier struct {
-	client *http.Client
-}
-
-func (n *httpNotifier) Send(ch notifyChannel, payload string, _ time.Time) error {
+// postWebhook POSTs the JSON payload to the channel URL, adding a bearer token
+// when config carries one. Every channel kind delivers this way.
+func postWebhook(ch notifyChannel, payload string) error {
 	if ch.URL == "" {
 		return errors.New("channel has no url")
 	}
@@ -55,7 +40,7 @@ func (n *httpNotifier) Send(ch notifyChannel, payload string, _ time.Time) error
 	if token := ch.Config["token"]; token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := n.client.Do(req)
+	resp, err := webhookClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -129,12 +114,13 @@ func redactConfig(cfg map[string]string) map[string]string {
 	return out
 }
 
-// dispatchDue attempts every delivery that is due, routing each to the notifier
-// for its channel kind and marking it sent or failed (with exponential
-// backoff). Returns how many were attempted. `now` injected for tests.
+// dispatchDue attempts every delivery that is due, marking each sent or failed
+// (with exponential backoff). Returns how many were attempted. `now` injected
+// for tests.
 func (a *app) dispatchDue(now time.Time) int {
-	if a.notifiers == nil {
-		a.notifiers = newNotifiers()
+	send := a.send
+	if send == nil {
+		send = postWebhook
 	}
 	deliveries, err := a.db.DueDeliveries(now, 50)
 	if err != nil {
@@ -146,20 +132,11 @@ func (a *app) dispatchDue(now time.Time) int {
 			a.db.MarkDeliveryFailed(d.ID, "channel config unreadable", d.Attempts, now)
 			continue
 		}
-		n := a.notifiers[d.Kind]
-		if n == nil {
-			if d.URL == "" {
-				a.db.MarkDeliveryFailed(d.ID, "unknown channel kind", d.Attempts, now)
-				continue
-			}
-			n = a.notifiers["generic"]
-		}
-		err := n.Send(notifyChannel{URL: d.URL, Config: cfg}, d.Payload, now)
-		if err == nil {
-			a.db.MarkDeliverySent(d.ID)
+		if err := send(notifyChannel{URL: d.URL, Config: cfg}, d.Payload); err != nil {
+			a.db.MarkDeliveryFailed(d.ID, err.Error(), d.Attempts, now)
 			continue
 		}
-		a.db.MarkDeliveryFailed(d.ID, err.Error(), d.Attempts, now)
+		a.db.MarkDeliverySent(d.ID)
 	}
 	return len(deliveries)
 }

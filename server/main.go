@@ -91,7 +91,6 @@ func run() error {
 	if err := db.EnsureServerHost(runtime.GOOS); err != nil {
 		return fmt.Errorf("startup: could not register self host: %w", err)
 	}
-	a.notifiers = newNotifiers()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

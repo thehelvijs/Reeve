@@ -1,17 +1,14 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
 
-func testClient() *http.Client {
-	return &http.Client{Timeout: 5 * time.Second}
-}
-
-func TestHTTPNotifierGeneric(t *testing.T) {
+func TestPostWebhookSendsPayload(t *testing.T) {
 	var gotBody, gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b := make([]byte, r.ContentLength)
@@ -21,9 +18,8 @@ func TestHTTPNotifierGeneric(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
-	n := &httpNotifier{client: testClient()}
-	if err := n.Send(notifyChannel{URL: srv.URL}, `{"x":1}`, time.Now()); err != nil {
-		t.Fatalf("Send: %v", err)
+	if err := postWebhook(notifyChannel{URL: srv.URL}, `{"x":1}`); err != nil {
+		t.Fatalf("postWebhook: %v", err)
 	}
 	if gotBody != `{"x":1}` {
 		t.Errorf("body = %q", gotBody)
@@ -33,50 +29,33 @@ func TestHTTPNotifierGeneric(t *testing.T) {
 	}
 }
 
-func TestHTTPNotifierBearerToken(t *testing.T) {
+func TestPostWebhookBearerToken(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
-	n := &httpNotifier{client: testClient()}
 	ch := notifyChannel{URL: srv.URL, Config: map[string]string{"token": "tok123"}}
-	if err := n.Send(ch, "alert", time.Now()); err != nil {
-		t.Fatalf("Send: %v", err)
+	if err := postWebhook(ch, "alert"); err != nil {
+		t.Fatalf("postWebhook: %v", err)
 	}
 	if gotAuth != "Bearer tok123" {
 		t.Errorf("auth = %q, want Bearer tok123", gotAuth)
 	}
 }
 
-// recordNotifier records which kind handled a delivery and can force an error.
-type recordNotifier struct {
-	kind string
-	log  *[]string
-	fail bool
-}
-
-func (r *recordNotifier) Send(_ notifyChannel, _ string, _ time.Time) error {
-	*r.log = append(*r.log, r.kind)
-	if r.fail {
-		return errTestSend
-	}
-	return nil
-}
-
-var errTestSend = &sendErr{}
-
-type sendErr struct{}
-
-func (*sendErr) Error() string { return "boom" }
-
-func TestDispatchPicksNotifier(t *testing.T) {
+// TestDispatchMarksSentAndFailed pins the delivery bookkeeping: a transport
+// error must record the failure and its message, and a success must not.
+func TestDispatchMarksSentAndFailed(t *testing.T) {
 	ts := newTestServer(t)
-	var log []string
-	ts.app.notifiers = map[string]Notifier{
-		"webhook": &recordNotifier{kind: "webhook", log: &log},
-		"generic": &recordNotifier{kind: "generic", log: &log, fail: true},
+	var sent []string
+	ts.app.send = func(ch notifyChannel, _ string) error {
+		sent = append(sent, ch.URL)
+		if ch.URL == "http://sink.invalid" {
+			return errors.New("boom")
+		}
+		return nil
 	}
 
 	okCh, _ := ts.app.db.CreateWebhook("global", "", "http://ok.invalid", "webhook", "{}", "info")
@@ -88,11 +67,26 @@ func TestDispatchPicksNotifier(t *testing.T) {
 	if n != 2 {
 		t.Fatalf("attempted %d, want 2", n)
 	}
-	if len(log) != 2 {
-		t.Fatalf("notifier calls = %v, want 2", log)
+	if len(sent) != 2 {
+		t.Fatalf("transport calls = %v, want 2", sent)
 	}
 	if got := countRows(t, ts, `SELECT COUNT(*) FROM webhook_deliveries WHERE status='sent'`); got != 1 {
 		t.Errorf("sent = %d, want 1", got)
+	}
+	if got := countRows(t, ts, `SELECT COUNT(*) FROM webhook_deliveries WHERE status='failed' AND last_error='boom'`); got != 1 {
+		t.Errorf("failed with message = %d, want 1", got)
+	}
+}
+
+// A channel with no URL cannot be delivered, and the attempt must be recorded as
+// failed rather than silently dropped.
+func TestDispatchFailsChannelWithNoURL(t *testing.T) {
+	ts := newTestServer(t)
+	ch, _ := ts.app.db.CreateWebhook("global", "", "", "webhook", "{}", "info")
+	ts.app.db.EnqueueDelivery(ch.ID, `{"x":1}`, time.Now().UTC())
+
+	if n := ts.app.dispatchDue(time.Now().UTC()); n != 1 {
+		t.Fatalf("attempted %d, want 1", n)
 	}
 	if got := countRows(t, ts, `SELECT COUNT(*) FROM webhook_deliveries WHERE status='failed'`); got != 1 {
 		t.Errorf("failed = %d, want 1", got)

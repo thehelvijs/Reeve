@@ -42,9 +42,11 @@ type app struct {
 	ingestRejected atomic.Int64
 	agentFS        fs.FS
 	scriptFS       fs.FS
-	notifiers      map[string]Notifier
-	throttleOnce   sync.Once
-	throttle       *auth.Throttle
+	// send delivers one webhook payload; nil uses the real HTTP transport. A
+	// field so tests can substitute a fake.
+	send         func(notifyChannel, string) error
+	throttleOnce sync.Once
+	throttle     *auth.Throttle
 	// googleEndpoints redirects the OAuth legs at a stub provider in tests.
 	googleEndpoints *oauthEndpoints
 }
