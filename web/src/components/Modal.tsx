@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 // Overlay dialog shell. One shape for every modal so create/edit/reveal flows
 // look and behave identically across the app.
@@ -19,6 +19,23 @@ export default function Modal({
   // Pass undefined while the action is unavailable; the modal then ignores Enter.
   onSubmit?: () => void;
 }) {
+  const dialog = useRef<HTMLDivElement>(null);
+
+  // Focus moves into the dialog on open, otherwise the trigger button keeps it
+  // and the button guard below swallows Enter.
+  useEffect(() => {
+    const el = dialog.current;
+    if (!el) {
+      return;
+    }
+    const first = el.querySelector<HTMLElement>('input, textarea, select');
+    if (first) {
+      first.focus();
+    } else {
+      el.focus();
+    }
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -46,7 +63,9 @@ export default function Modal({
       role="presentation"
     >
       <div
-        className={`w-full ${width} rounded-card border border-hairline bg-surface-1 p-6`}
+        ref={dialog}
+        tabIndex={-1}
+        className={`w-full ${width} rounded-card border border-hairline bg-surface-1 p-6 focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

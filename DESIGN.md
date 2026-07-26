@@ -82,6 +82,22 @@ monochrome (surface + text + border).
 - **Input:** `--surface-1`, `--border`; focus shows an accent ring (no glow).
 - **Focus state:** always visible, always the accent ring — never removed.
 
+## Keyboard
+
+- **Enter confirms.** Every form, section, and modal with editable fields
+  submits its one primary action on Enter — Save, Create, Continue, OK,
+  whatever the main button says. No exceptions, including a card with a lone
+  input and a Save button.
+- Mechanically: wrap the fields in `<Form onSubmit={…}>` from
+  `components/ui.tsx` and give the primary button `type="submit"`. `Button`
+  defaults to `type="button"`, so secondary actions in the same form stay
+  inert. A modal without a form takes `onSubmit` on `Modal`; an info-only
+  modal passes `onClose` there, so Enter acknowledges it.
+- A nested control that owns a smaller action (add-a-collection inside the
+  service form, a city search inside the location picker) handles Enter itself
+  and stops it, rather than submitting the outer form.
+- **Escape closes** any modal.
+
 ## Don't
 
 - No pure black, no second accent, no gradients, no glassmorphism.

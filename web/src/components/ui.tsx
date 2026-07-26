@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react
 export function Button({
   variant = 'primary',
   className = '',
+  type = 'button',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' }) {
   const base =
@@ -13,7 +14,32 @@ export function Button({
     secondary: 'border border-hairline text-muted hover:text-content hover:border-hairline-strong',
     danger: 'border border-hairline text-muted hover:text-red-400 hover:border-red-400/40',
   }[variant];
-  return <button className={`${base} ${styles} ${className}`} {...props} />;
+  return <button type={type} className={`${base} ${styles} ${className}`} {...props} />;
+}
+
+// Every editable section is a real form, so Enter confirms it from any field.
+// The primary Button inside carries type="submit"; every other one defaults to
+// type="button" and stays inert.
+export function Form({
+  onSubmit,
+  className = '',
+  children,
+}: {
+  onSubmit: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <form
+      className={className}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      {children}
+    </form>
+  );
 }
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {

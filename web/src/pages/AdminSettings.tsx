@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type GoogleInput, type Settings, type SettingsInput, type SMTPInput } from '../api';
-import { Button, Card, ErrorText, Field, Input } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 
 // Retention is stored in seconds but only ever reasoned about in hours or days.
@@ -100,31 +100,33 @@ function RetentionSection({
       title="Metric retention"
       description="How long each resolution tier is kept before the rollup job prunes it. Coarser tiers must be kept at least as long as finer ones."
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Field label="Raw samples">
-          <RetentionSelect
-            value={draft.raw_secs}
-            onChange={(raw_secs) => setDraft({ ...draft, raw_secs })}
-          />
-        </Field>
-        <Field label="5-minute rollups">
-          <RetentionSelect
-            value={draft.fivemin_secs}
-            onChange={(fivemin_secs) => setDraft({ ...draft, fivemin_secs })}
-          />
-        </Field>
-        <Field label="1-hour rollups">
-          <RetentionSelect
-            value={draft.onehour_secs}
-            onChange={(onehour_secs) => setDraft({ ...draft, onehour_secs })}
-          />
-        </Field>
-      </div>
-      <div className="mt-4 flex justify-end">
-        <Button disabled={!dirty} onClick={() => onSave({ retention: draft })}>
-          Save retention
-        </Button>
-      </div>
+      <Form onSubmit={() => onSave({ retention: draft })}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Field label="Raw samples">
+            <RetentionSelect
+              value={draft.raw_secs}
+              onChange={(raw_secs) => setDraft({ ...draft, raw_secs })}
+            />
+          </Field>
+          <Field label="5-minute rollups">
+            <RetentionSelect
+              value={draft.fivemin_secs}
+              onChange={(fivemin_secs) => setDraft({ ...draft, fivemin_secs })}
+            />
+          </Field>
+          <Field label="1-hour rollups">
+            <RetentionSelect
+              value={draft.onehour_secs}
+              onChange={(onehour_secs) => setDraft({ ...draft, onehour_secs })}
+            />
+          </Field>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button type="submit" disabled={!dirty}>
+            Save retention
+          </Button>
+        </div>
+      </Form>
     </Section>
   );
 }
@@ -160,50 +162,52 @@ function AgentUpdateSection({
       title="Agent updates"
       description="The fleet default for agent self-updates. A host can override it, and a host running the agent with REEVE_AUTO_UPDATE=false always refuses."
     >
-      <label className="flex items-center gap-2 text-sm text-content">
-        <input
-          type="checkbox"
-          className="h-4 w-4 accent-accent"
-          checked={draft.enabled}
-          onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-        />
-        Roll out agent updates automatically
-      </label>
-      <p className="mt-1 text-xs text-muted">
-        {draft.enabled
-          ? 'Outdated hosts are told to update, a few at a time.'
-          : 'No host updates unless it is pinned on for that host, or you press Update now.'}
-      </p>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Hosts updating at once" hint="1–100. The first batch is effectively a canary.">
-          <Input
-            type="number"
-            min={1}
-            max={100}
-            value={numOrEmpty(draft.concurrency)}
-            onChange={(e) => setDraft({ ...draft, concurrency: e.target.valueAsNumber })}
+      <Form onSubmit={() => onSave({ agent_update: draft })}>
+        <label className="flex items-center gap-2 text-sm text-content">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-accent"
+            checked={draft.enabled}
+            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
           />
-        </Field>
-        <Field
-          label="Stall timeout (seconds)"
-          hint="A host that doesn't report the new version within this window stalls, and halts the whole rollout until an admin resumes it from the Hosts page."
-        >
-          <Input
-            type="number"
-            min={1}
-            max={86400}
-            value={numOrEmpty(draft.stall_secs)}
-            onChange={(e) => setDraft({ ...draft, stall_secs: e.target.valueAsNumber })}
-          />
-        </Field>
-      </div>
+          Roll out agent updates automatically
+        </label>
+        <p className="mt-1 text-xs text-muted">
+          {draft.enabled
+            ? 'Outdated hosts are told to update, a few at a time.'
+            : 'No host updates unless it is pinned on for that host, or you press Update now.'}
+        </p>
 
-      <div className="mt-4 flex justify-end">
-        <Button disabled={!dirty || !concurrencyValid || !stallValid} onClick={() => onSave({ agent_update: draft })}>
-          Save agent updates
-        </Button>
-      </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Hosts updating at once" hint="1–100. The first batch is effectively a canary.">
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={numOrEmpty(draft.concurrency)}
+              onChange={(e) => setDraft({ ...draft, concurrency: e.target.valueAsNumber })}
+            />
+          </Field>
+          <Field
+            label="Stall timeout (seconds)"
+            hint="A host that doesn't report the new version within this window stalls, and halts the whole rollout until an admin resumes it from the Hosts page."
+          >
+            <Input
+              type="number"
+              min={1}
+              max={86400}
+              value={numOrEmpty(draft.stall_secs)}
+              onChange={(e) => setDraft({ ...draft, stall_secs: e.target.valueAsNumber })}
+            />
+          </Field>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Button type="submit" disabled={!dirty || !concurrencyValid || !stallValid}>
+            Save agent updates
+          </Button>
+        </div>
+      </Form>
     </Section>
   );
 }
@@ -228,57 +232,59 @@ function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch
       title="Email"
       description="An SMTP relay lets people reset their own password. Without one, only an admin can set passwords."
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Host">
-          <Input value={draft.host} placeholder="smtp.example.com" onChange={(e) => setDraft({ ...draft, host: e.target.value })} />
-        </Field>
-        <Field label="Port">
-          <Input type="number" value={draft.port} onChange={(e) => setDraft({ ...draft, port: Number(e.target.value) })} />
-        </Field>
-        <Field label="From address">
-          <Input value={draft.from} placeholder="reeve@example.com" onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
-        </Field>
-        <Field label="Encryption">
-          <select
-            className="w-full rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
-            value={draft.tls}
-            onChange={(e) => setDraft({ ...draft, tls: e.target.value as SMTPInput['tls'] })}
-          >
-            <option value="starttls">STARTTLS (587)</option>
-            <option value="tls">TLS (465)</option>
-            <option value="none">None</option>
-          </select>
-        </Field>
-        <Field label="Username" hint="Leave empty for a relay that needs no auth">
-          <Input value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
-        </Field>
-        <Field label="Password" hint={settings.smtp.password_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-          <Input
-            type="password"
-            value={draft.password}
-            autoComplete="new-password"
-            onChange={(e) => setDraft({ ...draft, password: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-content">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-accent"
-            checked={draft.enabled}
-            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-          />
-          Send email through this relay
-        </label>
-        <div className="flex items-center gap-3">
-          {testing && <span className="text-xs text-muted">{testing}</span>}
-          <Button variant="secondary" disabled={!settings.smtp.enabled} onClick={sendTest}>
-            Send test email
-          </Button>
-          <Button onClick={() => onSave({ smtp: draft })}>Save email</Button>
+      <Form onSubmit={() => onSave({ smtp: draft })}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Host">
+            <Input value={draft.host} placeholder="smtp.example.com" onChange={(e) => setDraft({ ...draft, host: e.target.value })} />
+          </Field>
+          <Field label="Port">
+            <Input type="number" value={draft.port} onChange={(e) => setDraft({ ...draft, port: Number(e.target.value) })} />
+          </Field>
+          <Field label="From address">
+            <Input value={draft.from} placeholder="reeve@example.com" onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
+          </Field>
+          <Field label="Encryption">
+            <select
+              className="w-full rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+              value={draft.tls}
+              onChange={(e) => setDraft({ ...draft, tls: e.target.value as SMTPInput['tls'] })}
+            >
+              <option value="starttls">STARTTLS (587)</option>
+              <option value="tls">TLS (465)</option>
+              <option value="none">None</option>
+            </select>
+          </Field>
+          <Field label="Username" hint="Leave empty for a relay that needs no auth">
+            <Input value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
+          </Field>
+          <Field label="Password" hint={settings.smtp.password_set ? 'Stored; leave empty to keep it' : 'Not set'}>
+            <Input
+              type="password"
+              value={draft.password}
+              autoComplete="new-password"
+              onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+            />
+          </Field>
         </div>
-      </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-content">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-accent"
+              checked={draft.enabled}
+              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+            />
+            Send email through this relay
+          </label>
+          <div className="flex items-center gap-3">
+            {testing && <span className="text-xs text-muted">{testing}</span>}
+            <Button variant="secondary" disabled={!settings.smtp.enabled} onClick={sendTest}>
+              Send test email
+            </Button>
+            <Button type="submit">Save email</Button>
+          </div>
+        </div>
+      </Form>
     </Section>
   );
 }
@@ -320,44 +326,46 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
         </p>
       )}
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Client ID">
-          <Input value={draft.client_id} onChange={(e) => setDraft({ ...draft, client_id: e.target.value })} />
-        </Field>
-        <Field label="Client secret" hint={settings.google.secret_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-          <Input
-            type="password"
-            value={draft.client_secret}
-            autoComplete="new-password"
-            onChange={(e) => setDraft({ ...draft, client_secret: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="mt-3">
-        <Field
-          label="Allowed email domains"
-          hint="Comma separated; empty allows any. Listing a domain also lets its people in while sign-up is closed."
-        >
-          <Input
-            value={draft.allowed_domains}
-            placeholder="example.com"
-            onChange={(e) => setDraft({ ...draft, allowed_domains: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-content">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-accent"
-            checked={draft.enabled}
-            disabled={!settings.google.redirect_url}
-            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-          />
-          Offer Google sign-in on the login screen
-        </label>
-        <Button onClick={() => onSave({ google: draft })}>Save Google</Button>
-      </div>
+      <Form onSubmit={() => onSave({ google: draft })}>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Client ID">
+            <Input value={draft.client_id} onChange={(e) => setDraft({ ...draft, client_id: e.target.value })} />
+          </Field>
+          <Field label="Client secret" hint={settings.google.secret_set ? 'Stored; leave empty to keep it' : 'Not set'}>
+            <Input
+              type="password"
+              value={draft.client_secret}
+              autoComplete="new-password"
+              onChange={(e) => setDraft({ ...draft, client_secret: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="mt-3">
+          <Field
+            label="Allowed email domains"
+            hint="Comma separated; empty allows any. Listing a domain also lets its people in while sign-up is closed."
+          >
+            <Input
+              value={draft.allowed_domains}
+              placeholder="example.com"
+              onChange={(e) => setDraft({ ...draft, allowed_domains: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-content">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-accent"
+              checked={draft.enabled}
+              disabled={!settings.google.redirect_url}
+              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+            />
+            Offer Google sign-in on the login screen
+          </label>
+          <Button type="submit">Save Google</Button>
+        </div>
+      </Form>
     </Section>
   );
 }

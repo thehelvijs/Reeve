@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type Severity, type Webhook } from '../api';
-import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 
 const selectClass =
   'rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
@@ -56,46 +56,48 @@ export default function AdminWebhooks() {
       </p>
 
       <Card className="mt-6 p-5">
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Scope">
-            <select value={ownerType} onChange={(e) => setOwnerType(e.target.value as typeof ownerType)} className={selectClass}>
-              <option value="global">global</option>
-              <option value="tool">tool</option>
-              <option value="group">group</option>
-            </select>
-          </Field>
-          {ownerType !== 'global' && (
-            <Field label={`${ownerType} id`}>
-              <Input value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
+        <Form onSubmit={create}>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Scope">
+              <select value={ownerType} onChange={(e) => setOwnerType(e.target.value as typeof ownerType)} className={selectClass}>
+                <option value="global">global</option>
+                <option value="tool">tool</option>
+                <option value="group">group</option>
+              </select>
             </Field>
-          )}
-          <Field label="Min severity">
-            <select value={minSeverity} onChange={(e) => setMinSeverity(e.target.value as Severity)} className={selectClass}>
-              <option value="info">info</option>
-              <option value="warning">warning</option>
-              <option value="error">error</option>
-            </select>
-          </Field>
-        </div>
+            {ownerType !== 'global' && (
+              <Field label={`${ownerType} id`}>
+                <Input value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
+              </Field>
+            )}
+            <Field label="Min severity">
+              <select value={minSeverity} onChange={(e) => setMinSeverity(e.target.value as Severity)} className={selectClass}>
+                <option value="info">info</option>
+                <option value="warning">warning</option>
+                <option value="error">error</option>
+              </select>
+            </Field>
+          </div>
 
-        <div className="mt-3">
-          <Field label="URL">
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://sink.example.com/hook" />
-          </Field>
-        </div>
-        <div className="mt-3">
-          <Field label="Bearer token (optional)">
-            <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} />
-          </Field>
-        </div>
+          <div className="mt-3">
+            <Field label="URL">
+              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://sink.example.com/hook" />
+            </Field>
+          </div>
+          <div className="mt-3">
+            <Field label="Bearer token (optional)">
+              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} />
+            </Field>
+          </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-xs text-muted">The token is encrypted at rest and never shown again after saving.</p>
-          <Button onClick={create} disabled={!url.trim()}>
-            Add webhook
-          </Button>
-        </div>
-        <ErrorText>{error}</ErrorText>
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xs text-muted">The token is encrypted at rest and never shown again after saving.</p>
+            <Button type="submit" disabled={!url.trim()}>
+              Add webhook
+            </Button>
+          </div>
+          <ErrorText>{error}</ErrorText>
+        </Form>
       </Card>
 
       <div className="mt-6 space-y-2">

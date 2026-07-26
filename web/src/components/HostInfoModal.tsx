@@ -28,7 +28,7 @@ export default function HostInfoModal({
   onOpenTool: (id: string) => void;
 }) {
   return (
-    <Modal title="Host" onClose={onClose}>
+    <Modal title="Host" onClose={onClose} onSubmit={onClose}>
       {host.thumbnail_url && (
         <img src={host.thumbnail_url} alt="" className="mt-4 h-32 w-full rounded-card border border-hairline object-cover" />
       )}

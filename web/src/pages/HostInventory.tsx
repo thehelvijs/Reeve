@@ -9,7 +9,7 @@ import {
   type ThresholdsPayload,
 } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, ErrorText, Field, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Pill } from '../components/ui';
 import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
 import BackLink from '../components/BackLink';
 import EntityIcon from '../components/EntityIcon';
@@ -296,20 +296,22 @@ function HostThresholds({ hostId }: { hostId: string }) {
         <p className="text-sm text-muted">
           Overrides the global default for all four metrics on this host.
         </p>
-        <div className="mt-4">
-          <ThresholdFields
-            value={rows}
-            onChange={(metric, row) => setRows((r) => ({ ...r, [metric]: row }))}
-          />
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <Button onClick={save}>Save</Button>
-          <Button variant="secondary" onClick={reset}>
-            Reset to global
-          </Button>
-          {saved && <span className="text-sm text-muted">Saved.</span>}
-        </div>
-        <ErrorText>{error}</ErrorText>
+        <Form onSubmit={save}>
+          <div className="mt-4">
+            <ThresholdFields
+              value={rows}
+              onChange={(metric, row) => setRows((r) => ({ ...r, [metric]: row }))}
+            />
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <Button type="submit">Save</Button>
+            <Button variant="secondary" onClick={reset}>
+              Reset to global
+            </Button>
+            {saved && <span className="text-sm text-muted">Saved.</span>}
+          </div>
+          <ErrorText>{error}</ErrorText>
+        </Form>
       </Card>
     </div>
   );

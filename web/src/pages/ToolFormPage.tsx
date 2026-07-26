@@ -331,7 +331,19 @@ function CollectionPicker({
         ))}
       </div>
       <div className="flex gap-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New collection" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="New collection"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (name.trim() && !busy) {
+                create();
+              }
+            }
+          }}
+        />
         <Button type="button" variant="secondary" onClick={create} disabled={busy || !name.trim()}>
           Add
         </Button>

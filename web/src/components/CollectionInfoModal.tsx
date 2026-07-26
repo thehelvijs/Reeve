@@ -17,7 +17,7 @@ export default function CollectionInfoModal({
   onOpenTool: (id: string) => void;
 }) {
   return (
-    <Modal title="Collection" onClose={onClose}>
+    <Modal title="Collection" onClose={onClose} onSubmit={onClose}>
       <div className="mt-4 flex items-center gap-3">
         <EntityIcon url={collection.icon_url} name={collection.name} size={40} />
         <div className="min-w-0">

@@ -5,7 +5,7 @@ import {
   type Delivery,
   type ThresholdsPayload,
 } from '../api';
-import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import ThresholdFields, {
   EMPTY_ROW,
@@ -107,27 +107,29 @@ export default function AdminAlerts() {
         <p className="text-sm text-muted">
           Sustained resource usage above these limits fires an alert.
         </p>
-        <div className="mt-4 max-w-xs">
-          <Field label="Window (minutes)">
-            <Input
-              type="number"
-              min={1}
-              value={windowMin}
-              onChange={(e) => setWindowMin(numOrEmpty(e.target.value))}
+        <Form onSubmit={saveThresholds}>
+          <div className="mt-4 max-w-xs">
+            <Field label="Window (minutes)">
+              <Input
+                type="number"
+                min={1}
+                value={windowMin}
+                onChange={(e) => setWindowMin(numOrEmpty(e.target.value))}
+              />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <ThresholdFields
+              value={rows}
+              onChange={(metric, row) => setRows((r) => ({ ...r, [metric]: row }))}
             />
-          </Field>
-        </div>
-        <div className="mt-4">
-          <ThresholdFields
-            value={rows}
-            onChange={(metric, row) => setRows((r) => ({ ...r, [metric]: row }))}
-          />
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <Button onClick={saveThresholds}>Save</Button>
-          {saved && <span className="text-sm text-muted">Saved.</span>}
-        </div>
-        <ErrorText>{error}</ErrorText>
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <Button type="submit">Save</Button>
+            {saved && <span className="text-sm text-muted">Saved.</span>}
+          </div>
+          <ErrorText>{error}</ErrorText>
+        </Form>
       </Card>
 
       <h2 className="mt-6 text-sm font-medium text-content">Recent alerts</h2>

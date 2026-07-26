@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, uploadAvatar, ApiError } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, Field, Input, ErrorText } from '../components/ui';
+import { Button, Card, Field, Form, Input, ErrorText } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import Avatar from '../components/Avatar';
 
@@ -137,7 +137,7 @@ export default function Profile() {
 
         <Card className="p-5">
           <h2 className="text-sm font-medium text-content">Display name</h2>
-          <div className="mt-4 flex items-end gap-3">
+          <Form onSubmit={saveName} className="mt-4 flex items-end gap-3">
             <div className="max-w-xs flex-1">
               <Field label="Shown across the app; falls back to your email">
                 <Input
@@ -151,15 +151,15 @@ export default function Profile() {
                 />
               </Field>
             </div>
-            <Button onClick={saveName}>Save</Button>
-          </div>
+            <Button type="submit">Save</Button>
+          </Form>
           {nameSaved && <p className="mt-2 text-xs text-muted">Saved.</p>}
           <ErrorText>{nameErr}</ErrorText>
         </Card>
 
         <Card className="p-5">
           <h2 className="text-sm font-medium text-content">Change password</h2>
-          <div className="mt-4 max-w-xs space-y-3">
+          <Form onSubmit={changePassword} className="mt-4 max-w-xs space-y-3">
             <Field label="Current password">
               <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
             </Field>
@@ -169,8 +169,8 @@ export default function Profile() {
             <Field label="Confirm new password">
               <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </Field>
-            <Button onClick={changePassword}>Update password</Button>
-          </div>
+            <Button type="submit">Update password</Button>
+          </Form>
           {pwSaved && <p className="mt-2 text-xs text-muted">Password updated.</p>}
           <ErrorText>{pwErr}</ErrorText>
         </Card>
@@ -181,16 +181,16 @@ export default function Profile() {
             Permanently deletes your account. Tools and credentials you own are reassigned to an admin.
             This cannot be undone.
           </p>
-          <div className="mt-4 flex items-end gap-3">
+          <Form onSubmit={deleteAccount} className="mt-4 flex items-end gap-3">
             <div className="max-w-xs flex-1">
               <Field label={`Type ${user.email} to confirm`}>
                 <Input value={confirmDelete} onChange={(e) => setConfirmDelete(e.target.value)} />
               </Field>
             </div>
-            <Button variant="danger" disabled={confirmDelete !== user.email} onClick={deleteAccount}>
+            <Button type="submit" variant="danger" disabled={confirmDelete !== user.email}>
               Delete account
             </Button>
-          </div>
+          </Form>
           <ErrorText>{deleteErr}</ErrorText>
         </Card>
       </div>

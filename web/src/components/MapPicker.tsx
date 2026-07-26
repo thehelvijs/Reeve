@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { api, ApiError } from '../api';
-import { Button, ErrorText, Input } from './ui';
+import { Button, ErrorText, Form, Input } from './ui';
 import LeafletMap from './LeafletMap';
 import citiesData from '../assets/cities.json';
 
@@ -73,7 +73,7 @@ export default function MapPicker({
   const points = lat != null && lon != null ? [{ lat, lon, accent: true }] : [];
 
   return (
-    <div className="space-y-3">
+    <Form onSubmit={save} className="space-y-3">
       <div className="relative max-w-sm">
         <Input
           placeholder="Search a city, e.g. Riga"
@@ -84,6 +84,12 @@ export default function MapPicker({
             setSaved(false);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && open && suggestions.length > 0) {
+              e.preventDefault();
+              pick(suggestions[0]);
+            }
+          }}
         />
         {open && suggestions.length > 0 && (
           <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-card border border-hairline bg-surface-3">
@@ -135,12 +141,12 @@ export default function MapPicker({
       />
 
       <div className="flex items-center gap-3">
-        <Button type="button" onClick={save} disabled={busy}>
+        <Button type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save location'}
         </Button>
         {saved && <span className="text-xs text-muted">Saved.</span>}
       </div>
       <ErrorText>{error}</ErrorText>
-    </div>
+    </Form>
   );
 }
