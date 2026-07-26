@@ -217,14 +217,18 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
   }
 
   // A non-off policy still landing on `disabled` means the host's own REEVE_AUTO_UPDATE=false vetoed it.
-  let disabledReason = '';
+  let stateNote = '';
   if (host.update_state === 'disabled') {
     if (host.auto_update === 'off') {
-      disabledReason = 'This host will not self-update because its policy is set to never update. Change it below.';
+      stateNote = 'This host will not self-update because its policy is set to never update. Change it below.';
     } else {
-      disabledReason =
+      stateNote =
         'This host will not self-update: the machine itself runs the agent with REEVE_AUTO_UPDATE=false, which the server cannot override.';
     }
+  }
+  if (host.update_state === 'unknown') {
+    stateNote =
+      'There is no build to compare: this host has not reported which agent binary it runs, or this server ships none. Reinstalling the agent fixes the first case.';
   }
 
   return (
@@ -240,7 +244,7 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
         <Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>
       </div>
 
-      {disabledReason && <p className="mt-3 text-xs text-muted">{disabledReason}</p>}
+      {stateNote && <p className="mt-3 text-xs text-muted">{stateNote}</p>}
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <Field label="Auto-update">

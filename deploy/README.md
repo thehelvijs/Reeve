@@ -173,7 +173,12 @@ unreachable): append `--github` or set `REEVE_INSTALL_SOURCE=github`.
 
 **Auto-update.** By default the server paces the fleet's self-update rollout
 and tells each agent when to check (Hosts page, admin-only: pause, resume,
-force a single host). `REEVE_AUTO_UPDATE=false` is a local veto the server
+force a single host). Current means "running the binary this server publishes":
+the agent reports the sha256 of its own binary and the server compares it to
+the build it serves, the same comparison the agent's self-update makes. Version
+strings decide nothing, so a rebuild at the same version still rolls out. A host
+that reports no checksum reads as **build unknown** and is never told to update;
+re-running the install command above fixes that. `REEVE_AUTO_UPDATE=false` is a local veto the server
 can never override: the agent refuses every update, including one the server
 explicitly asks for. `REEVE_UPDATE_INTERVAL` (a Go duration, default `1h`) no
 longer drives routine updates; it now only paces the recovery check that fires

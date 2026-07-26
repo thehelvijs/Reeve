@@ -6,7 +6,7 @@ export const UPDATE_LABEL: Record<UpdateState, string> = {
   updating: 'updating',
   stalled: 'update stalled',
   disabled: 'updates off',
-  unknown: 'version unknown',
+  unknown: 'build unknown',
 };
 
 export const UPDATE_TONE: Record<UpdateState, 'muted' | 'up' | 'down' | 'warn'> = {
