@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type AgentUpdateRollup, type Host } from '../api';
 import { useAuth } from '../auth';
-import { Button, ErrorText, Field, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
@@ -142,7 +142,7 @@ function AgentRollup() {
   };
 
   const parts: string[] = [`server on ${data.server_version}`];
-  for (const state of ['up_to_date', 'outdated', 'updating', 'stalled', 'disabled'] as const) {
+  for (const state of ['up_to_date', 'outdated', 'updating', 'stalled', 'disabled', 'unknown'] as const) {
     const n = data.counts[state];
     if (n > 0) {
       parts.push(`${n} ${UPDATE_LABEL[state]}`);
@@ -150,7 +150,7 @@ function AgentRollup() {
   }
 
   return (
-    <div className="mt-4 rounded-card border border-hairline px-4 py-3">
+    <Card className="mt-4 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted">{parts.join(' · ')}</p>
         {data.paused && (
@@ -166,7 +166,7 @@ function AgentRollup() {
         </p>
       )}
       <ErrorText>{error}</ErrorText>
-    </div>
+    </Card>
   );
 }
 
