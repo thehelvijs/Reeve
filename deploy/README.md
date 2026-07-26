@@ -101,6 +101,20 @@ set `REEVE_TRUST_PROXY=true` so the login throttle and the credential-reveal
 audit see the real client address instead of the proxy's — and only then, since
 the header is forgeable by anyone who can reach the server directly.
 
+**Your firewall applies here.** A published container port (`-p 8080:8080`) is
+reached through Docker's own NAT rules, which sit in front of `ufw` and ignore
+it — a rule you thought was gating the port was not. On the host network the
+server listens directly, so host rules do gate it. Scoping it to the LAN, which
+is who this is for:
+
+```sh
+sudo ufw allow from 192.168.1.0/24 to any port 8080 proto tcp
+```
+
+Anything arriving from outside that range is then dropped, including containers
+on the Docker bridges. Nothing in Reeve needs that path — the agents connect
+outbound to the server, never the reverse.
+
 ## Coolify
 
 1. New Resource → Docker Compose → point at this repo, compose path

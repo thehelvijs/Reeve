@@ -85,7 +85,10 @@ anywhere untrusted:
   machine.
 - Bind to a specific interface (`REEVE_ADDR`, or `REEVE_BIND` under compose)
   rather than `0.0.0.0`. Compose listens on every interface by default, so an
-  instance is reachable from the LAN the moment it starts.
+  instance is reachable from the LAN the moment it starts. Compose runs the
+  server on the host network, so unlike a published container port — which
+  Docker's NAT rules reach ahead of `ufw` — a host firewall rule does gate it:
+  `ufw allow from 192.168.1.0/24 to any port 8080 proto tcp`.
 
 The agent runs as root, because reading systemd, Docker, cron, and journald
 requires it. It only ever makes outbound connections to the server URL it was
