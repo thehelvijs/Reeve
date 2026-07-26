@@ -201,7 +201,7 @@ function AgentUpdateSection({
 
       <div className="mt-4 flex justify-end">
         <Button disabled={!dirty || !concurrencyValid || !stallValid} onClick={() => onSave({ agent_update: draft })}>
-          Save
+          Save agent updates
         </Button>
       </div>
     </Section>

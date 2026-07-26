@@ -65,6 +65,9 @@ func TestGatherCollectsConcurrently(t *testing.T) {
 		t.Error("REEVE_AUTO_UPDATE=false was not reported to the server")
 	}
 
+	// The race check above already ran the collectors for real; this second call
+	// only reads back a config flag, so it must not shell out again.
+	speedUpGather(t)
 	push = gather("test", config{AutoUpdate: true})
 	if push.AutoUpdateVetoed {
 		t.Error("a host with auto-update on reported a veto")
