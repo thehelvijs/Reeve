@@ -322,9 +322,3 @@ func (db *DB) UsePasswordReset(id, userID string, now time.Time) error {
 		`UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL`, ts, userID)
 	return err
 }
-
-// PrunePasswordResets deletes resets that expired before cutoff.
-func (db *DB) PrunePasswordResets(cutoff time.Time) error {
-	_, err := db.sql.Exec(`DELETE FROM password_resets WHERE expires_at < ?`, cutoff.Format(time.RFC3339Nano))
-	return err
-}

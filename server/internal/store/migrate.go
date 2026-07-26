@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -11,9 +10,9 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// KnownMigrations returns the embedded migration filenames in filename order.
-// It is the source of truth for which schema versions this binary understands.
-func KnownMigrations() ([]string, error) {
+// migrationNames returns the embedded migration filenames in filename order,
+// which is the order they apply in.
+func migrationNames() ([]string, error) {
 	entries, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
 		return nil, err
@@ -28,10 +27,6 @@ func KnownMigrations() ([]string, error) {
 	return names, nil
 }
 
-// migrationHooks run Go logic in the same transaction as the named SQL
-// migration, for work SQL cannot express.
-var migrationHooks = map[string]func(*sql.Tx) error{}
-
 // migrate applies every embedded migration not yet recorded, in filename order.
 func (db *DB) migrate() error {
 	if _, err := db.sql.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -41,7 +36,7 @@ func (db *DB) migrate() error {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 
-	names, err := KnownMigrations()
+	names, err := migrationNames()
 	if err != nil {
 		return err
 	}
@@ -62,12 +57,6 @@ func (db *DB) migrate() error {
 		if _, err := tx.Exec(string(body)); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("apply %s: %w", name, err)
-		}
-		if hook := migrationHooks[name]; hook != nil {
-			if err := hook(tx); err != nil {
-				tx.Rollback()
-				return fmt.Errorf("hook %s: %w", name, err)
-			}
 		}
 		if _, err := tx.Exec("INSERT INTO schema_migrations(name) VALUES (?)", name); err != nil {
 			tx.Rollback()

@@ -54,33 +54,11 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 	})
 }
 
-// ReplaceServiceStatus overwrites a host's systemd unit snapshot.
-func (db *DB) ReplaceServiceStatus(hostID string, states []contracts.ServiceState) error {
-	return db.inTx(func(tx *sql.Tx) error {
-		return replaceServiceStatus(tx, hostID, states, time.Now().UTC())
-	})
-}
-
 // ReplaceContainerStatus overwrites a host's container snapshot.
 func (db *DB) ReplaceContainerStatus(hostID string, states []contracts.ContainerState) error {
 	return db.inTx(func(tx *sql.Tx) error {
 		return replaceContainerStatus(tx, hostID, states, time.Now().UTC())
 	})
-}
-
-// ReplaceCronJobs overwrites a host's cron snapshot.
-func (db *DB) ReplaceCronJobs(hostID string, jobs []contracts.CronState) error {
-	return db.inTx(func(tx *sql.Tx) error {
-		return replaceCronJobs(tx, hostID, jobs, time.Now().UTC())
-	})
-}
-
-// InsertLogEvents appends error-level log events for a host.
-func (db *DB) InsertLogEvents(hostID string, events []contracts.LogEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-	return db.inTx(func(tx *sql.Tx) error { return insertLogEvents(tx, hostID, events) })
 }
 
 func replaceServiceStatus(w writer, hostID string, states []contracts.ServiceState, now time.Time) error {
