@@ -46,8 +46,12 @@ func TestIngestStoresTelemetry(t *testing.T) {
 
 	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ingest status = %d, want 200", resp.StatusCode)
+	}
+	var ack contracts.PushAck
+	if err := json.Unmarshal(data, &ack); err != nil {
+		t.Fatalf("decode ack: %v", err)
 	}
 
 	// Host shows online.
