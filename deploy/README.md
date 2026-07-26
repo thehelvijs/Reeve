@@ -134,6 +134,16 @@ Installs a root systemd unit with full systemd/cron/journald/docker visibility.
 Pull from GitHub Releases instead of the server (bootstrap / server
 unreachable): append `--github` or set `REEVE_INSTALL_SOURCE=github`.
 
+**Auto-update.** By default the server paces the fleet's self-update rollout
+and tells each agent when to check (Hosts page, admin-only: pause, resume,
+force a single host). `REEVE_AUTO_UPDATE=false` is a local veto the server
+can never override: the agent refuses every update, including one the server
+explicitly asks for. `REEVE_UPDATE_INTERVAL` (a Go duration, default `1h`) no
+longer drives routine updates; it now only paces the recovery check that fires
+when no valid server ack has arrived in `2 × REEVE_UPDATE_INTERVAL`, so an
+agent that falls out of contact with the server still updates itself
+unattended.
+
 **Release signing.** Agent binaries are signed with the project's Ed25519
 release key. The agent verifies that signature before installing any self-update
 and refuses an update it cannot verify. `install.sh` checks it too when

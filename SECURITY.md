@@ -58,6 +58,10 @@ anywhere untrusted:
   `REEVE_COOKIE_SECURE=true` so the session cookie is HTTPS-only.
 - Close self-registration under **Settings → Sign-up**. It is open by default so
   a team can onboard itself, which is wrong for an exposed instance.
+- The server can pace and pause a fleet-wide agent update, but it can never
+  override a host that sets `REEVE_AUTO_UPDATE=false`. That veto is a
+  deliberate trust boundary for a root process running on someone else's
+  machine.
 - Bind to a specific interface (`REEVE_ADDR`, or the compose port mapping)
   rather than `0.0.0.0`.
 
