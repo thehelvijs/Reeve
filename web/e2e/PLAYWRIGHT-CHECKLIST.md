@@ -37,3 +37,11 @@ substitute — look at the screenshots and actually click things.
 
 ## Forms
 - [ ] Add-for-monitoring page: endpoint toggle (host&port / URL), save → tool detail.
+
+## Agent updates
+- [ ] Hosts page: rollup line shows the server version and per-state counts.
+- [ ] Hosts row: outdated shows an amber pill, stalled a red one, up-to-date no pill.
+- [ ] Host detail: Agent card shows version, state pill, policy select, Update now.
+- [ ] Host detail: a vetoed host explains that the machine refuses updates.
+- [ ] Settings → Agent updates: toggle, concurrency, stall timeout save and persist.
+- [ ] Paused rollout: banner names the stalled hosts; Resume rollout clears it.
