@@ -41,10 +41,14 @@ docker login ghcr.io
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
 ```
 
-Set `REEVE_PORT` to publish on a different host port (handy when something
-already holds 8080); the container always listens on 8080 internally. The image
-carries its own `HEALTHCHECK` — the binary probes its own `/healthz`, so
-`docker ps` shows `healthy` without curl in the image.
+The container runs on the host network, so that the server can reach machines
+by their `.local` name: mDNS is multicast, and multicast out of a bridge network
+stops at the bridge. It listens on `127.0.0.1:8080` by default; `REEVE_BIND` and
+`REEVE_PORT` move that (`REEVE_BIND=192.168.1.10`, `REEVE_PORT=9000`). Docker
+Desktop is the exception — its "host" is a VM, not your machine, so `.local`
+names will not resolve there. The image carries its own `HEALTHCHECK` — the
+binary probes its own `/healthz`, so `docker ps` shows `healthy` without curl in
+the image.
 
 Not using Docker? Each release also publishes `server-linux-amd64` and
 `server-linux-arm64` with the UI and agent binaries already embedded. Run one
@@ -88,7 +92,7 @@ database and stages an uploaded one (applied on the next restart). Credential
 ciphertext travels inside it; the master key does not, so store the key
 separately or the backup is unreadable.
 
-**LAN binding.** The compose file publishes on `127.0.0.1:8080` by default, so a
+**LAN binding.** The compose file binds `127.0.0.1:8080` by default, so a
 fresh instance is not reachable from the network until you say so. Set
 `REEVE_BIND` to the LAN interface the team reaches it on (`REEVE_BIND=192.168.1.10`)
 and put it behind your firewall / reverse proxy as usual. Behind a proxy, also
@@ -104,6 +108,9 @@ the header is forgeable by anyone who can reach the server directly.
    variables in Coolify's UI — do not commit them.
 3. Attach a persistent volume for `/data`.
 4. Restrict the exposed domain/port to the LAN.
+
+Coolify routes to containers over its own network, so drop `network_mode: host`
+there — at the cost of installing agents by IP rather than by `.local` name.
 
 ## Agent
 
@@ -123,10 +130,13 @@ leaves the host in the catalog with its history.
 This needs `REEVE_PUBLIC_URL` set, since it is the address the agent is
 told to push to.
 
-The address is resolved by the server, not your browser. In Docker that is the
-embedded resolver at 127.0.0.11, which does not do mDNS, so a `.local` name like
-`somehost.local` fails with `server misbehaving`. Use the machine's IP, or give
-the container the name with `extra_hosts: ["somehost.local:192.168.1.20"]`.
+The address is resolved by the server, not your browser. A `.local` name is
+answered by multicast, which no DNS server and no static Go binary can do, so
+the server sends the mDNS query itself when DNS comes up empty. That needs the
+container on the host network, which the compose file does by default. Under a
+bridge network — or Docker Desktop, whose host is a VM — multicast never reaches
+the LAN: use the machine's IP, or map the name with
+`extra_hosts: ["somehost.local:192.168.1.20"]`.
 
 ### Pulled by the host with curl
 
