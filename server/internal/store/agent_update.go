@@ -21,12 +21,20 @@ func ValidAutoUpdatePolicy(p string) bool {
 // blockingSlot matches, for the given table alias, a host whose rollout slot
 // still counts toward the fleet. A host that can no longer update is excluded:
 // its slot is dangling, and letting it read as stalled would halt every other
-// host behind a row the UI shows as "updates off".
-func blockingSlot(alias string) string {
+// host behind a row the UI shows as "updates off". A policy of `default`
+// blocks only when fleetDefault is on, mirroring effectiveAutoUpdate, or a
+// stale slot on a `default` host would keep blocking after an admin turns the
+// fleet toggle off.
+func blockingSlot(alias string, fleetDefault bool) string {
+	def := "0"
+	if fleetDefault {
+		def = "1"
+	}
 	return alias + `.id != '` + ServerHostID + `'` +
 		` AND ` + alias + `.update_started_at IS NOT NULL` +
 		` AND ` + alias + `.auto_update != '` + AutoUpdateOff + `'` +
-		` AND ` + alias + `.auto_update_vetoed = 0`
+		` AND ` + alias + `.auto_update_vetoed = 0` +
+		` AND (` + alias + `.auto_update = '` + AutoUpdateOn + `' OR ` + def + ` = 1)`
 }
 
 // SetHostAutoUpdate sets a host's auto-update policy override. Setting it off
@@ -53,17 +61,17 @@ func (db *DB) ClearHostUpdateSlot(id string) error {
 // TryStartHostUpdate grants a rollout slot in a single conditional write, so
 // two concurrent pushes cannot both observe spare capacity and both stamp.
 // It refuses if any host is stalled or the live count is already at cap.
-func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency int) (bool, error) {
+func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency int, fleetDefault bool) (bool, error) {
 	res, err := db.sql.Exec(`
 		UPDATE hosts SET update_started_at = ?
 		WHERE id = ?
 		  AND NOT EXISTS (
 		    SELECT 1 FROM hosts s
-		    WHERE `+blockingSlot("s")+` AND s.update_started_at < ?
+		    WHERE `+blockingSlot("s", fleetDefault)+` AND s.update_started_at < ?
 		  )
 		  AND (
 		    SELECT COUNT(*) FROM hosts l
-		    WHERE `+blockingSlot("l")+` AND l.update_started_at >= ?
+		    WHERE `+blockingSlot("l", fleetDefault)+` AND l.update_started_at >= ?
 		  ) < ?`,
 		at.UTC().Format(slotStamp), id,
 		cutoff.UTC().Format(slotStamp),
@@ -86,10 +94,10 @@ type StalledHost struct {
 }
 
 // ListStalledHosts names the hosts that wedged a rollout, for the UI banner.
-func (db *DB) ListStalledHosts(cutoff time.Time) ([]StalledHost, error) {
+func (db *DB) ListStalledHosts(cutoff time.Time, fleetDefault bool) ([]StalledHost, error) {
 	rows, err := db.sql.Query(
 		`SELECT id, name FROM hosts
-		 WHERE `+blockingSlot("hosts")+` AND update_started_at < ?
+		 WHERE `+blockingSlot("hosts", fleetDefault)+` AND update_started_at < ?
 		 ORDER BY name`,
 		cutoff.UTC().Format(slotStamp))
 	if err != nil {

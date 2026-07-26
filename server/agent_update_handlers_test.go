@@ -374,6 +374,45 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 	}
 }
 
+// A host on the `default` policy holding a stale slot while an admin turns
+// the fleet toggle off must not wedge the rollup: updateStateFor already
+// counts it disabled, so ListStalledHosts must agree and not name it, or the
+// rollup would report paused with counts.stalled at 0 - the same
+// self-contradiction the per-host `off`/veto fix closed, reached this time
+// through the fleet default instead of the per-host policy.
+func TestFleetToggleOffDoesNotStallOnADefaultPolicyHost(t *testing.T) {
+	ts := newTestServer(t)
+	c := ts.client(t)
+	signup(t, ts, c, "admin@example.com", "password123")
+	ts.app.db.SetSetting(settingAgentUpdateStallSecs, "1")
+
+	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	reportVersion(t, ts, h.ID, "0.0.1")
+	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
+
+	ts.app.db.SetSetting(settingAgentUpdateEnabled, "false")
+
+	out := fetchRollup(t, ts, c)
+	if out.Paused {
+		t.Errorf("rollup paused by a default-policy host while the fleet toggle is off: %+v", out)
+	}
+	if len(out.Stalled) != 0 {
+		t.Errorf("stalled = %+v, want none", out.Stalled)
+	}
+	if out.Counts[updateStateDisabled] != 1 {
+		t.Errorf("disabled = %d, want 1: %+v", out.Counts[updateStateDisabled], out.Counts)
+	}
+
+	// The real cost of the wedge: another host must still be grantable.
+	other, _ := ts.app.db.CreateHost("other", "linux", "", "hash-o", 60)
+	ts.app.db.SetHostAutoUpdate(other.ID, store.AutoUpdateOn)
+	reportVersion(t, ts, other.ID, "0.0.1")
+	other, _ = ts.app.db.GetHost(other.ID)
+	if !ts.app.decideCheckNow(other, "0.0.1", false, time.Now().UTC()) {
+		t.Error("the fleet was still halted behind the ineligible default-policy host")
+	}
+}
+
 func TestAgentUpdateEndpointsAreAdminOnly(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)

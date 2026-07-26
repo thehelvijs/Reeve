@@ -34,7 +34,7 @@ func (a *app) handleGetAgentUpdates(w http.ResponseWriter, _ *http.Request) {
 	for _, h := range hosts {
 		counts[updateStateFor(h, uc, now)]++
 	}
-	stalled, err := a.db.ListStalledHosts(now.Add(-uc.Stall))
+	stalled, err := a.db.ListStalledHosts(now.Add(-uc.Stall), uc.FleetDefault)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read rollout state")
 		return

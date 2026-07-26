@@ -135,7 +135,7 @@ func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, 
 		return true
 	case updateStateOutdated:
 		cutoff := now.Add(-uc.Stall)
-		granted, err := a.db.TryStartHostUpdate(h.ID, now, cutoff, cfg.Concurrency)
+		granted, err := a.db.TryStartHostUpdate(h.ID, now, cutoff, cfg.Concurrency, cfg.Enabled)
 		if err != nil {
 			log.Printf("agent update: try start slot for host %s: %v", h.ID, err)
 			return false

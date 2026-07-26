@@ -139,20 +139,61 @@ func TestIneligibleHostsDoNotHoldTheRollout(t *testing.T) {
 		db.StartHostUpdate(dangling.ID, started)
 		c.spoil(db, dangling.ID)
 
-		stalled, err := db.ListStalledHosts(cutoff)
+		stalled, err := db.ListStalledHosts(cutoff, true)
 		if err != nil {
 			t.Fatalf("%s: list stalled: %v", c.name, err)
 		}
 		if len(stalled) != 0 {
 			t.Errorf("%s: stalled = %+v, want none", c.name, stalled)
 		}
-		ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 1)
+		ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 1, true)
 		if err != nil {
 			t.Fatalf("%s: try start: %v", c.name, err)
 		}
 		if !ok {
 			t.Errorf("%s: a dangling slot blocked a grant", c.name)
 		}
+	}
+}
+
+// A host left on the `default` policy is also ineligible once the fleet
+// toggle itself is off, same as a host explicitly set to `off`: its stale slot
+// must not block a grant to another host or fabricate a stalled entry.
+func TestFleetDefaultOffMakesADefaultPolicyHostIneligible(t *testing.T) {
+	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	later := started.Add(time.Hour)
+	cutoff := later.Add(-15 * time.Minute)
+
+	db := openTemp(t)
+	dangling, _ := db.CreateHost("dangling", "linux", "", "hash-d", 60)
+	next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
+	db.StartHostUpdate(dangling.ID, started)
+
+	stalled, err := db.ListStalledHosts(cutoff, false)
+	if err != nil {
+		t.Fatalf("list stalled: %v", err)
+	}
+	if len(stalled) != 0 {
+		t.Errorf("stalled = %+v, want none: the fleet default is off", stalled)
+	}
+	ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 1, false)
+	if err != nil {
+		t.Fatalf("try start: %v", err)
+	}
+	if !ok {
+		t.Error("a default-policy host's stale slot blocked a grant while the fleet toggle was off")
+	}
+
+	// A host pinned `on` overrides the fleet default and must still block.
+	pinned, _ := db.CreateHost("pinned", "linux", "", "hash-p", 60)
+	db.SetHostAutoUpdate(pinned.ID, AutoUpdateOn)
+	db.StartHostUpdate(pinned.ID, started)
+	stalled, err = db.ListStalledHosts(cutoff, false)
+	if err != nil {
+		t.Fatalf("list stalled after pin: %v", err)
+	}
+	if len(stalled) != 1 || stalled[0].ID != pinned.ID {
+		t.Errorf("stalled = %+v, want only the pinned-on host", stalled)
 	}
 }
 
@@ -184,14 +225,14 @@ func TestUpdateSlotLifecycle(t *testing.T) {
 	if err := db.StartHostUpdate(h.ID, now); err != nil {
 		t.Fatalf("start update: %v", err)
 	}
-	stalled, err := db.ListStalledHosts(cutoff)
+	stalled, err := db.ListStalledHosts(cutoff, true)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
 	if len(stalled) != 0 {
 		t.Errorf("stalled = %v, want none: the slot is still live", stalled)
 	}
-	if ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1); err != nil {
+	if ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1, true); err != nil {
 		t.Fatalf("try start: %v", err)
 	} else if ok {
 		t.Error("granted a slot while the live one held the cap of 1")
@@ -200,7 +241,7 @@ func TestUpdateSlotLifecycle(t *testing.T) {
 	if err := db.ClearHostUpdateSlot(h.ID); err != nil {
 		t.Fatalf("clear slot: %v", err)
 	}
-	ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1)
+	ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1, true)
 	if err != nil {
 		t.Fatalf("try start after clear: %v", err)
 	}
@@ -217,7 +258,7 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 
 	db.StartHostUpdate(h.ID, started)
 
-	stalled, err := db.ListStalledHosts(cutoff)
+	stalled, err := db.ListStalledHosts(cutoff, true)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
@@ -228,7 +269,7 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 	if err := db.ClearStalledUpdates(cutoff); err != nil {
 		t.Fatalf("clear stalled: %v", err)
 	}
-	stalled, _ = db.ListStalledHosts(cutoff)
+	stalled, _ = db.ListStalledHosts(cutoff, true)
 	if len(stalled) != 0 {
 		t.Errorf("stalled after clear = %+v, want none", stalled)
 	}
@@ -245,7 +286,7 @@ func TestSlotStampsCompareCorrectlyAcrossFractions(t *testing.T) {
 	db.StartHostUpdate(early.ID, base.Add(500*time.Millisecond))
 	db.StartHostUpdate(late.ID, base.Add(2*time.Second))
 
-	stalled, err := db.ListStalledHosts(base.Add(time.Second))
+	stalled, err := db.ListStalledHosts(base.Add(time.Second), true)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
@@ -260,7 +301,7 @@ func TestTryStartHostUpdateGrantsUnderCap(t *testing.T) {
 	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	cutoff := now.Add(-15 * time.Minute)
 
-	ok, err := db.TryStartHostUpdate(h.ID, now, cutoff, 1)
+	ok, err := db.TryStartHostUpdate(h.ID, now, cutoff, 1, true)
 	if err != nil {
 		t.Fatalf("try start: %v", err)
 	}
@@ -281,7 +322,7 @@ func TestTryStartHostUpdateRefusesAtCap(t *testing.T) {
 	cutoff := now.Add(-15 * time.Minute)
 
 	db.StartHostUpdate(a.ID, now)
-	ok, err := db.TryStartHostUpdate(b.ID, now, cutoff, 1)
+	ok, err := db.TryStartHostUpdate(b.ID, now, cutoff, 1, true)
 	if err != nil {
 		t.Fatalf("try start: %v", err)
 	}
@@ -299,7 +340,7 @@ func TestTryStartHostUpdateRefusesWhileAnyHostIsStalled(t *testing.T) {
 	later := started.Add(time.Hour)
 	cutoff := later.Add(-15 * time.Minute)
 
-	ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 10)
+	ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 10, true)
 	if err != nil {
 		t.Fatalf("try start: %v", err)
 	}
@@ -332,7 +373,7 @@ func TestTryStartHostUpdateIsAtomicUnderConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			ok, err := db.TryStartHostUpdate(id, now, cutoff, concurrencyCap)
+			ok, err := db.TryStartHostUpdate(id, now, cutoff, concurrencyCap, true)
 			if err != nil {
 				t.Errorf("try start: %v", err)
 				return
