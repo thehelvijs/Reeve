@@ -7,7 +7,7 @@ import (
 )
 
 // PushProtocolVersion is bumped when the agent->server payload shape changes.
-const PushProtocolVersion = 2
+const PushProtocolVersion = 1
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {

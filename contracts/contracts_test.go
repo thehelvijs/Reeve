@@ -47,9 +47,9 @@ func TestPushRoundTrip(t *testing.T) {
 	}
 }
 
-func TestPushProtocolVersionIsTwo(t *testing.T) {
-	if PushProtocolVersion != 2 {
-		t.Errorf("protocol version = %d, want 2", PushProtocolVersion)
+func TestPushProtocolVersionIsOne(t *testing.T) {
+	if PushProtocolVersion != 1 {
+		t.Errorf("protocol version = %d, want 1", PushProtocolVersion)
 	}
 }
 

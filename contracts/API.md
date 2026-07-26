@@ -246,8 +246,7 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or wrong-protocol pushes with the standard error envelope.
 
-**Protocol v2:** The agent reports `auto_update_vetoed` (`true` when the host set
+The agent reports `auto_update_vetoed` (`true` when the host set
 `REEVE_AUTO_UPDATE=false` and will refuse any update). The endpoint replies
 `200` with `{"check_now": bool}` (a `contracts.PushAck`), where `check_now` is
-the server's instruction to run a self-update immediately; earlier versions
-reply `204 No Content`.
+the server's instruction to run a self-update immediately.
