@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -19,6 +21,22 @@ func (db *DB) CreateGroup(name string) (Group, error) {
 	if err != nil {
 		return Group{}, err
 	}
+	return g, nil
+}
+
+// GetGroup returns a group by id, or ErrNotFound.
+func (db *DB) GetGroup(id string) (Group, error) {
+	var g Group
+	var created string
+	err := db.sql.QueryRow(`SELECT id, name, created_at FROM groups WHERE id = ?`, id).
+		Scan(&g.ID, &g.Name, &created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Group{}, ErrNotFound
+	}
+	if err != nil {
+		return Group{}, err
+	}
+	g.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	return g, nil
 }
 

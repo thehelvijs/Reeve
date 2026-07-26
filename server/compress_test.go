@@ -86,6 +86,27 @@ func TestGzipSkipsWhatItShould(t *testing.T) {
 	}
 }
 
+// A 206 body is a byte window of the identity encoding. Gzipping it would
+// leave Content-Range describing bytes the client never received; http.ServeFile
+// answers ranges for the SPA bundle, which is a compressible media type.
+func TestGzipSkipsRangeResponses(t *testing.T) {
+	body := strings.Repeat("j", 4096)
+	h := gzipResponses(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript")
+		w.Header().Set("Content-Range", "bytes 0-4095/100000")
+		w.WriteHeader(http.StatusPartialContent)
+		io.WriteString(w, body)
+	}))
+	resp := gzipRequest(t, h, "/assets/index-abc123.js")
+	if enc := resp.Header.Get("Content-Encoding"); enc != "" {
+		t.Errorf("Content-Encoding = %q on a 206, want none", enc)
+	}
+	raw, _ := io.ReadAll(resp.Body)
+	if string(raw) != body {
+		t.Errorf("range body was rewritten: got %d bytes, want %d", len(raw), len(body))
+	}
+}
+
 func TestGzipLeavesClientsThatDoNotAskAlone(t *testing.T) {
 	body := strings.Repeat("a", 4096)
 	h := gzipResponses(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

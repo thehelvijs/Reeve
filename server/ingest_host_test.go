@@ -148,6 +148,21 @@ func TestIngestBadProtocolRejected(t *testing.T) {
 	}
 }
 
+// An enrolled agent is a credential on a machine the server does not control,
+// so one push must not be able to write an unbounded number of rows.
+func TestIngestRejectsAnOversizedPush(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	_, token := enrollHost(t, ts, admin, "host-a")
+	p := samplePush()
+	p.LogEvents = make([]contracts.LogEvent, contracts.MaxPushLogEvents+1)
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("oversized ingest = %d, want 413: %s", resp.StatusCode, data)
+	}
+}
+
 func TestInventoryMarksLinked(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)

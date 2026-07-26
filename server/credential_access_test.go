@@ -174,6 +174,43 @@ func TestRevokeRemovesAccess(t *testing.T) {
 	}
 }
 
+// A grant naming nobody can never match a caller, so it is a typo, not a
+// grant: recording it would only pad the access list and the audit trail.
+func TestGrantRejectsAnUnknownPrincipal(t *testing.T) {
+	ts := newTestServer(t)
+	owner := ts.client(t)
+	signup(t, ts, owner, "boss@example.com", "password123")
+	tool := createTool(t, ts, owner, toolInput{Name: "Box"})
+
+	cases := map[string]struct {
+		path string
+		want int
+	}{
+		"unknown user":   {"/api/v1/tools/" + tool.ID + "/access/user/nobody", http.StatusNotFound},
+		"unknown group":  {"/api/v1/tools/" + tool.ID + "/access/group/nogroup", http.StatusNotFound},
+		"bad type":       {"/api/v1/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
+		"bad type on rm": {"/api/v1/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
+	}
+	for name, tc := range cases {
+		method := http.MethodPut
+		if name == "bad type on rm" {
+			method = http.MethodDelete
+		}
+		resp, data := ts.do(t, owner, method, tc.path, nil, nil)
+		if resp.StatusCode != tc.want {
+			t.Errorf("%s: status = %d, want %d: %s", name, resp.StatusCode, tc.want, data)
+		}
+	}
+
+	grants, err := ts.app.db.ListCredentialAccess(tool.ID)
+	if err != nil {
+		t.Fatalf("list access: %v", err)
+	}
+	if len(grants) != 0 {
+		t.Errorf("rejected grants still landed: %+v", grants)
+	}
+}
+
 func TestNonOwnerCannotApprove(t *testing.T) {
 	ts := newTestServer(t)
 	owner := ts.client(t)

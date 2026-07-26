@@ -102,15 +102,22 @@ func (a *app) decideAccessRequest(w http.ResponseWriter, r *http.Request, status
 		return
 	}
 
-	// Approval may target the requester (default) or a chosen group.
+	// Approval may target the requester (default) or a chosen group. The body
+	// is optional, so only a body that is present and malformed is an error.
 	ptype, pid := "user", req.RequesterID
-	if status == store.RequestApproved {
+	if status == store.RequestApproved && r.ContentLength > 0 {
 		var in struct {
 			PrincipalType string `json:"principal_type"`
 			PrincipalID   string `json:"principal_id"`
 		}
-		decodeJSON(r, &in)
+		if err := decodeJSON(r, &in); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
 		if in.PrincipalType == "group" && in.PrincipalID != "" {
+			if !a.principalExists(w, "group", in.PrincipalID) {
+				return
+			}
 			ptype, pid = "group", in.PrincipalID
 		}
 	}
@@ -158,12 +165,10 @@ func (a *app) handleGrantToolAccess(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ptype := r.PathValue("ptype")
-	if ptype != "user" && ptype != "group" {
-		writeError(w, http.StatusBadRequest, "invalid_principal", "principal type must be user or group")
+	ptype, pid := r.PathValue("ptype"), r.PathValue("pid")
+	if !validPrincipalType(w, ptype) || !a.principalExists(w, ptype, pid) {
 		return
 	}
-	pid := r.PathValue("pid")
 	a.db.GrantCredentialAccess(t.ID, ptype, pid, p.UserID)
 	a.db.RecordGrant(t.ID, ptype, pid, "grant", p.UserID)
 	w.WriteHeader(http.StatusNoContent)
@@ -176,9 +181,39 @@ func (a *app) handleRevokeToolAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ptype, pid := r.PathValue("ptype"), r.PathValue("pid")
+	if !validPrincipalType(w, ptype) {
+		return
+	}
 	a.db.RevokeCredentialAccess(t.ID, ptype, pid)
 	a.db.RecordGrant(t.ID, ptype, pid, "revoke", p.UserID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// validPrincipalType answers 400 for anything but a user or a group. Every
+// route that takes a {ptype} segment checks it, so a revoke cannot record an
+// audit row naming a principal kind that does not exist.
+func validPrincipalType(w http.ResponseWriter, ptype string) bool {
+	if ptype == "user" || ptype == "group" {
+		return true
+	}
+	writeError(w, http.StatusBadRequest, "invalid_principal", "principal type must be user or group")
+	return false
+}
+
+// principalExists answers 404 for a grant aimed at nobody, so an access list
+// cannot fill up with rows that can never match a caller.
+func (a *app) principalExists(w http.ResponseWriter, ptype, pid string) bool {
+	var err error
+	if ptype == "user" {
+		_, err = a.db.GetUserByID(pid)
+	} else {
+		_, err = a.db.GetGroup(pid)
+	}
+	if err != nil {
+		writeError(w, http.StatusNotFound, "unknown_principal", "no such "+ptype)
+		return false
+	}
+	return true
 }
 
 // pendingForApprover returns pending requests an approver may act on: all for an

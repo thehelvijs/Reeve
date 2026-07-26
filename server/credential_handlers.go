@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/thehelvijs/Reeve/server/internal/auth"
@@ -162,12 +163,18 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// canReveal reports whether the principal may reveal a tool's credentials.
+// canReveal reports whether the principal may reveal a tool's credentials. A
+// lookup that fails denies, and says so in the log: a silent false is
+// indistinguishable from a real denial when someone is trying to explain one.
 func (a *app) canReveal(t store.Tool, p auth.Principal) bool {
 	if p.IsAdmin() || t.CreatorID == p.UserID {
 		return true
 	}
-	ok, _ := a.db.HasCredentialAccess(p.UserID, t.ID)
+	ok, err := a.db.HasCredentialAccess(p.UserID, t.ID)
+	if err != nil {
+		log.Printf("credentials: access lookup for user %s on tool %s: %v", p.UserID, t.ID, err)
+		return false
+	}
 	return ok
 }
 

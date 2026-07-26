@@ -233,8 +233,7 @@ func (a *app) changeCollectionGrant(w http.ResponseWriter, r *http.Request, chan
 		return
 	}
 	ptype := r.PathValue("ptype")
-	if ptype != "user" && ptype != "group" {
-		writeError(w, http.StatusBadRequest, "invalid_principal", "principal type must be user or group")
+	if !validPrincipalType(w, ptype) {
 		return
 	}
 	if err := change(c.ID, ptype, r.PathValue("pid")); err != nil {

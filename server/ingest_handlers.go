@@ -49,6 +49,12 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_protocol", "unsupported push protocol version")
 		return
 	}
+	if section := push.TooLarge(); section != "" {
+		a.ingestRejected.Add(1)
+		log.Printf("ingest: host %s sent an oversized %s section", host.ID, section)
+		writeError(w, http.StatusRequestEntityTooLarge, "push_too_large", "the "+section+" section exceeds the per-push limit")
+		return
+	}
 
 	if err := a.storePush(host.ID, push); err != nil {
 		log.Printf("ingest: store failed for host %s: %v", host.ID, err)

@@ -79,3 +79,23 @@ func TestPushAckRoundTrip(t *testing.T) {
 		t.Error("check_now did not survive the round trip")
 	}
 }
+
+func TestPushTooLargeNamesTheOffendingSection(t *testing.T) {
+	if got := (Push{}).TooLarge(); got != "" {
+		t.Errorf("empty push TooLarge = %q, want none", got)
+	}
+	atCap := Push{Services: make([]ServiceState, MaxPushServices)}
+	if got := atCap.TooLarge(); got != "" {
+		t.Errorf("push at the cap TooLarge = %q, want none", got)
+	}
+	over := Push{
+		Services:  make([]ServiceState, MaxPushServices+1),
+		LogEvents: make([]LogEvent, MaxPushLogEvents+1),
+	}
+	if got := over.TooLarge(); got != "services" {
+		t.Errorf("TooLarge = %q, want the first oversized section \"services\"", got)
+	}
+	if got := (Push{LogEvents: make([]LogEvent, MaxPushLogEvents+1)}).TooLarge(); got != "log_events" {
+		t.Errorf("TooLarge = %q, want log_events", got)
+	}
+}
