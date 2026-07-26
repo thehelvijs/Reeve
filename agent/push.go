@@ -39,17 +39,23 @@ func newPusher(cfg config) *pusher {
 	}
 }
 
-// send posts a push, buffering it to disk on failure.
-func (p *pusher) send(push contracts.Push) error {
+// maxAckBytes bounds the ack body so a misbehaving server can't make the agent
+// buffer an unbounded reply.
+const maxAckBytes = 4096
+
+// send posts a push, buffering it to disk on failure. A nil ack means the
+// server answered but said nothing the agent can act on.
+func (p *pusher) send(push contracts.Push) (*contracts.PushAck, error) {
 	body, err := json.Marshal(push)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := p.post(body); err != nil {
+	ack, err := p.post(body)
+	if err != nil {
 		p.buffer(body)
-		return err
+		return nil, err
 	}
-	return nil
+	return ack, nil
 }
 
 // flushBuffer replays buffered pushes oldest-first, stopping at the first
@@ -73,30 +79,37 @@ func (p *pusher) flushBuffer() {
 			os.Remove(path)
 			continue
 		}
-		if err := p.post(body); err != nil {
+		if _, err := p.post(body); err != nil {
 			return
 		}
 		os.Remove(path)
 	}
 }
 
-func (p *pusher) post(body []byte) error {
+func (p *pusher) post(body []byte) (*contracts.PushAck, error) {
 	req, err := http.NewRequest(http.MethodPost, p.serverURL+"/api/v1/ingest", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.token)
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxAckBytes))
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("ingest returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("ingest returned %d", resp.StatusCode)
 	}
-	return nil
+	if readErr != nil {
+		return nil, nil
+	}
+	var ack contracts.PushAck
+	if err := json.Unmarshal(respBody, &ack); err != nil {
+		return nil, nil
+	}
+	return &ack, nil
 }
 
 // buffer writes a push to disk, keyed by a monotonic-ish name so replay order

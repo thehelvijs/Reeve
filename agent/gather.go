@@ -29,9 +29,10 @@ const maxLogReaders = 4
 // spends 200ms inside its own measurement window.
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
-		ProtocolVersion: contracts.PushProtocolVersion,
-		AgentVersion:    version,
-		SentAt:          time.Now().UTC(),
+		ProtocolVersion:  contracts.PushProtocolVersion,
+		AgentVersion:     version,
+		AutoUpdateVetoed: !cfg.AutoUpdate,
+		SentAt:           time.Now().UTC(),
 	}
 
 	var services []contracts.ServiceState

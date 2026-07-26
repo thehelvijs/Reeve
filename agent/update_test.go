@@ -12,7 +12,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/thehelvijs/Reeve/contracts"
 	"github.com/thehelvijs/Reeve/signing"
 )
 
@@ -152,5 +154,42 @@ func TestCheckAndUpdateRefusesUnverifiedBinary(t *testing.T) {
 		if !strings.Contains(err.Error(), tc.wantErr) {
 			t.Errorf("%s: error = %v, want it to mention %q", name, err, tc.wantErr)
 		}
+	}
+}
+
+func TestShouldAckUpdate(t *testing.T) {
+	cases := []struct {
+		name       string
+		autoUpdate bool
+		ack        *contracts.PushAck
+		want       bool
+	}{
+		{"server asks, no veto", true, &contracts.PushAck{CheckNow: true}, true},
+		{"server asks, host vetoed", false, &contracts.PushAck{CheckNow: true}, false},
+		{"server silent", true, &contracts.PushAck{CheckNow: false}, false},
+		{"no ack at all", true, nil, false},
+	}
+	for _, c := range cases {
+		if got := shouldAckUpdate(c.autoUpdate, c.ack); got != c.want {
+			t.Errorf("%s: shouldAckUpdate = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestShouldTickerUpdate(t *testing.T) {
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	interval := time.Hour
+
+	if shouldTickerUpdate(true, now.Add(-30*time.Minute), now, interval) {
+		t.Error("the ticker fired while the server was answering acks")
+	}
+	if !shouldTickerUpdate(true, now.Add(-3*time.Hour), now, interval) {
+		t.Error("the ticker stayed quiet after the server went silent")
+	}
+	if !shouldTickerUpdate(true, time.Time{}, now, interval) {
+		t.Error("the ticker stayed quiet with no ack ever received")
+	}
+	if shouldTickerUpdate(false, time.Time{}, now, interval) {
+		t.Error("the ticker fired on a host that vetoed auto-update")
 	}
 }
