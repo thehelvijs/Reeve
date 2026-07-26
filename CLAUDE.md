@@ -23,9 +23,13 @@ them. `make dist` produces the full release set.
 
 - `agent/` must not import `server/`. The agent runs as root on other people's
   machines; its dependency surface stays as small as it is today.
-- Protocol changes touch both sides in one commit. Bumping
-  `contracts.PushProtocolVersion` means updating producer, consumer and tests
-  together, since the server hard-rejects a mismatch at ingest.
+- Protocol changes touch both sides in one commit. Ingest accepts a bounded
+  range, `contracts.MinAcceptedPushVersion` through
+  `contracts.PushProtocolVersion`, and hard-rejects anything outside it.
+  An additive bump raises only `PushProtocolVersion` and leaves one release of
+  overlap so deployed agents keep reporting; the release after raises
+  `MinAcceptedPushVersion` to match. A breaking change is the case that raises
+  both at once, and it strands every agent that has not updated yet.
 - The schema is one file, `server/internal/store/migrations/0001_init.sql`.
   A schema change adds a numbered migration next to it; it never edits that
   file in place.
