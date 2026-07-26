@@ -93,6 +93,21 @@ install_minisign() {
   command -v minisign >/dev/null 2>&1
 }
 
+# needs_replacing INSTALLED STAGED — whether the installed agent differs from
+# the one about to be installed, compared by content.
+#
+# Not by version string: the version only moves on a release, so two different
+# builds of the same version are routine, and an equality check on --version
+# silently keeps a stale binary through every reinstall. That failure is
+# invisible — the config is rewritten and the service restarted, so the install
+# looks like it worked while the old binary keeps running. The self-updater
+# compares checksums for the same reason.
+needs_replacing() {
+  [ -e "$1" ] || return 0
+  [ "$(sha256sum "$1" 2>/dev/null | awk '{print $1}')" \
+    != "$(sha256sum "$2" 2>/dev/null | awk '{print $1}')" ]
+}
+
 # Library mode: let tests source helpers without executing the installer.
 # `return` works when sourced; the `exit` is the executed-directly fallback.
 if [ -n "${LV_LIB_ONLY:-}" ]; then
@@ -251,18 +266,12 @@ if [ ! -s "$TMP/uninstall.sh" ] || ! head -n 1 "$TMP/uninstall.sh" | grep -q '^#
 fi
 install -m 0755 "$TMP/uninstall.sh" "$UNINSTALL_PATH"
 
-if [ -e "$BIN_PATH" ]; then
-  CURRENT_VERSION="$("$BIN_PATH" --version 2>/dev/null || echo unknown)"
-  if [ "$CURRENT_VERSION" = "$TARGET_VERSION" ] && [ "$FORCE" -ne 1 ]; then
-    echo "binary already current ($CURRENT_VERSION)"
-  else
-    echo "upgrading $CURRENT_VERSION -> $TARGET_VERSION"
-    systemctl stop reeve-agent || true
-    install -m 0755 "$TMP/agent" "$BIN_PATH"
-  fi
-else
-  echo "installing $TARGET_VERSION"
+if needs_replacing "$BIN_PATH" "$TMP/agent" || [ "$FORCE" -eq 1 ]; then
+  echo "installing agent $TARGET_VERSION"
+  systemctl stop reeve-agent 2>/dev/null || true
   install -m 0755 "$TMP/agent" "$BIN_PATH"
+else
+  echo "binary already current ($TARGET_VERSION)"
 fi
 
 systemctl daemon-reload
