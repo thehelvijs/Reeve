@@ -21,6 +21,7 @@ type config struct {
 	Interval       time.Duration
 	AutoUpdate     bool
 	UpdateInterval time.Duration
+	AllowControl   bool
 }
 
 func loadConfig() (config, error) {
@@ -30,6 +31,7 @@ func loadConfig() (config, error) {
 		Interval:       15 * time.Second,
 		AutoUpdate:     os.Getenv("REEVE_AUTO_UPDATE") != "false",
 		UpdateInterval: time.Hour,
+		AllowControl:   os.Getenv("REEVE_ALLOW_CONTROL") != "false",
 	}
 	if v := os.Getenv("REEVE_PUSH_INTERVAL"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -61,8 +63,12 @@ func main() {
 		log.Fatal("agent: REEVE_SERVER_URL and REEVE_AGENT_TOKEN are required")
 	}
 	log.Printf("Reeve agent %s pushing to %s every %s", version, cfg.ServerURL, cfg.Interval)
+	if !cfg.AllowControl {
+		log.Print("remote control disabled on this host (REEVE_ALLOW_CONTROL=false); commands will be ignored")
+	}
 
 	p := newPusher(cfg)
+	control = newController(cfg.AllowControl)
 	ticker := time.NewTicker(cfg.Interval)
 	defer ticker.Stop()
 	updateTicker := time.NewTicker(cfg.UpdateInterval)
@@ -90,8 +96,8 @@ func main() {
 }
 
 // runOnce flushes the buffer, pushes one telemetry snapshot, stamps lastAck on
-// any real ack, and reports whether the ack asks for a self-update this host
-// is willing to run.
+// any real ack, runs whatever commands it carried, and reports whether the ack
+// asks for a self-update this host is willing to run.
 func runOnce(p *pusher, cfg config, version string, lastAck *time.Time) bool {
 	p.flushBuffer()
 	ack, err := p.send(gather(version, cfg))
@@ -104,7 +110,25 @@ func runOnce(p *pusher, cfg config, version string, lastAck *time.Time) bool {
 		return false
 	}
 	*lastAck = time.Now()
+	if len(ack.Commands) > 0 {
+		// Off the push loop: a 30s command must not hold up the next tick.
+		go control.handle(ack.Commands, func(res contracts.CommandResult) {
+			p.send(commandReport(version, cfg, res))
+		})
+	}
 	return shouldAckUpdate(cfg.AutoUpdate, ack)
+}
+
+// commandReport is a minimal push carrying one result and nothing else. It is
+// how a reboot is acknowledged: the agent sends this, then invokes the action
+// that kills it.
+func commandReport(version string, cfg config, res contracts.CommandResult) contracts.Push {
+	return contracts.Push{
+		AgentVersion:   version,
+		SentAt:         time.Now().UTC(),
+		ControlEnabled: cfg.AllowControl,
+		CommandResults: []contracts.CommandResult{res},
+	}
 }
 
 // shouldAckUpdate reports whether the server's ack asks for a self-update the

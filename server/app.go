@@ -216,6 +216,8 @@ func (a *app) routes() http.Handler {
 	mux.Handle("PUT /api/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handlePutHostThresholds)))
 	mux.Handle("DELETE /api/admin/hosts/{id}/thresholds", admin(http.HandlerFunc(a.handleResetHostThresholds)))
 	mux.Handle("PUT /api/admin/hosts/{id}/auto-update", admin(http.HandlerFunc(a.handleSetHostAutoUpdate)))
+	mux.Handle("POST /api/admin/hosts/{id}/commands", admin(http.HandlerFunc(a.handleCreateCommand)))
+	mux.Handle("GET /api/admin/hosts/{id}/commands", admin(http.HandlerFunc(a.handleListCommands)))
 	mux.Handle("POST /api/admin/hosts/{id}/update-now", admin(http.HandlerFunc(a.handleHostUpdateNow)))
 	mux.Handle("GET /api/admin/agent-updates", admin(http.HandlerFunc(a.handleGetAgentUpdates)))
 	mux.Handle("POST /api/admin/agent-updates/resume", admin(http.HandlerFunc(a.handleResumeAgentUpdates)))

@@ -118,7 +118,7 @@ export default function Catalog() {
                       e.stopPropagation();
                       navigate(`/catalog/${t.id}/edit`);
                     }}
-                    className="rounded-button border border-hairline px-2 py-1 text-xs text-muted opacity-0 transition-opacity hover:text-content group-hover:opacity-100"
+                    className="rounded-button border border-hairline px-2 py-1 text-xs text-content opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     Edit
                   </button>

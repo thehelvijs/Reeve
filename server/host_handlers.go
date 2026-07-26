@@ -11,21 +11,24 @@ import (
 )
 
 type hostView struct {
-	ID               string           `json:"id"`
-	Name             string           `json:"name"`
-	OS               string           `json:"os"`
-	PhysicalLocation string           `json:"physical_location"`
-	IPAddress        string           `json:"ip_address"`
-	AgentVersion     string           `json:"agent_version"`
-	AutoUpdate       string           `json:"auto_update"`
-	UpdateState      string           `json:"update_state"`
-	Status           string           `json:"status"` // online | offline | never
-	LastSeenAt       string           `json:"last_seen_at,omitempty"`
-	Metrics          *hostMetricsView `json:"metrics,omitempty"`
-	IconURL          string           `json:"icon_url"`
-	ThumbnailURL     string           `json:"thumbnail_url"`
-	Latitude         *float64         `json:"latitude,omitempty"`
-	Longitude        *float64         `json:"longitude,omitempty"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	OS               string `json:"os"`
+	PhysicalLocation string `json:"physical_location"`
+	IPAddress        string `json:"ip_address"`
+	AgentVersion     string `json:"agent_version"`
+	AutoUpdate       string `json:"auto_update"`
+	UpdateState      string `json:"update_state"`
+	Status           string `json:"status"` // online | offline | never
+	// ControlEnabled is what the agent last said about running commands. The
+	// UI disables the controls and explains why when it is false.
+	ControlEnabled bool             `json:"control_enabled"`
+	LastSeenAt     string           `json:"last_seen_at,omitempty"`
+	Metrics        *hostMetricsView `json:"metrics,omitempty"`
+	IconURL        string           `json:"icon_url"`
+	ThumbnailURL   string           `json:"thumbnail_url"`
+	Latitude       *float64         `json:"latitude,omitempty"`
+	Longitude      *float64         `json:"longitude,omitempty"`
 }
 
 // hostMetricsView is the host's most recent sample, for at-a-glance load on the
@@ -48,8 +51,8 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 		ID: h.ID, Name: h.Name, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
 		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate,
 		IPAddress:   h.IPAddress,
-		UpdateState: updateStateFor(h, uc, now),
-		Status:      hostStatus(h, now), LastSeenAt: last,
+		UpdateState: updateStateFor(h, uc, now), ControlEnabled: h.ControlEnabled,
+		Status: hostStatus(h, now), LastSeenAt: last,
 		IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath),
 		Latitude: h.Latitude, Longitude: h.Longitude,
 	}

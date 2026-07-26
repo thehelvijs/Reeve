@@ -18,6 +18,7 @@ import ThumbnailUploader from '../components/ThumbnailUploader';
 import MapPicker from '../components/MapPicker';
 import HostMetrics from '../components/HostMetrics';
 import CredentialsSection from '../components/CredentialsSection';
+import HostControls, { unavailableReason } from '../components/HostControls';
 import EventHistory from '../components/EventHistory';
 import UptimeSummary from '../components/UptimeSummary';
 import ThresholdFields, {
@@ -57,6 +58,18 @@ export default function HostInventory() {
       source_ref: item.source_ref,
     });
     navigate(`/catalog/new?${q}`);
+  };
+
+  // A row's buttons are live only for an admin, on a host whose agent said it
+  // will run commands. controlFor returns null otherwise, and the rows render
+  // exactly as they did before this feature existed.
+  const controlFor = (kind: 'service' | 'container') => {
+    if (!id || !host || user?.role !== 'admin' || unavailableReason(host) !== '') {
+      return null;
+    }
+    return async (verb: string, target: string) => {
+      await api.post(`/api/admin/hosts/${id}/commands`, { action: `${kind}_${verb}`, target });
+    };
   };
 
   const clearMetrics = async () => {
@@ -111,6 +124,8 @@ export default function HostInventory() {
 
       {id && <CredentialsSection hostId={id} canManage={user?.role === 'admin'} />}
 
+      {id && host && user?.role === 'admin' && <HostControls hostId={id} host={host} />}
+
       {host && user?.role === 'admin' && <AgentCard host={host} onChanged={load} />}
 
       {id && host && user?.role === 'admin' && (
@@ -146,8 +161,18 @@ export default function HostInventory() {
 
       {id && user?.role === 'admin' && <HostThresholds hostId={id} />}
 
-      <Section title="Systemd units" items={inv.services} onCreate={createFrom} />
-      <Section title="Containers" items={inv.containers} onCreate={createFrom} />
+      <Section
+        title="Systemd units"
+        items={inv.services}
+        onCreate={createFrom}
+        control={controlFor('service')}
+      />
+      <Section
+        title="Containers"
+        items={inv.containers}
+        onCreate={createFrom}
+        control={controlFor('container')}
+      />
       <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} />
     </div>
   );
@@ -320,14 +345,58 @@ function HostThresholds({ hostId }: { hostId: string }) {
   );
 }
 
+// RowControls queues one action for a single unit or container. It reports its
+// own failure inline: a button that silently does nothing is worse than none.
+function RowControls({
+  target,
+  run,
+}: {
+  target: string;
+  run: (verb: string, target: string) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState('');
+
+  const fire = async (verb: string) => {
+    setBusy(true);
+    setFailed('');
+    try {
+      await run(verb, target);
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      {failed && <span className="mr-1 text-xs text-red-400">{failed}</span>}
+      {['start', 'stop', 'restart'].map((verb) => (
+        <button
+          key={verb}
+          type="button"
+          disabled={busy}
+          onClick={() => fire(verb)}
+          className="rounded-button px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-2 hover:text-content disabled:opacity-50"
+        >
+          {verb}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Section({
   title,
   items,
   onCreate,
+  control,
 }: {
   title: string;
   items: InventoryItem[];
   onCreate: (i: InventoryItem) => void;
+  control?: ((verb: string, target: string) => Promise<void>) | null;
 }) {
   return (
     <div className="mt-6">
@@ -342,13 +411,16 @@ function Section({
               <p className="truncate text-sm text-content">{it.name}</p>
               <p className="truncate font-mono text-xs text-muted">{it.detail}</p>
             </div>
-            {it.linked ? (
-              <Pill tone="up">linked</Pill>
-            ) : (
-              <Button variant="secondary" onClick={() => onCreate(it)}>
-                Add for monitoring
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {control && <RowControls target={it.source_ref} run={control} />}
+              {it.linked ? (
+                <Pill tone="up">linked</Pill>
+              ) : (
+                <Button variant="secondary" onClick={() => onCreate(it)}>
+                  Add for monitoring
+                </Button>
+              )}
+            </div>
           </div>
         ))}
       </Card>

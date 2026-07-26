@@ -16,6 +16,15 @@ const (
 	MaxPushCronJobs   = 2000
 	MaxPushLogEvents  = 1000
 	MaxPushProcesses  = 100
+
+	// MaxAckCommands bounds what one ack asks an agent to run, and
+	// MaxPushCommandResults what it reports back.
+	MaxAckCommands        = 10
+	MaxPushCommandResults = 20
+
+	// MaxCommandOutput is how much of a command's combined output the agent
+	// sends. Enough for the failure message, not enough to be a log shipper.
+	MaxCommandOutput = 4096
 )
 
 // Push is one telemetry batch an agent sends to the server on its interval.
@@ -33,7 +42,12 @@ type Push struct {
 	Metrics        HostMetrics       `json:"metrics"`
 	ContainerStats []ContainerSample `json:"container_stats"`
 	Processes      []ProcessSample   `json:"processes"`
-	LogEvents      []LogEvent        `json:"log_events"`
+	// ControlEnabled reports that this agent will run commands. An agent too
+	// old to know the field, or one whose host set REEVE_ALLOW_CONTROL=false,
+	// leaves it false and the server refuses to queue anything for it.
+	ControlEnabled bool            `json:"control_enabled"`
+	CommandResults []CommandResult `json:"command_results"`
+	LogEvents      []LogEvent      `json:"log_events"`
 }
 
 // TooLarge names the first section of p that exceeds its ceiling, or "" when
@@ -49,6 +63,7 @@ func (p Push) TooLarge() string {
 		{"container_stats", len(p.ContainerStats), MaxPushContainers},
 		{"cron_jobs", len(p.CronJobs), MaxPushCronJobs},
 		{"processes", len(p.Processes), MaxPushProcesses},
+		{"command_results", len(p.CommandResults), MaxPushCommandResults},
 		{"log_events", len(p.LogEvents), MaxPushLogEvents},
 	} {
 		if section.count > section.max {
@@ -60,8 +75,68 @@ func (p Push) TooLarge() string {
 
 // PushAck is the server's reply to a push. CheckNow asks the agent to run its
 // self-update now; the server withholds it to pace a fleet-wide rollout.
+// Commands are the actions an admin queued for this host, delivered here
+// because the agent is push-only and the server never dials it.
 type PushAck struct {
-	CheckNow bool `json:"check_now"`
+	CheckNow bool      `json:"check_now"`
+	Commands []Command `json:"commands,omitempty"`
+}
+
+// Command actions. This list is the allowlist: the server maps an action to a
+// fixed argv and never forwards a caller's string to a shell.
+const (
+	ActionReboot           = "reboot"
+	ActionPoweroff         = "poweroff"
+	ActionServiceStart     = "service_start"
+	ActionServiceStop      = "service_stop"
+	ActionServiceRestart   = "service_restart"
+	ActionContainerStart   = "container_start"
+	ActionContainerStop    = "container_stop"
+	ActionContainerRestart = "container_restart"
+)
+
+// CommandTargetKind says what an action names, so a caller can be validated
+// against what the host actually reported.
+type CommandTargetKind string
+
+const (
+	TargetNone      CommandTargetKind = ""
+	TargetService   CommandTargetKind = "service"
+	TargetContainer CommandTargetKind = "container"
+)
+
+// CommandActions maps every permitted action to what it targets. A lookup
+// miss is an unknown action, which is the whole validation on the way in.
+var CommandActions = map[string]CommandTargetKind{
+	ActionReboot:           TargetNone,
+	ActionPoweroff:         TargetNone,
+	ActionServiceStart:     TargetService,
+	ActionServiceStop:      TargetService,
+	ActionServiceRestart:   TargetService,
+	ActionContainerStart:   TargetContainer,
+	ActionContainerStop:    TargetContainer,
+	ActionContainerRestart: TargetContainer,
+}
+
+// IsPowerAction reports whether running this kills the agent before it can
+// report, which is why such a command is acknowledged before it is run.
+func IsPowerAction(action string) bool {
+	return action == ActionReboot || action == ActionPoweroff
+}
+
+// Command is one action the server asks an agent to run.
+type Command struct {
+	ID     string `json:"id"`
+	Action string `json:"action"`
+	Target string `json:"target,omitempty"`
+}
+
+// CommandResult is the agent's report on a command it ran.
+type CommandResult struct {
+	ID         string    `json:"id"`
+	OK         bool      `json:"ok"`
+	Output     string    `json:"output"`
+	FinishedAt time.Time `json:"finished_at"`
 }
 
 // ServiceState is a systemd unit's current state.

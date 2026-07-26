@@ -179,6 +179,14 @@ when no valid server ack has arrived in `2 × REEVE_UPDATE_INTERVAL`, so an
 agent that falls out of contact with the server still updates itself
 unattended.
 
+**Remote control.** An admin can queue a fixed set of actions for a host from
+its page — restart, shut down, and start/stop/restart of a systemd unit or a
+Docker container — which the agent collects on its next push (~15s) and runs as
+root. On by default. `REEVE_ALLOW_CONTROL=false` on the machine is a local veto
+the server cannot override: the agent ignores every command and reports that it
+will, and the buttons go dead with that reason on screen. There is no
+"run any command" action, by design.
+
 **Release signing.** Agent binaries are signed with the project's Ed25519
 release key. The agent verifies that signature before installing any self-update
 and refuses an update it cannot verify. `install.sh` checks it too when

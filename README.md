@@ -10,6 +10,10 @@ telemetry to it.
   host, the processes using the most CPU and memory, plus service and container
   state, cron results and log errors.
   Thresholds fire alerts to webhooks and email.
+- **Controls.** Restart or shut down a host, and start, stop or restart one of
+  its systemd units or Docker containers, without opening a terminal. A fixed
+  action list, admin-only, every command recording who asked. On by default; a
+  machine opts out with `REEVE_ALLOW_CONTROL=false`.
 - **Credentials.** Per-host secrets encrypted at rest — how to get into the
   machine — revealed only to the people and groups granted access, with every
   reveal audited.

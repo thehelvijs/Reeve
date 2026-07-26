@@ -107,6 +107,18 @@ pre-create the path and steer what a root process writes and later replays.
   address, and mark a tool public on the anonymous portal. Visibility rules
   cover which *tools* someone sees and which *secrets* they can reveal, not the
   infrastructure those run on.
+- **The agent can be told to act, not just report.** An admin can queue reboot,
+  poweroff, and systemd or Docker start/stop/restart; the agent runs them as
+  root. The action list is a fixed map in code, resolved to an argv with no
+  shell anywhere in the path. The server refuses a target the host has not
+  itself reported, and the agent independently refuses any target outside
+  `[A-Za-z0-9_.@:-]{1,128}` — it does not assume its server is uncompromised.
+  Control is on by default; `REEVE_ALLOW_CONTROL=false` on the machine overrides
+  any server-side policy. Every command records the admin who asked, and that
+  attribution is never reassigned when an account is deleted.
+- A compromised server can therefore restart or power off every enrolled host.
+  That was already true of a server pushing a malicious agent update, which is
+  why releases are signed; the fixed action list bounds what this adds.
 - Credentials belong to hosts, and a host has no owner but an admin. Adding,
   rotating, deleting and granting are therefore admin-only, and an admin can
   reveal every secret in the system.

@@ -56,8 +56,22 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not store telemetry")
 		return
 	}
+	// Results first, then hand out new work: a command answered in this push
+	// must be closed before the same tick could collect anything else.
+	for _, res := range push.CommandResults {
+		if err := a.db.ApplyCommandResult(host.ID, res); err != nil {
+			log.Printf("ingest: applying command result for host %s: %v", host.ID, err)
+		}
+	}
 	ack := contracts.PushAck{
 		CheckNow: a.decideCheckNow(host, push.AgentVersion, push.AutoUpdateVetoed, time.Now().UTC()),
+	}
+	if push.ControlEnabled {
+		cmds, err := a.db.ClaimPendingCommands(host.ID, contracts.MaxAckCommands, time.Now().UTC())
+		if err != nil {
+			log.Printf("ingest: claiming commands for host %s: %v", host.ID, err)
+		}
+		ack.Commands = cmds
 	}
 	if a.cfg.LogRequests {
 		log.Printf("ingest: host=%s agent=%s check_now=%v services=%d containers=%d cron=%d logs=%d cpu=%.0f%% mem=%d/%d",

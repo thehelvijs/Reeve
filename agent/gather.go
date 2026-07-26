@@ -33,6 +33,11 @@ const topProcsPerDimension = 25
 // process's whole lifetime. Ticks are serial, so it needs no lock.
 var procs = collect.NewProcSampler("/proc")
 
+// control runs the actions an ack delivers. Replaced in main once the config
+// is read; the zero value refuses everything, which is the safe default if a
+// push somehow happens first.
+var control = newController(false)
+
 // gather collects a full telemetry snapshot from the host. Every collector is
 // best-effort: a missing command or file yields an empty section rather than a
 // failure, so one broken source never blocks the push. The collectors run
@@ -43,6 +48,8 @@ func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
 		AgentVersion:     version,
 		AutoUpdateVetoed: !cfg.AutoUpdate,
+		ControlEnabled:   cfg.AllowControl,
+		CommandResults:   control.takeResults(),
 		IPAddress:        localIPFor(cfg.ServerURL),
 		SentAt:           time.Now().UTC(),
 	}

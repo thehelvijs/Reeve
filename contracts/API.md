@@ -292,6 +292,30 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
   (see Agent updates above).
 
+## Host controls (admin only)
+
+`POST /admin/hosts/{id}/commands` with `{action, target}` queues one action for
+a host's agent; `GET /admin/hosts/{id}/commands` returns the last 20 with their
+status, output, and the email of the admin who asked.
+
+Actions are a fixed allowlist, mapped server-side to an argv and never passed to
+a shell: `reboot` and `poweroff` (no target), `service_start|stop|restart`
+(target is a systemd unit) and `container_start|stop|restart` (target is a
+Docker container name).
+
+- `400 unknown_action` — the action is not on the list.
+- `400 unknown_target` — the host has not reported that unit or container, so
+  the server will not name it.
+- `409 control_unavailable` — the host's agent has not reported
+  `control_enabled`: it predates the feature, or the machine runs it with
+  `REEVE_ALLOW_CONTROL=false`. Control is on by default.
+
+Delivery rides the push ack, because the agent is push-only and the server never
+dials it: a command is collected on the host's next push (~15s), run, and its
+outcome reported on the push after. Anything neither collected nor answered
+within 10 minutes is expired. `reboot` and `poweroff` are acknowledged just
+before they are invoked, since they kill the agent that would report them.
+
 ## Ingest (agent → server)
 
 `POST /api/ingest` with `Authorization: Bearer rva_…`. Body is the

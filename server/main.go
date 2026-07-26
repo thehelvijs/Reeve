@@ -184,11 +184,19 @@ func (a *app) runServerSampleLoop(ctx context.Context) {
 	every(ctx, 30*time.Second, sample)
 }
 
-// runRollupLoop periodically aggregates and prunes metric time-series.
+// runRollupLoop periodically aggregates and prunes metric time-series, and
+// closes out commands no agent ever answered.
 func (a *app) runRollupLoop(ctx context.Context) {
 	every(ctx, time.Minute, func() {
 		if err := a.db.RollupAndPrune(time.Now().UTC(), a.db.EffectiveRetention()); err != nil {
 			log.Printf("rollup: %v", err)
+		}
+		n, err := a.db.ExpireStaleCommands(time.Now().UTC())
+		if err != nil {
+			log.Printf("expiring stale commands: %v", err)
+		}
+		if n > 0 {
+			log.Printf("expired %d command(s) no agent collected or answered in %s", n, store.CommandStaleAfter)
 		}
 	})
 }

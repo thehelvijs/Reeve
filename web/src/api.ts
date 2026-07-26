@@ -357,6 +357,22 @@ export interface Host {
   longitude?: number;
   auto_update: AutoUpdatePolicy;
   update_state: UpdateState;
+  control_enabled: boolean;
+}
+
+export type CommandStatus = 'pending' | 'sent' | 'done' | 'failed' | 'expired';
+
+export interface HostCommand {
+  id: string;
+  host_id: string;
+  action: string;
+  target: string;
+  status: CommandStatus;
+  output: string;
+  requested_by: string;
+  requested_by_name: string;
+  requested_at: string;
+  finished_at?: string;
 }
 
 export interface InventoryItem {

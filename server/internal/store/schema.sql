@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS hosts (
     update_started_at  TEXT,
     last_seen_at       TEXT,
     offline_after_secs INTEGER NOT NULL DEFAULT 60,
+    -- Whether the agent last said it will run commands. Never assumed: an
+    -- agent that has not said so is never sent one.
+    control_enabled    INTEGER NOT NULL DEFAULT 0,
     icon_path          TEXT NOT NULL DEFAULT '',
     thumbnail_path     TEXT NOT NULL DEFAULT '',
     created_at         TEXT NOT NULL
@@ -231,6 +234,24 @@ CREATE TABLE IF NOT EXISTS cron_jobs (
     updated_at  TEXT NOT NULL,
     PRIMARY KEY (host_id, name)
 );
+
+-- Remote actions queued for an agent, collected on its next push. requested_by
+-- has no foreign key on purpose: deleting the account must not rewrite who
+-- rebooted a machine, the same reason reveal_audit keeps a bare user id.
+CREATE TABLE IF NOT EXISTS host_commands (
+    id           TEXT PRIMARY KEY,
+    host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+    action       TEXT NOT NULL,
+    target       TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'pending'
+                   CHECK (status IN ('pending','sent','done','failed','expired')),
+    output       TEXT NOT NULL DEFAULT '',
+    requested_by TEXT NOT NULL,
+    requested_at TEXT NOT NULL,
+    sent_at      TEXT,
+    finished_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_host_commands_host ON host_commands(host_id, status);
 
 CREATE TABLE IF NOT EXISTS log_events (
     id      TEXT PRIMARY KEY,
