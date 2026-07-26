@@ -21,7 +21,9 @@ export default defineConfig({
   webServer: [
     {
       command:
-        `sh -c 'rm -f /tmp/reeve-e2e.db*; REEVE_MASTER_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= REEVE_DB=/tmp/reeve-e2e.db REEVE_ADDR=127.0.0.1:${devPort} go run -ldflags "-X main.version=9.9.9" ./server'`,
+        // The UI is served by Vite on another port and proxied here, so its
+        // origin has to be allowed past the server's same-origin check.
+        `sh -c 'rm -f /tmp/reeve-e2e.db*; REEVE_MASTER_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= REEVE_DB=/tmp/reeve-e2e.db REEVE_ADDR=127.0.0.1:${devPort} REEVE_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173 go run -ldflags "-X main.version=9.9.9" ./server'`,
       cwd: '..',
       url: `http://127.0.0.1:${devPort}/healthz`,
       reuseExistingServer: false,

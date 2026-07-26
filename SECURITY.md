@@ -18,19 +18,40 @@ the server refuses to start without it. A stolen database alone reveals no
 secret. A stolen database plus the key reveals all of them, so keep backups of
 the two apart.
 
-Sealed with the same key: SMTP relay password, OAuth client secret, tool
-descriptions, endpoints, and physical locations. Metric values and service names
-stay plaintext, since they have to be searchable and aggregatable.
+Sealed with the same key: the SMTP relay password and the OAuth client secret.
+Everything else in the database is plaintext — tool names, descriptions,
+endpoints, physical locations, host inventories, metric values and service
+names — because it has to be searchable, sortable and aggregatable. Treat the
+database as a full map of what the team runs and where; only the secrets
+attached to those entries are encrypted.
 
 **Revealing a credential is audited.** Every reveal records who, which
 credential, when, and the source IP. Grants and revocations are recorded too.
+The source IP is the peer address unless `REEVE_TRUST_PROXY=true` declares a
+reverse proxy in front, in which case it is the left-most `X-Forwarded-For`
+entry. Do not set that without a proxy that overwrites the header: the value
+is otherwise whatever the caller typed, both here and in the login throttle.
+
+**Writes must come from this origin.** A state-changing request carrying a
+session cookie needs an `Origin` matching `REEVE_PUBLIC_URL`, the host it
+arrived on, or an entry in `REEVE_ALLOWED_ORIGINS`. Token-authenticated callers
+such as the agent's ingest push are unaffected. Responses carry a
+content-security policy, `nosniff`, `X-Frame-Options: DENY` and a no-referrer
+policy.
 
 **Releases are signed.** Every agent binary ships with an Ed25519 signature in
 minisign format, made from CI with a key held outside the repository. The agent
 verifies that signature against a public key compiled into it *before* the
 downloaded bytes are written to disk, and refuses any update it cannot verify. A
 build with no key embedded disables self-update rather than falling back to
-unsigned. `install.sh` verifies too when `minisign` is present on the host.
+unsigned. `install.sh` installs `minisign` if the host lacks it and stops rather
+than running an unverified binary as root; `REEVE_ALLOW_UNVERIFIED=1` overrides
+that on a host where no package manager can supply it.
+
+**Updates only move forward.** A signature proves who built a binary, not that
+it is the newest they built. The signed trusted comment carries the version, and
+the agent refuses an update that would move it to a lower one, so replaying a
+genuine old release cannot walk a host back onto public bugs.
 
 Verify a release yourself:
 
@@ -62,18 +83,30 @@ anywhere untrusted:
   override a host that sets `REEVE_AUTO_UPDATE=false`. That veto is a
   deliberate trust boundary for a root process running on someone else's
   machine.
-- Bind to a specific interface (`REEVE_ADDR`, or the compose port mapping)
-  rather than `0.0.0.0`.
+- Bind to a specific interface (`REEVE_ADDR`, or `REEVE_BIND` for the compose
+  port mapping) rather than `0.0.0.0`. Compose publishes on loopback by
+  default, so reaching a new instance from the LAN is a deliberate step.
 
 The agent runs as root, because reading systemd, Docker, cron, and journald
 requires it. It only ever makes outbound connections to the server URL it was
-configured with.
+configured with. Its unit pins `PATH`, and unsent pushes buffer under
+`/var/lib/reeve-agent` rather than `/tmp`, where any local user could
+pre-create the path and steer what a root process writes and later replays.
 
 ## Known limits
 
 - No master-key rotation yet. Changing the key makes existing ciphertext
   unreadable.
 - Single-tenant. Any admin can see every host, service, and audit record.
+- Any signed-in user, at any role, can list every host and its full
+  systemd/Docker/cron inventory, read every account's email address, and mark
+  a tool public on the anonymous portal. Visibility rules cover which *tools*
+  and *credentials* someone sees, not the infrastructure they run on.
+- A per-account lockout is reachable by anyone who knows the address: five
+  wrong passwords hold it for fifteen minutes. The deadline does not extend, so
+  it cannot be held shut indefinitely, but it can be re-triggered.
+- Restoring a backup replaces the whole database, password hashes included.
+  It is admin-only and validated for shape, not for provenance.
 - The audit tables are append-only by convention, not cryptographically chained.
 - Anyone with filesystem access to the database and the key material has
   everything. Protect the host accordingly.

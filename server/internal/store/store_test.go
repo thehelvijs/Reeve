@@ -22,7 +22,7 @@ func openTemp(t *testing.T) *DB {
 func TestOpenRunsMigrations(t *testing.T) {
 	db := openTemp(t)
 
-	tables := []string{"users", "sessions", "api_tokens", "settings", "schema_migrations"}
+	tables := []string{"users", "sessions", "settings", "schema_migrations"}
 	for _, tbl := range tables {
 		var name string
 		err := db.SQL().QueryRow(

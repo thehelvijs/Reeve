@@ -37,29 +37,9 @@ func TestVerifyRejectsMalformed(t *testing.T) {
 	}
 }
 
-func TestNewTokenPrefixAndHash(t *testing.T) {
-	tok, hash := NewToken()
-	if !strings.HasPrefix(tok, TokenPrefix) {
-		t.Errorf("token missing prefix: %q", tok)
-	}
-	if HashToken(tok) != hash {
-		t.Error("HashToken not deterministic with NewToken")
-	}
-	if strings.Contains(hash, tok) {
-		t.Error("hash contains the raw token")
-	}
-	tok2, _ := NewToken()
-	if tok == tok2 {
-		t.Error("two tokens collided")
-	}
-}
-
-// The prefixes are printed to operators and pasted into installers, so pin the
-// literals: changing them is a rename, not an implementation detail.
-func TestTokenPrefixesAreReeveBranded(t *testing.T) {
-	if TokenPrefix != "rvt_" {
-		t.Errorf("TokenPrefix = %q, want rvt_", TokenPrefix)
-	}
+// The prefix is printed to operators and pasted into installers, so pin the
+// literal: changing it is a rename, not an implementation detail.
+func TestAgentTokenPrefixIsReeveBranded(t *testing.T) {
 	if AgentTokenPrefix != "rva_" {
 		t.Errorf("AgentTokenPrefix = %q, want rva_", AgentTokenPrefix)
 	}

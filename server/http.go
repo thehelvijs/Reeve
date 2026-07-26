@@ -161,7 +161,7 @@ func (a *app) principalFromRequest(r *http.Request) (auth.Principal, bool) {
 		sess, err := a.db.GetSession(c.Value)
 		if err == nil {
 			if u, err := a.activeUser(sess.UserID); err == nil {
-				return auth.PrincipalFromUser(u, false), true
+				return auth.PrincipalFromUser(u), true
 			}
 		}
 	}

@@ -11,9 +11,11 @@ services:
       dockerfile: deploy/Dockerfile.server
     image: reeve:source
     ports:
-      # Host port is overridable so a second instance can run alongside one that
-      # already holds 8080.
-      - "${REEVE_PORT:-8080}:8080"
+      # Bound to loopback by default so a fresh `up -d` is never reachable from
+      # the network by accident. Set REEVE_BIND to the LAN address the team
+      # reaches this on, e.g. REEVE_BIND=192.168.1.10. The port is overridable
+      # so a second instance can run alongside one that already holds 8080.
+      - "${REEVE_BIND:-127.0.0.1}:${REEVE_PORT:-8080}:8080"
     environment:
       # Required. Generate once: openssl rand -base64 32
       REEVE_MASTER_KEY: ${REEVE_MASTER_KEY:?set REEVE_MASTER_KEY in .env}

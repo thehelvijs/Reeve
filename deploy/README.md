@@ -88,10 +88,13 @@ database and stages an uploaded one (applied on the next restart). Credential
 ciphertext travels inside it; the master key does not, so store the key
 separately or the backup is unreadable.
 
-**LAN binding.** The compose file maps `8080:8080` for convenience. In
-production, bind to a specific LAN interface so the server is unreachable from
-outside — change the port mapping to `"<lan-ip>:8080:8080"` and put it behind
-your firewall / reverse proxy as usual.
+**LAN binding.** The compose file publishes on `127.0.0.1:8080` by default, so a
+fresh instance is not reachable from the network until you say so. Set
+`REEVE_BIND` to the LAN interface the team reaches it on (`REEVE_BIND=192.168.1.10`)
+and put it behind your firewall / reverse proxy as usual. Behind a proxy, also
+set `REEVE_TRUST_PROXY=true` so the login throttle and the credential-reveal
+audit see the real client address instead of the proxy's — and only then, since
+the header is forgeable by anyone who can reach the server directly.
 
 ## Coolify
 
