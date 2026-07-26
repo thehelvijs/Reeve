@@ -61,6 +61,14 @@ func TestGatherCollectsConcurrently(t *testing.T) {
 	if push.Metrics.MemTotal == 0 {
 		t.Error("host metrics missing: MemTotal is zero")
 	}
+	if !push.AutoUpdateVetoed {
+		t.Error("REEVE_AUTO_UPDATE=false was not reported to the server")
+	}
+
+	push = gather("test", config{AutoUpdate: true})
+	if push.AutoUpdateVetoed {
+		t.Error("a host with auto-update on reported a veto")
+	}
 }
 
 func TestRunCmdHonorsTimeout(t *testing.T) {

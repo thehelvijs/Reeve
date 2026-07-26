@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/thehelvijs/Reeve/contracts"
@@ -46,13 +47,24 @@ func TestMalformedAckIsNotContact(t *testing.T) {
 	}
 }
 
-func TestGatherReportsTheLocalVeto(t *testing.T) {
-	push := gather("1.0.0", config{AutoUpdate: false})
-	if !push.AutoUpdateVetoed {
-		t.Error("REEVE_AUTO_UPDATE=false was not reported to the server")
+func TestNon2xxBuffersThePush(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
+	p.bufferDir = t.TempDir()
+
+	_, err := p.send(contracts.Push{ProtocolVersion: contracts.PushProtocolVersion})
+	if err == nil {
+		t.Fatal("send returned no error for a 400 response")
 	}
-	push = gather("1.0.0", config{AutoUpdate: true})
-	if push.AutoUpdateVetoed {
-		t.Error("a host with auto-update on reported a veto")
+	entries, readErr := os.ReadDir(p.bufferDir)
+	if readErr != nil {
+		t.Fatalf("ReadDir: %v", readErr)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("buffered files = %d, want 1", len(entries))
 	}
 }

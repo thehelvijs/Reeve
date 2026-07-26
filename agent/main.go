@@ -72,17 +72,7 @@ func main() {
 	var lastAck time.Time
 
 	run := func() {
-		p.flushBuffer()
-		ack, err := p.send(gather(version, cfg))
-		if err != nil {
-			log.Printf("push failed (buffered): %v", err)
-			return
-		}
-		if ack == nil {
-			return
-		}
-		lastAck = time.Now()
-		if shouldAckUpdate(cfg.AutoUpdate, ack) {
+		if runOnce(p, cfg, version, &lastAck) {
 			go runSelfUpdate(cfg, &updating)
 		}
 	}
@@ -97,6 +87,24 @@ func main() {
 			}
 		}
 	}
+}
+
+// runOnce flushes the buffer, pushes one telemetry snapshot, stamps lastAck on
+// any real ack, and reports whether the ack asks for a self-update this host
+// is willing to run.
+func runOnce(p *pusher, cfg config, version string, lastAck *time.Time) bool {
+	p.flushBuffer()
+	ack, err := p.send(gather(version, cfg))
+	if err != nil {
+		log.Printf("push failed (buffered): %v", err)
+		return false
+	}
+	if ack == nil {
+		log.Print("push acked with no usable body; self-update pacing falls back to the hourly ticker")
+		return false
+	}
+	*lastAck = time.Now()
+	return shouldAckUpdate(cfg.AutoUpdate, ack)
 }
 
 // shouldAckUpdate reports whether the server's ack asks for a self-update the

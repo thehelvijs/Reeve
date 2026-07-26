@@ -99,6 +99,7 @@ func (p *pusher) post(body []byte) (*contracts.PushAck, error) {
 	}
 	defer resp.Body.Close()
 	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxAckBytes))
+	io.Copy(io.Discard, resp.Body) // drain past the cap so the connection can be reused
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("ingest returned %d", resp.StatusCode)
 	}
