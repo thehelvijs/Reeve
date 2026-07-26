@@ -146,13 +146,44 @@ func TestFlushBufferKeepsEverythingOnServerError(t *testing.T) {
 	}
 }
 
+// A 401 says the caller isn't authenticated right now, not that the body is
+// bad. During an auth outage (rotated enrollment token, server restored from
+// a backup predating enrollment) the fix must not drop telemetry that would
+// have delivered the moment the token is fixed.
+func TestFlushBufferKeepsEverythingOn401(t *testing.T) {
+	posts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		posts++
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	p := newPusher(config{ServerURL: srv.URL, Token: "t"})
+	p.bufferDir = t.TempDir()
+	seedBuffer(t, p, `{"first":true}`, `{"second":true}`)
+
+	p.flushBuffer()
+
+	entries, err := os.ReadDir(p.bufferDir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Errorf("buffered files after a 401 flush = %d, want 2", len(entries))
+	}
+	if posts != 1 {
+		t.Errorf("posts = %d, want 1: the flush must stop at the first retryable failure", posts)
+	}
+}
+
 func TestPermanentRejectSpansOnlyNonRetryable4xx(t *testing.T) {
 	cases := []struct {
 		err  error
 		want bool
 	}{
 		{&statusError{code: http.StatusBadRequest}, true},
-		{&statusError{code: http.StatusUnauthorized}, true},
+		{&statusError{code: http.StatusUnauthorized}, false},
+		{&statusError{code: http.StatusForbidden}, false},
 		{&statusError{code: http.StatusRequestTimeout}, false},
 		{&statusError{code: http.StatusTooManyRequests}, false},
 		{&statusError{code: http.StatusInternalServerError}, false},

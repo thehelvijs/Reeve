@@ -57,13 +57,17 @@ func (e *statusError) Error() string {
 
 // permanentReject reports whether err means the server will refuse this exact
 // body however often it is replayed, so keeping it only blocks the queue behind
-// it. 408 and 429 are 4xx but ask for a retry, so they are not permanent.
+// it. 408 and 429 ask for a retry, and 401/403 say the caller isn't
+// authenticated right now, not that the body is bad, so none of the four are
+// permanent.
 func permanentReject(err error) bool {
 	var se *statusError
 	if !errors.As(err, &se) {
 		return false
 	}
-	if se.code == http.StatusRequestTimeout || se.code == http.StatusTooManyRequests {
+	switch se.code {
+	case http.StatusRequestTimeout, http.StatusTooManyRequests,
+		http.StatusUnauthorized, http.StatusForbidden:
 		return false
 	}
 	return se.code >= 400 && se.code < 500
