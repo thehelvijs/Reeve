@@ -8,6 +8,7 @@ import Chevron from '../components/Chevron';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton } from '../components/Skeleton';
+import VisibilityToggle from '../components/VisibilityToggle';
 import { useResource } from '../lib/cache';
 
 export default function Catalog() {
@@ -28,7 +29,7 @@ export default function Catalog() {
       .catch(() => setCollections([]));
   }, []);
 
-  const { data, loading } = useResource<Tool[]>(
+  const { data, loading, refresh } = useResource<Tool[]>(
     '/api/tools',
     () => api.get<Tool[]>('/api/tools'),
     15000,
@@ -100,15 +101,15 @@ export default function Catalog() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-content">{t.name}</p>
                   <p className="truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
-                  {(t.collections.length > 0 || t.visibility === 'restricted') && (
+                  {t.collections.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {t.collections.map((c) => (
                         <Pill key={c.id}>{c.name}</Pill>
                       ))}
-                      {t.visibility === 'restricted' && <Pill tone="down">restricted</Pill>}
                     </div>
                   )}
                 </div>
+                <VisibilityToggle tool={t} onChanged={refresh} />
                 <StatusPill status={t.status} />
                 {t.can_edit && (
                   <button

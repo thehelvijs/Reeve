@@ -11,6 +11,7 @@ import PortalGraph from '../components/PortalGraph';
 import CollectionInfoModal from '../components/CollectionInfoModal';
 import HostInfoModal from '../components/HostInfoModal';
 import ToolInfoModal from '../components/ToolInfoModal';
+import VisibilityToggle from '../components/VisibilityToggle';
 import { groupToolsByCollection, groupToolsByHost } from '../lib/group';
 import { SOURCE_URL, UI_VERSION } from '../version';
 
@@ -108,6 +109,8 @@ export default function Portal() {
       setSelected({ kind: 'tool', tool: t });
     }
   };
+  const replaceTool = (next: Tool) => setTools((all) => all.map((t) => (t.id === next.id ? next : t)));
+
   const openHost = (id: string) => {
     const h = hosts.find((x) => x.id === id);
     if (h) {
@@ -247,7 +250,10 @@ export default function Portal() {
                   <Card className="flex h-full flex-col px-4 py-3 transition-colors hover:bg-surface-2">
                     <div className="flex items-start justify-between gap-2">
                       <EntityIcon url={t.icon_url} name={t.name} size={36} />
-                      <StatusPill status={t.status} />
+                      <div className="flex items-center gap-1.5">
+                        <VisibilityToggle tool={t} onChanged={replaceTool} />
+                        <StatusPill status={t.status} />
+                      </div>
                     </div>
                     <p className="mt-2 truncate text-sm font-medium text-content">{t.name}</p>
                     <p className="truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
