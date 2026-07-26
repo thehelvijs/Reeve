@@ -13,10 +13,21 @@ export default defineConfig({
   timeout: 30_000,
   fullyParallel: false,
   workers: 1,
+  // A CI failure should arrive with the evidence attached rather than a stack
+  // trace alone; the html report is uploaded as an artifact by the workflow.
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // Text antialiasing differs by a pixel or two between machines, so an exact
+  // match would fail on every developer's box. A real layout break moves far
+  // more than 1% of the frame.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: {
     baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
     channel: 'chrome',
+    // A fixed frame, or every snapshot would be baselined against whatever
+    // window the last run happened to use.
+    viewport: { width: 1280, height: 800 },
     // Specs that drive the API directly reuse the browser's session cookie, so
     // they have to look like the browser to the server's same-origin check. A
     // page's own requests already carry this same value.

@@ -4,6 +4,24 @@ Run through this with Playwright (screenshots + real clicks) after ANY frontend
 change, including areas not touched. Passing typecheck/lint/build/e2e is NOT a
 substitute — look at the screenshots and actually click things.
 
+## What is now automated
+
+Two specs cover part of this list, so a regression in them fails the build
+rather than waiting for someone to notice:
+
+- `zzz-visual.spec.ts` — pixel baselines for the three portal views, the modal
+  over the list and over the map, and every authed page including ones a change
+  did not touch. Data is masked and layout is asserted; regenerate baselines
+  with `npm --prefix web run e2e -- --update-snapshots` and **look at the
+  diff before accepting it**.
+- `zzz-a11y.spec.ts` — axe against WCAG 2 A/AA on the portal, sign-in, the main
+  authed pages and an open modal.
+
+Neither replaces the sweep below. A snapshot cannot tell you the layout is
+*good*, only that it has not changed, and axe checks only what a machine can.
+`/admin/server` has no baseline on purpose: it renders the live state of the
+machine the suite runs on.
+
 `playwright.config.ts` always runs the e2e backend on `REEVE_DEV_PORT=8099` (it
 sets the variable itself, unconditionally), so it never collides with `8080`,
 which `npm run dev` uses by default and which a locally deployed Reeve
