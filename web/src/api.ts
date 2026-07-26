@@ -198,6 +198,8 @@ export type ToolStatus = 'up' | 'down' | 'agent_offline' | 'unknown';
 export interface Tool {
   id: string;
   name: string;
+  // The name in /go/<slug>, the link that survives a host address change.
+  slug: string;
   description: string;
   collections: CollectionRef[];
   tags: string[];
@@ -342,6 +344,8 @@ export interface Host {
   name: string;
   os: string;
   physical_location?: string;
+  // Where the agent last reported this host to be. Empty until it first pushes.
+  ip_address: string;
   agent_version: string;
   status: 'online' | 'offline' | 'never';
   last_seen_at?: string;
@@ -382,12 +386,24 @@ export const CREDENTIAL_FIELDS: Record<CredentialType, string[]> = {
   kv: [],
 };
 
-// endpointString renders a tool's address as a copyable URL/host:port.
+// endpointString renders a tool's address as a copyable URL/host:port. A tool
+// with no address of its own follows its host, and only the server knows where
+// that host currently is, so this renders a placeholder rather than a wrong
+// answer; goURL is what to link to.
 export function endpointString(t: Tool): string {
   if (t.url) {
     return t.url;
   }
+  if (!t.address) {
+    return t.host_id ? 'follows this host' : '';
+  }
   const scheme = t.scheme ? `${t.scheme}://` : '';
   const port = t.port ? `:${t.port}` : '';
   return `${scheme}${t.address}${port}`;
+}
+
+// goURL is the durable link to a tool: the server resolves it at click time,
+// so it keeps working after the host's address changes.
+export function goURL(t: Pick<Tool, 'slug'>): string {
+  return `/go/${t.slug}`;
 }

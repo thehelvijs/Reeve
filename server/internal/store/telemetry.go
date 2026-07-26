@@ -39,14 +39,17 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 			return err
 		}
 		// A host that vetoes locally will never take the update, so its slot is
-		// released in the same write that records the veto.
+		// released in the same write that records the veto. An empty reported
+		// address keeps the last known one: a collector that could not answer
+		// this tick is not evidence the host moved.
 		_, err := tx.Exec(
 			`UPDATE hosts
 			 SET last_seen_at = ?, agent_version = ?, auto_update_vetoed = ?,
+			     ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END,
 			     update_started_at = CASE WHEN ? THEN NULL ELSE update_started_at END
 			 WHERE id = ?`,
 			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, p.AutoUpdateVetoed,
-			p.AutoUpdateVetoed, hostID)
+			p.IPAddress, p.IPAddress, p.AutoUpdateVetoed, hostID)
 		return err
 	})
 }

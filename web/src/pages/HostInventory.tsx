@@ -201,7 +201,10 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-content">Agent</p>
-          <p className="mt-1 text-xs text-muted">Version {versionText}</p>
+          <p className="mt-1 text-xs text-muted">
+            Version {versionText}
+            {host.ip_address && <> · reporting from <span className="font-mono">{host.ip_address}</span></>}
+          </p>
         </div>
         <Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>
       </div>

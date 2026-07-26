@@ -84,6 +84,10 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/public/hosts", a.handleListPublicHosts)
 	mux.HandleFunc("GET /api/v1/public/collections", a.handleListPublicCollections)
 	mux.HandleFunc("GET /api/v1/collections/{id}/icon", a.handleServeCollectionIcon)
+	// Short, durable URLs for a tool wherever it currently is. Public tools
+	// answer anonymously; the handlers gate the rest.
+	mux.HandleFunc("GET /go/{slug}", a.handleGoToTool)
+	mux.HandleFunc("GET /api/v1/endpoints/{slug}", a.handleGetEndpoint)
 	mux.HandleFunc("GET /install.sh", a.handleInstallScript)
 	mux.HandleFunc("GET /uninstall.sh", a.handleUninstallScript)
 	mux.HandleFunc("GET /dl/{filename}", a.handleAgentDownload)

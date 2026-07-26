@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"runtime"
 	"testing"
@@ -85,5 +88,42 @@ func TestRunCmdHonorsTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Errorf("runCmd took %s, want it killed near the timeout", elapsed)
+	}
+}
+
+// A loopback server means the route is loopback, and 127.0.0.1 is no use to
+// anyone else's browser, so the collector reports nothing rather than that.
+func TestLocalIPForIgnoresALoopbackRoute(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	defer srv.Close()
+
+	if got := localIPFor(srv.URL); got != "" {
+		t.Errorf("localIPFor(loopback server) = %q, want an empty string", got)
+	}
+}
+
+// Against an off-machine server the reported address is this host's own
+// routable one, which is what a browser on the same network can reach.
+func TestLocalIPForReportsTheOutboundAddress(t *testing.T) {
+	// TEST-NET-1, per RFC 5737. A UDP "connect" sends nothing, so this only
+	// asks the kernel which source address it would route from.
+	got := localIPFor("http://192.0.2.1:8080")
+	if got == "" {
+		t.Skip("no route off this machine")
+	}
+	ip := net.ParseIP(got)
+	if ip == nil {
+		t.Fatalf("localIPFor = %q, which is not an IP", got)
+	}
+	if ip.IsLoopback() || ip.IsUnspecified() {
+		t.Errorf("localIPFor = %q, want a routable address", got)
+	}
+}
+
+func TestLocalIPForRejectsUnusableServerURLs(t *testing.T) {
+	for _, url := range []string{"", "not a url", "://missing-scheme", "http://"} {
+		if got := localIPFor(url); got != "" {
+			t.Errorf("localIPFor(%q) = %q, want an empty string", url, got)
+		}
 	}
 }

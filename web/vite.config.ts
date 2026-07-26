@@ -17,6 +17,9 @@ export default defineConfig({
     proxy: {
       '/api': `http://127.0.0.1:${devPort}`,
       '/healthz': `http://127.0.0.1:${devPort}`,
+      // Short links are resolved and redirected by the server, so the dev
+      // server must hand them over rather than answering with the SPA shell.
+      '/go': `http://127.0.0.1:${devPort}`,
     },
   },
 });

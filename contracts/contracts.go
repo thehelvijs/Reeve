@@ -25,7 +25,11 @@ type Push struct {
 	ProtocolVersion  int               `json:"protocol_version"`
 	AgentVersion     string            `json:"agent_version"`
 	AutoUpdateVetoed bool              `json:"auto_update_vetoed"`
-	SentAt           time.Time         `json:"sent_at"`
+	// IPAddress is the host's address on the route to the server, so a tool
+	// pinned to this host can be reached after its DHCP lease changes. Empty
+	// when the agent could not work it out.
+	IPAddress string    `json:"ip_address"`
+	SentAt    time.Time `json:"sent_at"`
 	Services         []ServiceState    `json:"services"`
 	Containers       []ContainerState  `json:"containers"`
 	CronJobs         []CronState       `json:"cron_jobs"`

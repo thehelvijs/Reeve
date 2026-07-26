@@ -30,6 +30,7 @@ export default function HostInfoModal({
           <p className="truncate text-base font-medium text-content">{host.name}</p>
           <p className="text-xs text-muted">
             {host.os || 'host'}
+            {host.ip_address ? ` · ${host.ip_address}` : ''}
             {host.latitude != null && host.longitude != null
               ? ` · ${host.latitude.toFixed(2)}, ${host.longitude.toFixed(2)}`
               : ''}

@@ -15,6 +15,7 @@ type hostView struct {
 	Name             string           `json:"name"`
 	OS               string           `json:"os"`
 	PhysicalLocation string           `json:"physical_location"`
+	IPAddress        string           `json:"ip_address"`
 	AgentVersion     string           `json:"agent_version"`
 	AutoUpdate       string           `json:"auto_update"`
 	UpdateState      string           `json:"update_state"`
@@ -46,6 +47,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 	return hostView{
 		ID: h.ID, Name: h.Name, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
 		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate,
+		IPAddress:   h.IPAddress,
 		UpdateState: updateStateFor(h, uc, now),
 		Status:      hostStatus(h, now), LastSeenAt: last,
 		IconURL: iconURL("hosts", h.ID, h.IconPath), ThumbnailURL: thumbnailURL("hosts", h.ID, h.ThumbnailPath),

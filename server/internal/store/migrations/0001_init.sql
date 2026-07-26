@@ -57,6 +57,9 @@ CREATE TABLE hosts (
     latitude           REAL,
     longitude          REAL,
     enroll_token_hash  TEXT NOT NULL UNIQUE,
+    -- The address the agent last reported, on the route from this host to the
+    -- server. Tools on this host with no address of their own follow it.
+    ip_address         TEXT NOT NULL DEFAULT '',
     agent_version      TEXT NOT NULL DEFAULT '',
     auto_update        TEXT NOT NULL DEFAULT 'default'
                          CHECK (auto_update IN ('default','on','off')),
@@ -72,6 +75,8 @@ CREATE TABLE hosts (
 CREATE TABLE tools (
     id                TEXT PRIMARY KEY,
     name              TEXT NOT NULL,
+    -- The name in /go/<slug>. Unique so one short URL means one tool.
+    slug              TEXT NOT NULL UNIQUE,
     description       TEXT NOT NULL DEFAULT '',
     tags              TEXT NOT NULL DEFAULT '[]',
     scheme            TEXT NOT NULL DEFAULT '',

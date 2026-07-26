@@ -34,7 +34,7 @@ Query params: `search`, `collection` (a collection id, not a name), `host`,
 ```json
 [
   {
-    "id": "…", "name": "Grafana", "description": "",
+    "id": "…", "name": "Grafana", "slug": "grafana", "description": "",
     "collections": [{"id": "…", "name": "Metrics", "icon_url": "…"}],
     "tags": ["prod"], "scheme": "https", "address": "10.0.0.5", "port": 3000,
     "url": "", "physical_location": "", "host_id": "…",
@@ -62,17 +62,65 @@ invalid_collection`, and on create the tool is not kept. The `collections`
 array in every tool response is filtered to the collections that caller may
 see, so two callers can get different arrays for the same tool.
 
+### `POST /api/v1/tools` — the `slug`
+
+`slug` is the name in `/go/<slug>` and is unique across the catalog. Omit it
+and the server derives one from the name (`Paperless-ngx` → `paperless-ngx`),
+adding `-2`, `-3` on collision. Supply one and it is taken literally: a
+collision is `409 slug_taken` rather than a silent rename, because it is a URL
+the caller is about to share. A slug with no letter or digit in it is `400
+invalid_slug`. A `PATCH` that omits `slug` leaves it alone, so renaming a tool
+never moves a link someone has bookmarked.
+
 ### `GET /api/v1/public/tools` (no auth)
 
 The unauthenticated portal surface. Returns only tools with `visibility: "public"`
 (now defined as **anonymous-visible on the LAN**). A reduced DTO, not the same
 shape as `GET /api/v1/tools`: `id`, `name`, `description`, `collections`,
-`tags`, `scheme`, `address`, `port`, `url`, `physical_location`, `host_id`,
-`source_type`, `status`. It omits `creator_id`, `source_ref`, `visibility`,
+`slug`, `tags`, `scheme`, `address`, `port`, `url`, `physical_location`,
+`host_id`, `source_type`, `status`. It omits `creator_id`, `source_ref`, `visibility`,
 `can_edit`, and `log_alert_enabled`. Query params: `search`, `collection`,
 `host`, `source_type`. Credentials are **never** included. Restricted tools
 are never returned. `collections` carries public collections only, since the
 caller is anonymous.
+
+## Resolving where a service is
+
+A tool with no `address` and no `url` follows its host: the agent reports the
+host's own address on the route to the server on every push, and the server
+resolves it at request time. That keeps a link working when the host's DHCP
+lease changes. A tool that has an `address` or a `url` of its own always uses
+it — the fallback only fills a blank.
+
+### `GET /go/{slug}` (no auth for public tools)
+
+`302` to wherever the tool is now, with the resolved URL in `Location`. This is
+the link worth bookmarking or sharing.
+
+- `404` when the slug is unknown **or** the caller may not see the tool, so the
+  route cannot be used to enumerate the catalog.
+- `409 no_endpoint` when the tool has no URL, no address, and no host that has
+  reported one.
+- A host that is offline still redirects to the last address it reported: a
+  stale answer beats no answer.
+
+### `GET /api/v1/endpoints/{slug}` (no auth for public tools)
+
+The same resolution as JSON, for scripts and for the UI.
+
+```json
+{
+  "tool_id": "…", "slug": "grafana",
+  "url": "http://192.168.1.42:3000",
+  "scheme": "http", "address": "192.168.1.42", "port": 3000,
+  "host_id": "…", "host_ip": "192.168.1.42",
+  "source": "host",          // url | address | host
+  "host_online": true
+}
+```
+
+`source` says which rule answered, so a caller can tell a pinned tool from one
+following its host. Same `404` and `409` semantics as `/go/{slug}`.
 
 ## Collections
 
@@ -247,6 +295,9 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 or wrong-protocol pushes with the standard error envelope.
 
 The agent reports `auto_update_vetoed` (`true` when the host set
-`REEVE_AUTO_UPDATE=false` and will refuse any update). The endpoint replies
+`REEVE_AUTO_UPDATE=false` and will refuse any update) and `ip_address`, the
+host's own address on the route to this server. An empty `ip_address` leaves
+the stored one alone: a tick that could not work the address out is not
+evidence the host moved. The endpoint replies
 `200` with `{"check_now": bool}` (a `contracts.PushAck`), where `check_now` is
 the server's instruction to run a self-update immediately.

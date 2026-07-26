@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   api,
   endpointString,
+  goURL,
   type AdminUser,
   type Group,
   type Tool,
@@ -47,7 +48,7 @@ export default function ToolDetail() {
     if (!tool) {
       return;
     }
-    await navigator.clipboard.writeText(endpointString(tool));
+    await navigator.clipboard.writeText(new URL(goURL(tool), window.location.origin).toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -97,14 +98,24 @@ export default function ToolDetail() {
       )}
 
       <Card className="mt-6 p-5">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-xs text-muted">Endpoint</p>
             <code className="font-mono text-sm text-content">{endpointString(tool) || '—'}</code>
+            <p className="mt-2 text-xs text-muted">
+              Share this link instead — it resolves at click time, so it keeps working when the
+              host&rsquo;s address changes:
+            </p>
+            <code className="font-mono text-xs text-content">{goURL(tool)}</code>
           </div>
-          <Button variant="secondary" onClick={copy}>
-            {copied ? 'Copied' : 'Copy'}
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={copy}>
+              {copied ? 'Copied' : 'Copy link'}
+            </Button>
+            <a href={goURL(tool)} target="_blank" rel="noreferrer">
+              <Button>Open</Button>
+            </a>
+          </div>
         </div>
       </Card>
 

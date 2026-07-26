@@ -196,7 +196,7 @@ func (s *statusRecorder) WriteHeader(code int) {
 // Those are the requests worth an access-log line, and the only ones that can
 // carry a principal, so a static asset costs no session lookup.
 func dynamicRequest(path string) bool {
-	if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/dl/") {
+	if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/dl/") || strings.HasPrefix(path, "/go/") {
 		return true
 	}
 	return path == "/install.sh" || path == "/uninstall.sh"
