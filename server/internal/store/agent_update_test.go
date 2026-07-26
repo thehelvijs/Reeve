@@ -59,6 +59,121 @@ func TestApplyPushRecordsVeto(t *testing.T) {
 	}
 }
 
+// The owner may veto after the server already granted the host a slot. Keeping
+// that slot halts every other host behind a row the UI renders "updates off".
+func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
+	db := openTemp(t)
+	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	db.StartHostUpdate(h.ID, time.Now().UTC())
+
+	vetoed := contracts.Push{ProtocolVersion: contracts.PushProtocolVersion, AgentVersion: "0.1.0", AutoUpdateVetoed: true}
+	if err := db.ApplyPush(h.ID, vetoed, time.Now().UTC()); err != nil {
+		t.Fatalf("apply push: %v", err)
+	}
+	got, _ := db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Fatal("a vetoing push kept its rollout slot")
+	}
+
+	// A push without a veto must leave a live slot alone, or every heartbeat
+	// would cancel the update the host is in the middle of.
+	db.StartHostUpdate(h.ID, time.Now().UTC())
+	plain := contracts.Push{ProtocolVersion: contracts.PushProtocolVersion, AgentVersion: "0.1.0"}
+	if err := db.ApplyPush(h.ID, plain, time.Now().UTC()); err != nil {
+		t.Fatalf("apply push: %v", err)
+	}
+	got, _ = db.GetHost(h.ID)
+	if got.UpdateStartedAt == nil {
+		t.Error("an ordinary push released a live rollout slot")
+	}
+}
+
+// "Never update" is how an admin takes a slow host out of the rollout. If the
+// slot survived, the rollout would stay wedged on a host reading "updates off".
+func TestSetHostAutoUpdateOffReleasesTheSlot(t *testing.T) {
+	db := openTemp(t)
+	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	db.StartHostUpdate(h.ID, time.Now().UTC())
+
+	if err := db.SetHostAutoUpdate(h.ID, AutoUpdateOff); err != nil {
+		t.Fatalf("set policy: %v", err)
+	}
+	got, _ := db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Fatal("setting the policy off kept the rollout slot")
+	}
+
+	// Switching back on must not resurrect or invent a slot.
+	db.StartHostUpdate(h.ID, time.Now().UTC())
+	if err := db.SetHostAutoUpdate(h.ID, AutoUpdateOn); err != nil {
+		t.Fatalf("set policy on: %v", err)
+	}
+	got, _ = db.GetHost(h.ID)
+	if got.UpdateStartedAt == nil {
+		t.Error("setting the policy on released a live slot")
+	}
+}
+
+// A slot on a host that can no longer update is dangling. It must neither be
+// named as stalled nor block a grant, or one ineligible host halts the fleet.
+func TestIneligibleHostsDoNotHoldTheRollout(t *testing.T) {
+	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	later := started.Add(time.Hour)
+	cutoff := later.Add(-15 * time.Minute)
+
+	cases := []struct {
+		name  string
+		spoil func(db *DB, id string)
+	}{
+		{"policy off", func(db *DB, id string) {
+			db.exec1(`UPDATE hosts SET auto_update = ? WHERE id = ?`, AutoUpdateOff, id)
+		}},
+		{"vetoed on the host", func(db *DB, id string) {
+			db.exec1(`UPDATE hosts SET auto_update_vetoed = 1 WHERE id = ?`, id)
+		}},
+	}
+	for _, c := range cases {
+		db := openTemp(t)
+		dangling, _ := db.CreateHost("dangling", "linux", "", "hash-d", 60)
+		next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
+		db.StartHostUpdate(dangling.ID, started)
+		c.spoil(db, dangling.ID)
+
+		stalled, err := db.ListStalledHosts(cutoff)
+		if err != nil {
+			t.Fatalf("%s: list stalled: %v", c.name, err)
+		}
+		if len(stalled) != 0 {
+			t.Errorf("%s: stalled = %+v, want none", c.name, stalled)
+		}
+		ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 1)
+		if err != nil {
+			t.Fatalf("%s: try start: %v", c.name, err)
+		}
+		if !ok {
+			t.Errorf("%s: a dangling slot blocked a grant", c.name)
+		}
+	}
+}
+
+// Resume is deliberately blind to policy, so it also sweeps dangling slots the
+// blocking queries already ignore.
+func TestClearStalledUpdatesSweepsIneligibleHostsToo(t *testing.T) {
+	db := openTemp(t)
+	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	db.StartHostUpdate(h.ID, started)
+	db.exec1(`UPDATE hosts SET auto_update_vetoed = 1 WHERE id = ?`, h.ID)
+
+	if err := db.ClearStalledUpdates(started.Add(time.Hour)); err != nil {
+		t.Fatalf("clear stalled: %v", err)
+	}
+	got, _ := db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Error("resume left a dangling slot on an ineligible host")
+	}
+}
+
 func TestUpdateSlotLifecycle(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
@@ -69,12 +184,12 @@ func TestUpdateSlotLifecycle(t *testing.T) {
 	if err := db.StartHostUpdate(h.ID, now); err != nil {
 		t.Fatalf("start update: %v", err)
 	}
-	names, err := db.ListStalledHostNames(cutoff)
+	stalled, err := db.ListStalledHosts(cutoff)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
-	if len(names) != 0 {
-		t.Errorf("stalled names = %v, want none: the slot is still live", names)
+	if len(stalled) != 0 {
+		t.Errorf("stalled = %v, want none: the slot is still live", stalled)
 	}
 	if ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1); err != nil {
 		t.Fatalf("try start: %v", err)
@@ -102,20 +217,20 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 
 	db.StartHostUpdate(h.ID, started)
 
-	names, err := db.ListStalledHostNames(cutoff)
+	stalled, err := db.ListStalledHosts(cutoff)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
-	if len(names) != 1 || names[0] != "web-1" {
-		t.Errorf("stalled names = %v, want [web-1]", names)
+	if len(stalled) != 1 || stalled[0].Name != "web-1" || stalled[0].ID != h.ID {
+		t.Errorf("stalled = %+v, want the web-1 row with its id", stalled)
 	}
 
 	if err := db.ClearStalledUpdates(cutoff); err != nil {
 		t.Fatalf("clear stalled: %v", err)
 	}
-	names, _ = db.ListStalledHostNames(cutoff)
-	if len(names) != 0 {
-		t.Errorf("stalled names after clear = %v, want none", names)
+	stalled, _ = db.ListStalledHosts(cutoff)
+	if len(stalled) != 0 {
+		t.Errorf("stalled after clear = %+v, want none", stalled)
 	}
 }
 
@@ -130,12 +245,12 @@ func TestSlotStampsCompareCorrectlyAcrossFractions(t *testing.T) {
 	db.StartHostUpdate(early.ID, base.Add(500*time.Millisecond))
 	db.StartHostUpdate(late.ID, base.Add(2*time.Second))
 
-	names, err := db.ListStalledHostNames(base.Add(time.Second))
+	stalled, err := db.ListStalledHosts(base.Add(time.Second))
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
 	}
-	if len(names) != 1 || names[0] != "early" {
-		t.Errorf("stalled names = %v, want [early] (only the earlier stamp)", names)
+	if len(stalled) != 1 || stalled[0].Name != "early" {
+		t.Errorf("stalled = %+v, want only the earlier stamp", stalled)
 	}
 }
 

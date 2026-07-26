@@ -8,10 +8,10 @@ import (
 )
 
 type agentUpdateRollup struct {
-	ServerVersion string         `json:"server_version"`
-	Counts        map[string]int `json:"counts"`
-	Paused        bool           `json:"paused"`
-	Stalled       []string       `json:"stalled"`
+	ServerVersion string              `json:"server_version"`
+	Counts        map[string]int      `json:"counts"`
+	Paused        bool                `json:"paused"`
+	Stalled       []store.StalledHost `json:"stalled"`
 }
 
 // handleGetAgentUpdates reports fleet agent versions and rollout health.
@@ -34,7 +34,7 @@ func (a *app) handleGetAgentUpdates(w http.ResponseWriter, _ *http.Request) {
 	for _, h := range hosts {
 		counts[updateStateFor(h, uc, now)]++
 	}
-	stalled, err := a.db.ListStalledHostNames(now.Add(-uc.Stall))
+	stalled, err := a.db.ListStalledHosts(now.Add(-uc.Stall))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read rollout state")
 		return
@@ -102,6 +102,11 @@ func (a *app) handleHostUpdateNow(w http.ResponseWriter, r *http.Request) {
 	}
 	if !effectiveAutoUpdate(h.AutoUpdate, a.agentUpdateConfig().Enabled) {
 		writeError(w, http.StatusConflict, "update_disabled", "auto-update is off for this host")
+		return
+	}
+	if !versionComparable(a.cfg.Version) || !versionComparable(h.AgentVersion) {
+		writeError(w, http.StatusConflict, "version_unknown",
+			"no comparable release version on the server or the host, so there is nothing to update to")
 		return
 	}
 	if h.AgentVersion == a.cfg.Version {

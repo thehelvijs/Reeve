@@ -98,19 +98,24 @@ func updateStateFor(h store.Host, uc updateContext, now time.Time) string {
 	return updateStateStalled
 }
 
+// releaseSlot drops a rollout slot the host is no longer waiting on, in the row
+// and in the caller's copy. A slot nobody is waiting on halts every other host.
+func (a *app) releaseSlot(h *store.Host) {
+	if h.UpdateStartedAt == nil {
+		return
+	}
+	if err := a.db.ClearHostUpdateSlot(h.ID); err != nil {
+		log.Printf("agent update: clear slot for host %s: %v", h.ID, err)
+		return
+	}
+	h.UpdateStartedAt = nil
+}
+
 // decideCheckNow answers one agent's push: may it self-update right now? The
 // reported version and veto come from the push, which is newer than the row.
 // It derives the same updateStateFor an operator sees, so ingest and the host
 // view can never disagree about why a host was or wasn't granted a slot.
 func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, now time.Time) bool {
-	if reportedVersion == a.cfg.Version && h.UpdateStartedAt != nil {
-		if err := a.db.ClearHostUpdateSlot(h.ID); err != nil {
-			log.Printf("agent update: clear slot for host %s: %v", h.ID, err)
-		} else {
-			h.UpdateStartedAt = nil
-		}
-	}
-
 	cfg := a.agentUpdateConfig()
 	uc := updateContext{
 		ServerVersion: a.cfg.Version,
@@ -120,7 +125,12 @@ func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, 
 	h.AgentVersion = reportedVersion
 	h.AutoUpdateVetoed = vetoed
 
-	switch updateStateFor(h, uc, now) {
+	state := updateStateFor(h, uc, now)
+	if state != updateStateUpdating && state != updateStateStalled {
+		a.releaseSlot(&h)
+	}
+
+	switch state {
 	case updateStateUpdating:
 		return true
 	case updateStateOutdated:

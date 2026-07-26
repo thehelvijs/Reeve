@@ -18,8 +18,24 @@ func ValidAutoUpdatePolicy(p string) bool {
 	return p == AutoUpdateDefault || p == AutoUpdateOn || p == AutoUpdateOff
 }
 
-// SetHostAutoUpdate sets a host's auto-update policy override.
+// blockingSlot matches, for the given table alias, a host whose rollout slot
+// still counts toward the fleet. A host that can no longer update is excluded:
+// its slot is dangling, and letting it read as stalled would halt every other
+// host behind a row the UI shows as "updates off".
+func blockingSlot(alias string) string {
+	return alias + `.id != '` + ServerHostID + `'` +
+		` AND ` + alias + `.update_started_at IS NOT NULL` +
+		` AND ` + alias + `.auto_update != '` + AutoUpdateOff + `'` +
+		` AND ` + alias + `.auto_update_vetoed = 0`
+}
+
+// SetHostAutoUpdate sets a host's auto-update policy override. Setting it off
+// also releases any slot the host holds, or a host taken out of the rollout
+// would keep halting it.
 func (db *DB) SetHostAutoUpdate(id, policy string) error {
+	if policy == AutoUpdateOff {
+		return db.exec1(`UPDATE hosts SET auto_update = ?, update_started_at = NULL WHERE id = ?`, policy, id)
+	}
 	return db.exec1(`UPDATE hosts SET auto_update = ? WHERE id = ?`, policy, id)
 }
 
@@ -43,15 +59,15 @@ func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency in
 		WHERE id = ?
 		  AND NOT EXISTS (
 		    SELECT 1 FROM hosts s
-		    WHERE s.id != ? AND s.update_started_at IS NOT NULL AND s.update_started_at < ?
+		    WHERE `+blockingSlot("s")+` AND s.update_started_at < ?
 		  )
 		  AND (
 		    SELECT COUNT(*) FROM hosts l
-		    WHERE l.id != ? AND l.update_started_at IS NOT NULL AND l.update_started_at >= ?
+		    WHERE `+blockingSlot("l")+` AND l.update_started_at >= ?
 		  ) < ?`,
 		at.UTC().Format(slotStamp), id,
-		ServerHostID, cutoff.UTC().Format(slotStamp),
-		ServerHostID, cutoff.UTC().Format(slotStamp), concurrency)
+		cutoff.UTC().Format(slotStamp),
+		cutoff.UTC().Format(slotStamp), concurrency)
 	if err != nil {
 		return false, err
 	}
@@ -62,34 +78,42 @@ func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency in
 	return n == 1, nil
 }
 
-// ListStalledHostNames names the hosts that wedged a rollout, for the UI banner.
-func (db *DB) ListStalledHostNames(cutoff time.Time) ([]string, error) {
+// StalledHost identifies a host that wedged a rollout. The ID lets the UI link
+// the banner straight to the page where an admin can take it out of the rollout.
+type StalledHost struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ListStalledHosts names the hosts that wedged a rollout, for the UI banner.
+func (db *DB) ListStalledHosts(cutoff time.Time) ([]StalledHost, error) {
 	rows, err := db.sql.Query(
-		`SELECT name FROM hosts
-		 WHERE id != ? AND update_started_at IS NOT NULL AND update_started_at < ?
+		`SELECT id, name FROM hosts
+		 WHERE `+blockingSlot("hosts")+` AND update_started_at < ?
 		 ORDER BY name`,
-		ServerHostID, cutoff.UTC().Format(slotStamp))
+		cutoff.UTC().Format(slotStamp))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []string{}
+	out := []StalledHost{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var h StalledHost
+		if err := rows.Scan(&h.ID, &h.Name); err != nil {
 			return nil, err
 		}
-		out = append(out, name)
+		out = append(out, h)
 	}
 	return out, rows.Err()
 }
 
 // ClearStalledUpdates releases every slot stamped before cutoff so a paused
-// rollout can resume.
+// rollout can resume. It is deliberately blind to policy: a dangling slot on a
+// host that can no longer update is exactly what resume should also sweep away.
 func (db *DB) ClearStalledUpdates(cutoff time.Time) error {
 	_, err := db.sql.Exec(
 		`UPDATE hosts SET update_started_at = NULL
-		 WHERE update_started_at IS NOT NULL AND update_started_at < ?`,
-		cutoff.UTC().Format(slotStamp))
+		 WHERE id != ? AND update_started_at IS NOT NULL AND update_started_at < ?`,
+		ServerHostID, cutoff.UTC().Format(slotStamp))
 	return err
 }

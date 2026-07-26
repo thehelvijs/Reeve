@@ -38,9 +38,15 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 		if err := insertLogEvents(tx, hostID, p.LogEvents); err != nil {
 			return err
 		}
+		// A host that vetoes locally will never take the update, so its slot is
+		// released in the same write that records the veto.
 		_, err := tx.Exec(
-			`UPDATE hosts SET last_seen_at = ?, agent_version = ?, auto_update_vetoed = ? WHERE id = ?`,
-			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, p.AutoUpdateVetoed, hostID)
+			`UPDATE hosts
+			 SET last_seen_at = ?, agent_version = ?, auto_update_vetoed = ?,
+			     update_started_at = CASE WHEN ? THEN NULL ELSE update_started_at END
+			 WHERE id = ?`,
+			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, p.AutoUpdateVetoed,
+			p.AutoUpdateVetoed, hostID)
 		return err
 	})
 }

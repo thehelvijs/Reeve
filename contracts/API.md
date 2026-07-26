@@ -163,19 +163,26 @@ Fleet rollout rollup.
 ```json
 {
   "server_version": "1.4.0",
-  "counts": {"up_to_date": 12, "outdated": 2, "updating": 1, "stalled": 0, "disabled": 3, "unknown": 0},
-  "paused": false,
-  "stalled": []
+  "counts": {"up_to_date": 12, "outdated": 2, "updating": 1, "stalled": 1, "disabled": 3, "unknown": 0},
+  "paused": true,
+  "stalled": [{"id": "…", "name": "db-1"}]
 }
 ```
 
 `paused` is `true` whenever `stalled` is non-empty — a stalled host halts the
-rollout for every other host until it's cleared.
+rollout for every other host until it's cleared. `counts.stalled` is always
+greater than zero while `paused` is `true`: a host that can no longer update
+(local veto or a policy of `off`) releases its slot instead of holding one, so
+the banner can never name a host the page renders as fine. Each entry carries
+the host `id` so the banner can link to the page where an admin takes it out of
+the rollout.
 
 ### `POST /api/v1/admin/agent-updates/resume`
 
 Releases every rollout slot stamped before the stall cutoff, un-pausing the
-rollout. `204 No Content`.
+rollout. `204 No Content`. Resume hands the same host its slot back on the next
+push, so a host that genuinely cannot update re-stalls; setting that host's
+policy to `off` is the way to take it out of the rollout for good.
 
 ### `PUT /api/v1/admin/hosts/{id}/auto-update`
 
@@ -191,8 +198,14 @@ and a paused rollout — this is an explicit operator override, not a paced gran
 the host by policy; `409 already_up_to_date` if the host's reported
 `agent_version` already matches the server version — stamping a slot for a
 host with nothing to do would occupy a concurrency slot indefinitely if that
-host is offline, silently pausing the rest of the fleet; `404 not_found` for
-an unknown host.
+host is offline, silently pausing the rest of the fleet;
+`409 version_unknown` if the server or the host is on a `dev` build or the host
+has never reported, since a slot granted against an incomparable version can
+never clear; `404 not_found` for an unknown host.
+
+Setting the host's policy to `off` also releases any slot it holds, so "Never
+update" reliably takes a host out of a rollout it is wedging. So does a push
+reporting `auto_update_vetoed: true`.
 
 ### Settings: `agent_update`
 
