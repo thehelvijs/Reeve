@@ -20,4 +20,5 @@ python3 -m pytest scripts/ -q
 if git diff --cached --name-only | grep -q '^web/'; then
   npm --prefix web run typecheck
   npm --prefix web run lint
+  npm --prefix web run test
 fi

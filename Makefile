@@ -29,6 +29,7 @@ web-build: web/node_modules
 web-check: web/node_modules
 	npm --prefix web run typecheck
 	npm --prefix web run lint
+	npm --prefix web run test
 
 # Stage host scripts + embedded agent binaries into the server package.
 server-assets:
