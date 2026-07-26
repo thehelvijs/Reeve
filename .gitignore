@@ -35,9 +35,9 @@ build/
 *.db-shm
 .playwright-mcp/
 
-# Playwright e2e artifacts
-web/test-results/
-web/playwright-report/
+# Playwright e2e artifacts, wherever the run was started from
+test-results/
+playwright-report/
 web/.playwright/
 
 # Python

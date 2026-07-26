@@ -13,6 +13,9 @@ fi
 go vet $GO_PKGS
 go test $GO_PKGS
 
+# The release builder and compose config are covered by pytest, not go test.
+python3 -m pytest scripts/ -q
+
 # Web: only when web files are staged (keeps the hook fast otherwise).
 if git diff --cached --name-only | grep -q '^web/'; then
   npm --prefix web run typecheck
