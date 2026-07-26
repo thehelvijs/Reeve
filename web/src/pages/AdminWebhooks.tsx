@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { api, type Severity, type Webhook } from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 
@@ -43,6 +44,8 @@ export default function AdminWebhooks() {
       setError(e instanceof Error ? e.message : 'failed');
     }
   };
+  const [confirming, setConfirming] = useState<Webhook | null>(null);
+
   const remove = async (id: string) => {
     await api.del(`/api/admin/webhooks/${id}`);
     load();
@@ -112,12 +115,22 @@ export default function AdminWebhooks() {
               </div>
               {h.url && <p className="mt-1 truncate font-mono text-xs text-muted">{h.url}</p>}
             </div>
-            <Button variant="danger" onClick={() => remove(h.id)}>
+            <Button variant="danger" onClick={() => setConfirming(h)}>
               Delete
             </Button>
           </Card>
         ))}
       </div>
+
+      {confirming && (
+        <ConfirmModal
+          title="Delete this webhook?"
+          body={`Alerts stop being delivered to ${confirming.url || 'it'}. Nothing already delivered is affected.`}
+          confirmLabel="Delete"
+          onConfirm={() => remove(confirming.id)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
     </div>
   );
 }

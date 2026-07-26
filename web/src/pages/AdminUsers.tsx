@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { api, type AdminUser } from '../api';
 import { useAuth } from '../auth';
 import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
@@ -21,10 +22,9 @@ export default function AdminUsers() {
     load();
   };
 
+  const [confirming, setConfirming] = useState<AdminUser | null>(null);
+
   const remove = async (u: AdminUser) => {
-    if (!window.confirm(`Delete ${u.email}? Their tools and credentials reassign to you. This cannot be undone.`)) {
-      return;
-    }
     await api.del(`/api/admin/users/${u.id}`);
     load();
   };
@@ -68,7 +68,7 @@ export default function AdminUsers() {
                 <Button variant="secondary" disabled={self} onClick={() => setResetting(u)}>
                   Reset password
                 </Button>
-                <Button variant="danger" disabled={self} onClick={() => remove(u)}>
+                <Button variant="danger" disabled={self} onClick={() => setConfirming(u)}>
                   Delete
                 </Button>
               </div>
@@ -77,6 +77,15 @@ export default function AdminUsers() {
         })}
       </div>
 
+      {confirming && (
+        <ConfirmModal
+          title={`Delete ${confirming.email}?`}
+          body="The account is deleted and their services and credentials reassign to you. Their sessions end immediately. This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={() => remove(confirming)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
       {resetting && <ResetPasswordModal user={resetting} onClose={() => setResetting(null)} />}
     </div>
   );

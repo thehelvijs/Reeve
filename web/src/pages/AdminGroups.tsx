@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { api, type AdminUser, type Group } from '../api';
 import { Button, Card, ErrorText, Field, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
@@ -31,6 +32,8 @@ export default function AdminGroups() {
     await api.del(`/api/admin/groups/${groupId}/members/${userId}`);
     load();
   };
+  const [confirming, setConfirming] = useState<Group | null>(null);
+
   const remove = async (groupId: string) => {
     await api.del(`/api/admin/groups/${groupId}`);
     load();
@@ -56,7 +59,7 @@ export default function AdminGroups() {
           <Card key={g.id} className="p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium text-content">{g.name}</h2>
-              <Button variant="danger" onClick={() => remove(g.id)}>
+              <Button variant="danger" onClick={() => setConfirming(g)}>
                 Delete
               </Button>
             </div>
@@ -97,6 +100,16 @@ export default function AdminGroups() {
           </Card>
         ))}
       </div>
+
+      {confirming && (
+        <ConfirmModal
+          title={`Delete ${confirming.name}?`}
+          body="The group is deleted along with every visibility grant and credential access it carries. Its members keep their accounts."
+          confirmLabel="Delete"
+          onConfirm={() => remove(confirming.id)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
 
       {creating && (
         <CreateGroupModal

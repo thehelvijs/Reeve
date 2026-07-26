@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ConfirmModal from './ConfirmModal';
 import { api, type AccessRequest, type Credential, type RevealedCredential } from '../api';
 import { Button, Card } from './ui';
 import CredentialForm from './CredentialForm';
@@ -38,6 +39,8 @@ export default function CredentialsSection({
       setError(e instanceof Error ? e.message : 'reveal failed');
     }
   };
+  const [confirming, setConfirming] = useState<Credential | null>(null);
+
   const remove = async (id: string) => {
     await api.del(`/api/admin/credentials/${id}`);
     load();
@@ -90,7 +93,7 @@ export default function CredentialsSection({
                 </Button>
               )}
               {canManage && (
-                <Button variant="danger" onClick={() => remove(c.id)}>
+                <Button variant="danger" onClick={() => setConfirming(c)}>
                   Delete
                 </Button>
               )}
@@ -108,6 +111,15 @@ export default function CredentialsSection({
             setAdding(false);
             load();
           }}
+        />
+      )}
+      {confirming && (
+        <ConfirmModal
+          title={`Delete ${confirming.label || confirming.type}?`}
+          body="The stored secret is deleted and anyone holding a grant for it loses access. Whoever needs it again has to add it back by hand."
+          confirmLabel="Delete"
+          onConfirm={() => remove(confirming.id)}
+          onClose={() => setConfirming(null)}
         />
       )}
       {revealed && <RevealModal cred={revealed} onClose={() => setRevealed(null)} />}

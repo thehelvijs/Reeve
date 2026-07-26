@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   api,
@@ -35,8 +36,10 @@ export default function ToolDetail() {
     load();
   }, [load]);
 
+  const [confirming, setConfirming] = useState(false);
+
   const remove = async () => {
-    if (!tool || !confirm(`Delete "${tool.name}"?`)) {
+    if (!tool) {
       return;
     }
     await api.del(`/api/tools/${tool.id}`);
@@ -81,12 +84,22 @@ export default function ToolDetail() {
             <Button variant="secondary" onClick={() => navigate(`/catalog/${tool.id}/edit`)}>
               Edit
             </Button>
-            <Button variant="danger" onClick={remove}>
+            <Button variant="danger" onClick={() => setConfirming(true)}>
               Delete
             </Button>
           </div>
         )}
       </div>
+
+      {confirming && (
+        <ConfirmModal
+          title={`Delete ${tool.name}?`}
+          body="The service is removed from the catalog along with its collections, visibility grants and uptime history. The machine it points at is untouched."
+          confirmLabel="Delete"
+          onConfirm={remove}
+          onClose={() => setConfirming(false)}
+        />
+      )}
 
       {tool.thumbnail_url && (
         <img

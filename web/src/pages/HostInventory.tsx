@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
+import { needsConfirm, rowConfirmation } from '../lib/confirmText';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   api,
@@ -39,6 +41,7 @@ export default function HostInventory() {
   const [inv, setInv] = useState<Inv | null>(null);
   const [host, setHost] = useState<Host | null>(null);
   const [metricsKey, setMetricsKey] = useState(0);
+  const [clearing, setClearing] = useState(false);
 
   const load = useCallback(() => {
     api.get<Inv>(`/api/hosts/${id}/inventory`).then(setInv);
@@ -74,12 +77,11 @@ export default function HostInventory() {
   };
 
   const clearMetrics = async () => {
-    if (!id || !window.confirm('Clear all stored metric history for this host? This cannot be undone.')) {
-      return;
-    }
     await api.del(`/api/admin/hosts/${id}/metrics`);
     setMetricsKey((k) => k + 1);
   };
+
+  const hostLabel = host?.name ?? 'this host';
 
   if (!inv) {
     return <p className="text-sm text-muted">Loading…</p>;
@@ -149,13 +151,23 @@ export default function HostInventory() {
         <div className="mt-6">
           {user?.role === 'admin' && (
             <div className="mb-2 flex justify-end">
-              <Button variant="secondary" onClick={clearMetrics}>
+              <Button variant="secondary" onClick={() => setClearing(true)}>
                 Clear metrics
               </Button>
             </div>
           )}
           <HostMetrics key={metricsKey} path={`/api/hosts/${id}/metrics`} />
         </div>
+      )}
+
+      {clearing && (
+        <ConfirmModal
+          title="Clear stored metrics?"
+          body={`Every metric sample, container stat and process average kept for ${hostLabel} is deleted. Current status and inventory stay. This cannot be undone.`}
+          confirmLabel="Clear metrics"
+          onConfirm={clearMetrics}
+          onClose={() => setClearing(false)}
+        />
       )}
 
       {id && <EventHistory path={`/api/hosts/${id}/events`} />}
@@ -167,14 +179,16 @@ export default function HostInventory() {
         items={inv.services}
         onCreate={createFrom}
         control={controlFor('service')}
+        hostName={hostLabel}
       />
       <Section
         title="Containers"
         items={inv.containers}
         onCreate={createFrom}
         control={controlFor('container')}
+        hostName={hostLabel}
       />
-      <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} />
+      <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} hostName={hostLabel} />
 
       {id && host && user?.role === 'admin' && <DeleteHost hostId={id} host={host} />}
     </div>
@@ -354,15 +368,20 @@ function HostThresholds({ hostId }: { hostId: string }) {
 
 // RowControls queues one action for a single unit or container. It reports its
 // own failure inline: a button that silently does nothing is worse than none.
+// Stop and restart ask first — they take whatever is using the unit down with
+// them, and these rows sit close enough together to hit the wrong one.
 function RowControls({
   target,
+  hostName,
   run,
 }: {
   target: string;
+  hostName: string;
   run: (verb: string, target: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState('');
+  const [confirming, setConfirming] = useState('');
 
   const fire = async (verb: string) => {
     setBusy(true);
@@ -371,9 +390,18 @@ function RowControls({
       await run(verb, target);
     } catch (e) {
       setFailed(e instanceof Error ? e.message : 'failed');
+      throw e;
     } finally {
       setBusy(false);
     }
+  };
+
+  const click = (verb: string) => {
+    if (needsConfirm(verb)) {
+      setConfirming(verb);
+      return;
+    }
+    fire(verb).catch(() => undefined);
   };
 
   return (
@@ -384,12 +412,19 @@ function RowControls({
           key={verb}
           type="button"
           disabled={busy}
-          onClick={() => fire(verb)}
+          onClick={() => click(verb)}
           className="rounded-button px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-2 hover:text-content disabled:opacity-50"
         >
           {verb}
         </button>
       ))}
+      {confirming && (
+        <ConfirmModal
+          {...rowConfirmation(confirming, target, hostName)}
+          onConfirm={() => fire(confirming)}
+          onClose={() => setConfirming('')}
+        />
+      )}
     </div>
   );
 }
@@ -463,11 +498,13 @@ function Section({
   items,
   onCreate,
   control,
+  hostName,
 }: {
   title: string;
   items: InventoryItem[];
   onCreate: (i: InventoryItem) => void;
   control?: ((verb: string, target: string) => Promise<void>) | null;
+  hostName: string;
 }) {
   return (
     <div className="mt-6">
@@ -483,7 +520,7 @@ function Section({
               <p className="truncate font-mono text-xs text-muted">{it.detail}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {control && <RowControls target={it.source_ref} run={control} />}
+              {control && <RowControls target={it.source_ref} hostName={hostName} run={control} />}
               {it.linked ? (
                 <Pill tone="up">linked</Pill>
               ) : (

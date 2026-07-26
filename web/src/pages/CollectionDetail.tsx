@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, endpointString, type CollectionDetail as Detail, type Tool } from '../api';
 import { useAuth } from '../auth';
@@ -34,8 +35,10 @@ export default function CollectionDetail() {
     load();
   }, [load]);
 
+  const [confirming, setConfirming] = useState(false);
+
   const remove = async () => {
-    if (!collection || !confirm(`Delete "${collection.name}"?`)) {
+    if (!collection) {
       return;
     }
     await api.del(`/api/collections/${collection.id}`);
@@ -73,7 +76,7 @@ export default function CollectionDetail() {
               Edit
             </Button>
             {canDelete && (
-              <Button variant="danger" onClick={remove}>
+              <Button variant="danger" onClick={() => setConfirming(true)}>
                 Delete
               </Button>
             )}
@@ -114,6 +117,16 @@ export default function CollectionDetail() {
             setEditing(false);
             load();
           }}
+        />
+      )}
+
+      {confirming && (
+        <ConfirmModal
+          title={`Delete ${collection.name}?`}
+          body="The collection is deleted along with its editors and visibility grants. The services in it stay in the catalog."
+          confirmLabel="Delete"
+          onConfirm={remove}
+          onClose={() => setConfirming(false)}
         />
       )}
     </div>

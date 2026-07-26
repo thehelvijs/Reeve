@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../api';
 import { Button, Card, ErrorText } from '../components/ui';
 import PageHeader from '../components/PageHeader';
@@ -97,11 +98,10 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
     onChange();
   };
 
+  const [confirming, setConfirming] = useState(false);
+
   const pick = () => {
-    if (!window.confirm('Restoring replaces every account, service, and credential in this instance. Continue?')) {
-      return;
-    }
-    fileInput.current?.click();
+    setConfirming(true);
   };
 
   const cancel = async () => {
@@ -156,6 +156,16 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
       <div className="mt-3">
         <ErrorText>{error}</ErrorText>
       </div>
+
+      {confirming && (
+        <ConfirmModal
+          title="Restore from a backup?"
+          body="The uploaded database replaces every account, service, credential and host in this instance once Reeve restarts. Nothing here can undo it."
+          confirmLabel="Choose a file"
+          onConfirm={() => fileInput.current?.click()}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </Card>
   );
 }
