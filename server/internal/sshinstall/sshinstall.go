@@ -327,8 +327,7 @@ func clientConfig(t Target) (*ssh.ClientConfig, error) {
 
 // dial connects with the context bounding the handshake.
 func dial(ctx context.Context, addr string, cfg *ssh.ClientConfig) (*ssh.Client, error) {
-	d := net.Dialer{Timeout: dialTimeout}
-	conn, err := d.DialContext(ctx, "tcp", addr)
+	conn, err := dialTCP(ctx, addr)
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", addr, err)
 	}
@@ -342,6 +341,33 @@ func dial(ctx context.Context, addr string, cfg *ssh.ClientConfig) (*ssh.Client,
 	}
 	conn.SetDeadline(time.Time{})
 	return ssh.NewClient(c, chans, reqs), nil
+}
+
+// dialTCP connects to addr, retrying through mDNS when DNS could not answer for
+// a .local name. The original error is what surfaces if the retry also fails.
+func dialTCP(ctx context.Context, addr string) (net.Conn, error) {
+	d := net.Dialer{Timeout: dialTimeout}
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err == nil {
+		return conn, nil
+	}
+	var dnsErr *net.DNSError
+	if !errors.As(err, &dnsErr) {
+		return nil, err
+	}
+	host, port, splitErr := net.SplitHostPort(addr)
+	if splitErr != nil || !strings.HasSuffix(strings.ToLower(host), ".local") {
+		return nil, err
+	}
+	ip, mdnsErr := lookupMDNS(ctx, host)
+	if mdnsErr != nil {
+		return nil, err
+	}
+	conn, retryErr := d.DialContext(ctx, "tcp", net.JoinHostPort(ip, port))
+	if retryErr != nil {
+		return nil, retryErr
+	}
+	return conn, nil
 }
 
 // runCommand runs one command, returning its combined output.
