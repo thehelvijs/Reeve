@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -43,6 +45,30 @@ func newPusher(cfg config) *pusher {
 // buffer an unbounded reply.
 const maxAckBytes = 4096
 
+// statusError is a non-2xx ingest reply. It carries the code so a caller can
+// tell a body the server will never accept from one worth retrying.
+type statusError struct {
+	code int
+}
+
+func (e *statusError) Error() string {
+	return fmt.Sprintf("ingest returned %d", e.code)
+}
+
+// permanentReject reports whether err means the server will refuse this exact
+// body however often it is replayed, so keeping it only blocks the queue behind
+// it. 408 and 429 are 4xx but ask for a retry, so they are not permanent.
+func permanentReject(err error) bool {
+	var se *statusError
+	if !errors.As(err, &se) {
+		return false
+	}
+	if se.code == http.StatusRequestTimeout || se.code == http.StatusTooManyRequests {
+		return false
+	}
+	return se.code >= 400 && se.code < 500
+}
+
 // send posts a push, buffering it to disk on failure. A nil ack means the
 // server answered but said nothing the agent can act on.
 func (p *pusher) send(push contracts.Push) (*contracts.PushAck, error) {
@@ -59,7 +85,9 @@ func (p *pusher) send(push contracts.Push) (*contracts.PushAck, error) {
 }
 
 // flushBuffer replays buffered pushes oldest-first, stopping at the first
-// failure so ordering and backoff are preserved.
+// retryable failure so ordering and backoff are preserved. A body the server
+// permanently rejects is dropped instead, or it would wedge the queue behind it
+// forever and silently disable offline buffering on this host.
 func (p *pusher) flushBuffer() {
 	entries, err := os.ReadDir(p.bufferDir)
 	if err != nil {
@@ -80,7 +108,10 @@ func (p *pusher) flushBuffer() {
 			continue
 		}
 		if _, err := p.post(body); err != nil {
-			return
+			if !permanentReject(err) {
+				return
+			}
+			log.Printf("dropping buffered push the server will never accept: %v", err)
 		}
 		os.Remove(path)
 	}
@@ -101,7 +132,7 @@ func (p *pusher) post(body []byte) (*contracts.PushAck, error) {
 	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxAckBytes))
 	io.Copy(io.Discard, resp.Body) // drain past the cap so the connection can be reused
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("ingest returned %d", resp.StatusCode)
+		return nil, &statusError{code: resp.StatusCode}
 	}
 	if readErr != nil {
 		return nil, nil
