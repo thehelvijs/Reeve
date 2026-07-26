@@ -69,6 +69,7 @@ export default function Catalog() {
           className="max-w-xs"
         />
         <select
+          aria-label="Filter by collection"
           value={collectionID}
           onChange={(e) => setCollectionID(e.target.value)}
           className="rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"

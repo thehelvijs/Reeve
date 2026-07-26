@@ -92,7 +92,8 @@ export default function Hosts() {
                   </Button>
                 </div>
               )}
-              <Link to={`/hosts/${h.id}`} className="pr-4">
+              {/* Same destination as the row link, so it is a mouse affordance only. */}
+              <Link to={`/hosts/${h.id}`} className="pr-4" aria-hidden="true" tabIndex={-1}>
                 <Chevron />
               </Link>
             </div>

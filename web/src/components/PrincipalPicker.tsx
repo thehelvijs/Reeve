@@ -60,7 +60,7 @@ export default function PrincipalPicker({
         ))}
       </div>
       <div className="mt-2 flex gap-2">
-        <select className={selectCls} value="" onChange={(e) => add('user', e.target.value)}>
+        <select aria-label="Add a user" className={selectCls} value="" onChange={(e) => add('user', e.target.value)}>
           <option value="">Add user…</option>
           {principals.users
             .filter((u) => !granted('user', u.id))
@@ -70,7 +70,7 @@ export default function PrincipalPicker({
               </option>
             ))}
         </select>
-        <select className={selectCls} value="" onChange={(e) => add('group', e.target.value)}>
+        <select aria-label="Add a group" className={selectCls} value="" onChange={(e) => add('group', e.target.value)}>
           <option value="">Add group…</option>
           {principals.groups
             .filter((g) => !granted('group', g.id))
