@@ -65,6 +65,10 @@ CREATE TABLE hosts (
     longitude          REAL,
     enroll_token_hash  TEXT NOT NULL UNIQUE,
     agent_version      TEXT NOT NULL DEFAULT '',
+    auto_update        TEXT NOT NULL DEFAULT 'default'
+                         CHECK (auto_update IN ('default','on','off')),
+    auto_update_vetoed INTEGER NOT NULL DEFAULT 0,
+    update_started_at  TEXT,
     last_seen_at       TEXT,
     offline_after_secs INTEGER NOT NULL DEFAULT 60,
     icon_path          TEXT NOT NULL DEFAULT '',

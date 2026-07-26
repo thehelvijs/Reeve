@@ -26,6 +26,9 @@ type Host struct {
 	OS               string
 	PhysicalLocation string
 	AgentVersion     string
+	AutoUpdate       string
+	AutoUpdateVetoed bool
+	UpdateStartedAt  *time.Time
 	LastSeenAt       *time.Time
 	OfflineAfterSecs int
 	CreatedAt        time.Time
@@ -83,7 +86,7 @@ func (db *DB) CreateHost(name, os, location, tokenHash string, offlineAfter int)
 	}
 	h := Host{
 		ID: NewID(), Name: name, OS: os, PhysicalLocation: location,
-		OfflineAfterSecs: offlineAfter, CreatedAt: time.Now().UTC(),
+		AutoUpdate: AutoUpdateDefault, OfflineAfterSecs: offlineAfter, CreatedAt: time.Now().UTC(),
 	}
 	_, err := db.sql.Exec(
 		`INSERT INTO hosts(id, name, os, physical_location, enroll_token_hash, offline_after_secs, created_at)
@@ -173,17 +176,20 @@ func (db *DB) DeleteHost(id string) error {
 	return db.exec1(`DELETE FROM hosts WHERE id = ?`, id)
 }
 
-const hostSelect = `SELECT id, name, os, physical_location, agent_version, last_seen_at, offline_after_secs, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
+const hostSelect = `SELECT id, name, os, physical_location, agent_version, auto_update, auto_update_vetoed, update_started_at, last_seen_at, offline_after_secs, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
 
 func (db *DB) scanHost(row scanner) (Host, error) {
 	var h Host
 	var created string
-	var lastSeen *string
+	var lastSeen, updateStarted *string
 	var lat, lng sql.NullFloat64
-	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.AgentVersion, &lastSeen, &h.OfflineAfterSecs, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng); err != nil {
+	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.AgentVersion,
+		&h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &lastSeen,
+		&h.OfflineAfterSecs, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng); err != nil {
 		return Host{}, err
 	}
 	h.LastSeenAt = parseNullableTime(lastSeen)
+	h.UpdateStartedAt = parseNullableTime(updateStarted)
 	h.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	if lat.Valid {
 		h.Latitude = &lat.Float64

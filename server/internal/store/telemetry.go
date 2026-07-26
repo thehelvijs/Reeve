@@ -38,8 +38,9 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 		if err := insertLogEvents(tx, hostID, p.LogEvents); err != nil {
 			return err
 		}
-		_, err := tx.Exec(`UPDATE hosts SET last_seen_at = ?, agent_version = ? WHERE id = ?`,
-			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, hostID)
+		_, err := tx.Exec(
+			`UPDATE hosts SET last_seen_at = ?, agent_version = ?, auto_update_vetoed = ? WHERE id = ?`,
+			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, p.AutoUpdateVetoed, hostID)
 		return err
 	})
 }
