@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type Host } from '../api';
+import { api, type AgentUpdateRollup, type Host } from '../api';
 import { useAuth } from '../auth';
 import { Button, ErrorText, Field, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
@@ -11,6 +11,7 @@ import Chevron from '../components/Chevron';
 import { ListSkeleton } from '../components/Skeleton';
 import SSHDeployModal from '../components/SSHDeployModal';
 import { useResource } from '../lib/cache';
+import { UPDATE_LABEL, UPDATE_TONE, showsVersionPill } from '../lib/agentUpdate';
 
 export default function Hosts() {
   const { user } = useAuth();
@@ -43,6 +44,8 @@ export default function Hosts() {
         }
       />
 
+      {user?.role === 'admin' && <AgentRollup />}
+
       {loading ? (
         <div className="mt-6">
           <ListSkeleton />
@@ -67,10 +70,12 @@ export default function Hosts() {
                   <p className="truncate text-sm font-medium text-content">{h.name}</p>
                   <p className="truncate text-xs text-muted">
                     {h.os}
-                    {h.agent_version ? ` · agent ${h.agent_version}` : ''}
                     {h.last_seen_at ? ` · seen ${new Date(h.last_seen_at).toLocaleString()}` : ''}
                   </p>
                 </div>
+                {showsVersionPill(h.update_state) && (
+                  <Pill tone={UPDATE_TONE[h.update_state]}>{UPDATE_LABEL[h.update_state]}</Pill>
+                )}
                 <Pill tone={tone(h.status)}>{h.status}</Pill>
               </Link>
               {user?.role === 'admin' && (
@@ -111,6 +116,56 @@ export default function Hosts() {
           onDone={refresh}
         />
       )}
+    </div>
+  );
+}
+
+function AgentRollup() {
+  const { data, refresh } = useResource<AgentUpdateRollup>(
+    '/api/v1/admin/agent-updates',
+    () => api.get<AgentUpdateRollup>('/api/v1/admin/agent-updates'),
+    15000,
+  );
+  const [error, setError] = useState('');
+  if (!data) {
+    return null;
+  }
+
+  const resume = async () => {
+    setError('');
+    try {
+      await api.post('/api/v1/admin/agent-updates/resume', {});
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not resume the rollout');
+    }
+  };
+
+  const parts: string[] = [`server on ${data.server_version}`];
+  for (const state of ['up_to_date', 'outdated', 'updating', 'stalled', 'disabled'] as const) {
+    const n = data.counts[state];
+    if (n > 0) {
+      parts.push(`${n} ${UPDATE_LABEL[state]}`);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-card border border-hairline px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted">{parts.join(' · ')}</p>
+        {data.paused && (
+          <Button variant="secondary" onClick={resume}>
+            Resume rollout
+          </Button>
+        )}
+      </div>
+      {data.paused && (
+        <p className="mt-2 text-xs text-muted">
+          Rollout paused: {data.stalled.join(', ')} did not come back on the new agent. No other host
+          updates until this is cleared.
+        </p>
+      )}
+      <ErrorText>{error}</ErrorText>
     </div>
   );
 }
