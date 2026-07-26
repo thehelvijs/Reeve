@@ -31,36 +31,24 @@ type toolInput struct {
 
 type toolResponse struct {
 	contracts.ToolDTO
-	Slug            string   `json:"slug"`
-	SourceRef       string   `json:"source_ref"`
-	Visibility      string   `json:"visibility"`
-	CreatorID       string   `json:"creator_id"`
-	CanEdit         bool     `json:"can_edit"`
-	LogAlertEnabled bool     `json:"log_alert_enabled"`
-	Tags            []string `json:"tags"`
-	IconURL         string   `json:"icon_url"`
-	ThumbnailURL    string   `json:"thumbnail_url"`
+	Slug            string `json:"slug"`
+	SourceRef       string `json:"source_ref"`
+	Visibility      string `json:"visibility"`
+	CreatorID       string `json:"creator_id"`
+	CanEdit         bool   `json:"can_edit"`
+	LogAlertEnabled bool   `json:"log_alert_enabled"`
+	IconURL         string `json:"icon_url"`
+	ThumbnailURL    string `json:"thumbnail_url"`
 }
 
-// publicToolResponse is the anonymous-visible tool shape per ADR-0006: no
-// creator_id, source_ref, visibility, can_edit, or log_alert_enabled.
+// publicToolResponse is the anonymous-visible tool shape per ADR-0006: the
+// catalog DTO and nothing else — no creator_id, source_ref, visibility,
+// can_edit, or log_alert_enabled.
 type publicToolResponse struct {
-	ID               string                    `json:"id"`
-	Name             string                    `json:"name"`
-	Slug             string                    `json:"slug"`
-	Description      string                    `json:"description"`
-	Collections      []contracts.CollectionRef `json:"collections"`
-	Tags             []string                  `json:"tags"`
-	Scheme           string                    `json:"scheme"`
-	Address          string                    `json:"address"`
-	Port             int                       `json:"port,omitempty"`
-	URL              string                    `json:"url,omitempty"`
-	PhysicalLocation string                    `json:"physical_location,omitempty"`
-	HostID           string                    `json:"host_id,omitempty"`
-	SourceType       string                    `json:"source_type"`
-	Status           contracts.ToolStatus      `json:"status"`
-	IconURL          string                    `json:"icon_url"`
-	ThumbnailURL     string                    `json:"thumbnail_url"`
+	contracts.ToolDTO
+	Slug         string `json:"slug"`
+	IconURL      string `json:"icon_url"`
+	ThumbnailURL string `json:"thumbnail_url"`
 }
 
 func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
@@ -85,7 +73,6 @@ func toolToResponse(t store.Tool, p auth.Principal) toolResponse {
 		CreatorID:       t.CreatorID,
 		CanEdit:         p.IsAdmin() || t.CreatorID == p.UserID,
 		LogAlertEnabled: t.LogAlertEnabled,
-		Tags:            t.Tags,
 		IconURL:         assetURL("tools", t.ID, "icon", t.IconPath),
 		ThumbnailURL:    assetURL("tools", t.ID, "thumbnail", t.ThumbnailPath),
 	}
@@ -204,22 +191,24 @@ func (a *app) handleListPublicTools(w http.ResponseWriter, r *http.Request) {
 			cols = []contracts.CollectionRef{}
 		}
 		out = append(out, publicToolResponse{
-			ID:               t.ID,
-			Name:             t.Name,
-			Slug:             t.Slug,
-			Description:      t.Description,
-			Collections:      cols,
-			Tags:             t.Tags,
-			Scheme:           t.Scheme,
-			Address:          t.Address,
-			Port:             t.Port,
-			URL:              t.URL,
-			PhysicalLocation: t.PhysicalLocation,
-			HostID:           t.HostID,
-			SourceType:       t.SourceType,
-			Status:           a.toolStatus(t, hosts, now),
-			IconURL:          assetURL("tools", t.ID, "icon", t.IconPath),
-			ThumbnailURL:     assetURL("tools", t.ID, "thumbnail", t.ThumbnailPath),
+			ToolDTO: contracts.ToolDTO{
+				ID:               t.ID,
+				Name:             t.Name,
+				Description:      t.Description,
+				Collections:      cols,
+				Tags:             t.Tags,
+				Scheme:           t.Scheme,
+				Address:          t.Address,
+				Port:             t.Port,
+				URL:              t.URL,
+				PhysicalLocation: t.PhysicalLocation,
+				HostID:           t.HostID,
+				SourceType:       t.SourceType,
+				Status:           a.toolStatus(t, hosts, now),
+			},
+			Slug:         t.Slug,
+			IconURL:      assetURL("tools", t.ID, "icon", t.IconPath),
+			ThumbnailURL: assetURL("tools", t.ID, "thumbnail", t.ThumbnailPath),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
