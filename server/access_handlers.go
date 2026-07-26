@@ -22,7 +22,7 @@ type requestView struct {
 func toRequestView(r store.AccessRequest) requestView {
 	return requestView{
 		ID: r.ID, ToolID: r.ToolID, RequesterID: r.RequesterID, Status: r.Status,
-		Note: r.Note, CreatedAt: r.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Note: r.Note, CreatedAt: r.CreatedAt.Format(time.RFC3339),
 	}
 }
 

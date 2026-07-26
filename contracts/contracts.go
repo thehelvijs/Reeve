@@ -22,20 +22,20 @@ const (
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {
-	ProtocolVersion  int               `json:"protocol_version"`
-	AgentVersion     string            `json:"agent_version"`
-	AutoUpdateVetoed bool              `json:"auto_update_vetoed"`
+	ProtocolVersion  int    `json:"protocol_version"`
+	AgentVersion     string `json:"agent_version"`
+	AutoUpdateVetoed bool   `json:"auto_update_vetoed"`
 	// IPAddress is the host's address on the route to the server, so a tool
 	// pinned to this host can be reached after its DHCP lease changes. Empty
 	// when the agent could not work it out.
-	IPAddress string    `json:"ip_address"`
-	SentAt    time.Time `json:"sent_at"`
-	Services         []ServiceState    `json:"services"`
-	Containers       []ContainerState  `json:"containers"`
-	CronJobs         []CronState       `json:"cron_jobs"`
-	Metrics          HostMetrics       `json:"metrics"`
-	ContainerStats   []ContainerSample `json:"container_stats"`
-	LogEvents        []LogEvent        `json:"log_events"`
+	IPAddress      string            `json:"ip_address"`
+	SentAt         time.Time         `json:"sent_at"`
+	Services       []ServiceState    `json:"services"`
+	Containers     []ContainerState  `json:"containers"`
+	CronJobs       []CronState       `json:"cron_jobs"`
+	Metrics        HostMetrics       `json:"metrics"`
+	ContainerStats []ContainerSample `json:"container_stats"`
+	LogEvents      []LogEvent        `json:"log_events"`
 }
 
 // TooLarge names the first section of p that exceeds its ceiling, or "" when

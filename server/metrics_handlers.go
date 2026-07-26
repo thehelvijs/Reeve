@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"net/http"
 	"time"
 
@@ -125,10 +126,6 @@ func (a *app) uptimeFor(filterCol, id string, types []string, r *http.Request) (
 	if pct > 100 {
 		pct = 100
 	}
-	pct = roundTo2dp(pct)
+	pct = math.Round(pct*100) / 100
 	return uptimeResponse{Range: rng, UptimePct: pct}, nil
-}
-
-func roundTo2dp(v float64) float64 {
-	return float64(int(v*100+0.5)) / 100
 }
