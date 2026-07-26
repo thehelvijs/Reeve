@@ -11,13 +11,13 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [resetting, setResetting] = useState<AdminUser | null>(null);
 
-  const load = () => api.get<AdminUser[]>('/api/v1/admin/users').then((u) => setUsers(u ?? []));
+  const load = () => api.get<AdminUser[]>('/api/admin/users').then((u) => setUsers(u ?? []));
   useEffect(() => {
     load();
   }, []);
 
   const update = async (id: string, patch: { role?: string; active?: boolean }) => {
-    await api.patch(`/api/v1/admin/users/${id}`, patch);
+    await api.patch(`/api/admin/users/${id}`, patch);
     load();
   };
 
@@ -25,7 +25,7 @@ export default function AdminUsers() {
     if (!window.confirm(`Delete ${u.email}? Their tools and credentials reassign to you. This cannot be undone.`)) {
       return;
     }
-    await api.del(`/api/v1/admin/users/${u.id}`);
+    await api.del(`/api/admin/users/${u.id}`);
     load();
   };
 
@@ -92,7 +92,7 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUser; onClose: () =>
     setBusy(true);
     setError('');
     try {
-      await api.post(`/api/v1/admin/users/${user.id}/password`, { password });
+      await api.post(`/api/admin/users/${user.id}/password`, { password });
       setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'reset failed');

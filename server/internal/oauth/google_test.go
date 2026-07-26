@@ -13,7 +13,7 @@ func testConfig(base string) Config {
 	return Config{
 		ClientID:     "client-123",
 		ClientSecret: "secret-456",
-		RedirectURL:  "http://reeve.lan:8080/api/v1/auth/google/callback",
+		RedirectURL:  "http://reeve.lan:8080/api/auth/google/callback",
 		AuthURL:      base + "/auth",
 		TokenURL:     base + "/token",
 		UserInfoURL:  base + "/userinfo",

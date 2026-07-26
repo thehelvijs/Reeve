@@ -23,7 +23,7 @@ type adminUserView struct {
 func (a *app) adminUserView(u store.User) adminUserView {
 	avatar := ""
 	if u.AvatarPath != "" {
-		avatar = "/api/v1/users/" + u.ID + "/avatar"
+		avatar = "/api/users/" + u.ID + "/avatar"
 	}
 	return adminUserView{ID: u.ID, Email: u.Email, Role: u.Role, Active: u.Active, DisplayName: u.DisplayName, AvatarURL: avatar}
 }

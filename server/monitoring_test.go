@@ -10,7 +10,7 @@ import (
 
 func toolByName(t *testing.T, ts *testServer, c *http.Client, name string) toolResponse {
 	t.Helper()
-	_, data := ts.do(t, c, http.MethodGet, "/api/v1/tools", nil, nil)
+	_, data := ts.do(t, c, http.MethodGet, "/api/tools", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	for _, tl := range tools {
@@ -26,7 +26,7 @@ func TestToolStatusDerivation(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	hostID, token := enrollHost(t, ts, admin, "host-a")
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "nginx.service"})
@@ -60,7 +60,7 @@ func TestToolStatusDown(t *testing.T) {
 	hostID, token := enrollHost(t, ts, admin, "host-a")
 	p := samplePush()
 	p.Services = []contracts.ServiceState{{Unit: "broken.service", ActiveState: "failed", SubState: "failed"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p, map[string]string{"Authorization": "Bearer " + token})
+	ts.do(t, nil, http.MethodPost, "/api/ingest", p, map[string]string{"Authorization": "Bearer " + token})
 
 	createTool(t, ts, admin, toolInput{Name: "Broken", HostID: hostID, SourceType: "systemd", SourceRef: "broken.service"})
 	if s := toolByName(t, ts, admin, "Broken").Status; s != contracts.StatusDown {
@@ -85,9 +85,9 @@ func TestHostMetricsEndpoint(t *testing.T) {
 	hostID, token := enrollHost(t, ts, admin, "host-a")
 	p := samplePush()
 	p.Metrics = contracts.HostMetrics{CPUPct: 42, MemUsed: 100, MemTotal: 200}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p, map[string]string{"Authorization": "Bearer " + token})
+	ts.do(t, nil, http.MethodPost, "/api/ingest", p, map[string]string{"Authorization": "Bearer " + token})
 
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+hostID+"/metrics?range=24h", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/metrics?range=24h", nil, nil)
 	var out struct {
 		Resolution string `json:"resolution"`
 		Host       []struct {

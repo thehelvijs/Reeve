@@ -40,39 +40,39 @@ func TestToolIconVisibilityAndLifecycle(t *testing.T) {
 	restricted := createTool(t, ts, owner, toolInput{Name: "Sec", Visibility: "restricted"})
 
 	// Owner uploads icons for both.
-	if resp, body := uploadIcon(t, ts, owner, "/api/v1/tools/"+pub.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
+	if resp, body := uploadIcon(t, ts, owner, "/api/tools/"+pub.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
 		t.Fatalf("upload pub icon = %d: %s", resp.StatusCode, body)
 	}
-	if resp, _ := uploadIcon(t, ts, owner, "/api/v1/tools/"+restricted.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
+	if resp, _ := uploadIcon(t, ts, owner, "/api/tools/"+restricted.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
 		t.Fatalf("upload restricted icon = %d", resp.StatusCode)
 	}
 
 	// Public tool icon serves to an anonymous caller, bytes intact.
-	resp, body := ts.do(t, nil, http.MethodGet, "/api/v1/tools/"+pub.ID+"/icon", nil, nil)
+	resp, body := ts.do(t, nil, http.MethodGet, "/api/tools/"+pub.ID+"/icon", nil, nil)
 	if resp.StatusCode != http.StatusOK || !pngHeader(body) {
 		t.Fatalf("anon public icon = %d, png=%v", resp.StatusCode, pngHeader(body))
 	}
 	// Restricted tool icon is hidden from anonymous callers (404, no existence leak).
-	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/v1/tools/"+restricted.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/tools/"+restricted.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("anon restricted icon = %d, want 404", resp.StatusCode)
 	}
 	// The owner may fetch the restricted icon.
-	if resp, _ := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+restricted.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ := ts.do(t, owner, http.MethodGet, "/api/tools/"+restricted.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
 		t.Errorf("owner restricted icon = %d, want 200", resp.StatusCode)
 	}
 
 	// A non-owner basic user cannot upload an icon.
 	other := ts.client(t)
 	signup(t, ts, other, "other@example.com", "password123")
-	if resp, _ := uploadIcon(t, ts, other, "/api/v1/tools/"+pub.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusForbidden {
+	if resp, _ := uploadIcon(t, ts, other, "/api/tools/"+pub.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("non-owner upload = %d, want 403", resp.StatusCode)
 	}
 
 	// Delete clears it.
-	if resp, _ := ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+pub.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ := ts.do(t, owner, http.MethodDelete, "/api/tools/"+pub.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
 		t.Fatalf("delete icon = %d", resp.StatusCode)
 	}
-	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/v1/tools/"+pub.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/tools/"+pub.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("icon after delete = %d, want 404", resp.StatusCode)
 	}
 }
@@ -87,19 +87,19 @@ func TestHostIconVisibility(t *testing.T) {
 		t.Fatalf("create host: %v", err)
 	}
 
-	if resp, body := uploadIcon(t, ts, admin, "/api/v1/admin/hosts/"+h.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
+	if resp, body := uploadIcon(t, ts, admin, "/api/admin/hosts/"+h.ID+"/icon", pngBytes(t)); resp.StatusCode != http.StatusOK {
 		t.Fatalf("admin upload host icon = %d: %s", resp.StatusCode, body)
 	}
 	// Authenticated caller sees it.
-	if resp, _ := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ := ts.do(t, admin, http.MethodGet, "/api/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
 		t.Errorf("authed host icon = %d, want 200", resp.StatusCode)
 	}
 	// Anonymous caller does not, until the host backs a public tool.
-	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/v1/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("anon host icon (no public tool) = %d, want 404", resp.StatusCode)
 	}
 	createTool(t, ts, admin, toolInput{Name: "OnHost", HostID: h.ID})
-	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/v1/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ := ts.do(t, nil, http.MethodGet, "/api/hosts/"+h.ID+"/icon", nil, nil); resp.StatusCode != http.StatusOK {
 		t.Errorf("anon host icon (public tool) = %d, want 200", resp.StatusCode)
 	}
 }
@@ -116,7 +116,7 @@ func TestEveryImageSlot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}
-	_, body := ts.do(t, admin, http.MethodPost, "/api/v1/collections",
+	_, body := ts.do(t, admin, http.MethodPost, "/api/collections",
 		collectionInput{Name: "Slotted", Visibility: "public"}, nil)
 	collectionID := jsonString(t, body, "id")
 
@@ -127,11 +127,11 @@ func TestEveryImageSlot(t *testing.T) {
 		key       string
 		file      string
 	}{
-		{"tool icon", "/api/v1/tools/" + tool.ID + "/icon", "/api/v1/tools/" + tool.ID + "/icon", "icon_url", "tool-" + tool.ID + ".png"},
-		{"tool thumbnail", "/api/v1/tools/" + tool.ID + "/thumbnail", "/api/v1/tools/" + tool.ID + "/thumbnail", "thumbnail_url", "tool-thumb-" + tool.ID + ".png"},
-		{"host icon", "/api/v1/admin/hosts/" + host.ID + "/icon", "/api/v1/hosts/" + host.ID + "/icon", "icon_url", "host-" + host.ID + ".png"},
-		{"host thumbnail", "/api/v1/admin/hosts/" + host.ID + "/thumbnail", "/api/v1/hosts/" + host.ID + "/thumbnail", "thumbnail_url", "host-thumb-" + host.ID + ".png"},
-		{"collection icon", "/api/v1/collections/" + collectionID + "/icon", "/api/v1/collections/" + collectionID + "/icon", "icon_url", "collection-" + collectionID + ".png"},
+		{"tool icon", "/api/tools/" + tool.ID + "/icon", "/api/tools/" + tool.ID + "/icon", "icon_url", "tool-" + tool.ID + ".png"},
+		{"tool thumbnail", "/api/tools/" + tool.ID + "/thumbnail", "/api/tools/" + tool.ID + "/thumbnail", "thumbnail_url", "tool-thumb-" + tool.ID + ".png"},
+		{"host icon", "/api/admin/hosts/" + host.ID + "/icon", "/api/hosts/" + host.ID + "/icon", "icon_url", "host-" + host.ID + ".png"},
+		{"host thumbnail", "/api/admin/hosts/" + host.ID + "/thumbnail", "/api/hosts/" + host.ID + "/thumbnail", "thumbnail_url", "host-thumb-" + host.ID + ".png"},
+		{"collection icon", "/api/collections/" + collectionID + "/icon", "/api/collections/" + collectionID + "/icon", "icon_url", "collection-" + collectionID + ".png"},
 	}
 
 	for _, s := range slots {

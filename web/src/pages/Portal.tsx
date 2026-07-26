@@ -48,9 +48,9 @@ export default function Portal() {
     if (loading) {
       return;
     }
-    const toolsPath = user ? '/api/v1/tools' : '/api/v1/public/tools';
-    const hostsPath = user ? '/api/v1/hosts' : '/api/v1/public/hosts';
-    const collectionsPath = user ? '/api/v1/collections' : '/api/v1/public/collections';
+    const toolsPath = user ? '/api/tools' : '/api/public/tools';
+    const hostsPath = user ? '/api/hosts' : '/api/public/hosts';
+    const collectionsPath = user ? '/api/collections' : '/api/public/collections';
     const load = () => {
       api.get<Tool[]>(toolsPath).then((t) => setTools(t ?? [])).catch(() => setTools([]));
       api.get<Host[]>(hostsPath).then((h) => setHosts(h ?? [])).catch(() => setHosts([]));

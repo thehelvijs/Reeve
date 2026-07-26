@@ -67,7 +67,7 @@ test('enter saves settings sections', async ({ page }) => {
   // Each section saves through the same PUT, so wait for it rather than racing
   // the reload against an in-flight request.
   const saved = () =>
-    page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PUT');
+    page.waitForResponse((r) => r.url().endsWith('/api/admin/settings') && r.request().method() === 'PUT');
 
   const concurrency = page.getByRole('spinbutton', { name: 'Hosts updating at once' });
   await concurrency.fill('7');
@@ -172,7 +172,7 @@ test('enter advances the how-to modal and probes over SSH', async ({ page }) => 
   await page.getByRole('spinbutton', { name: 'Port' }).fill('1');
   await page.getByRole('textbox', { name: 'Username' }).fill('nobody');
   const [probe] = await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/ssh-probe')),
+    page.waitForResponse((r) => r.url().endsWith('/api/admin/ssh-probe')),
     page.getByRole('textbox', { name: 'Username' }).press('Enter'),
   ]);
   expect(probe.status()).toBe(502);

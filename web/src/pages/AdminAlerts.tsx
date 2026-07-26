@@ -68,9 +68,9 @@ export default function AdminAlerts() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    api.get<AlertEvent[]>('/api/v1/admin/alerts').then((e) => setEvents(e ?? []));
-    api.get<Delivery[]>('/api/v1/admin/deliveries').then((d) => setDeliveries(d ?? []));
-    api.get<ThresholdsPayload>('/api/v1/admin/thresholds').then((t) => {
+    api.get<AlertEvent[]>('/api/admin/alerts').then((e) => setEvents(e ?? []));
+    api.get<Delivery[]>('/api/admin/deliveries').then((d) => setDeliveries(d ?? []));
+    api.get<ThresholdsPayload>('/api/admin/thresholds').then((t) => {
       setWindowMin(Math.max(1, Math.round((t.window_secs ?? 300) / 60)));
       setRows(rowsFromPayload(t.thresholds ?? {}));
     });
@@ -87,7 +87,7 @@ export default function AdminAlerts() {
       }
     }
     try {
-      await api.put('/api/v1/admin/thresholds', {
+      await api.put('/api/admin/thresholds', {
         window_secs: windowMin === '' ? 300 : windowMin * 60,
         thresholds,
       });

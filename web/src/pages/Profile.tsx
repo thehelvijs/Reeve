@@ -41,7 +41,7 @@ export default function Profile() {
     setNameErr('');
     setNameSaved(false);
     try {
-      await api.patch('/api/v1/me', { display_name: name });
+      await api.patch('/api/me', { display_name: name });
       await refreshUser();
       setNameSaved(true);
     } catch (e) {
@@ -62,7 +62,7 @@ export default function Profile() {
   const removeAvatar = async () => {
     setAvatarErr('');
     try {
-      await api.del('/api/v1/me/avatar');
+      await api.del('/api/me/avatar');
       await refreshUser();
     } catch (e) {
       setAvatarErr(message(e));
@@ -77,7 +77,7 @@ export default function Profile() {
       return;
     }
     try {
-      await api.post('/api/v1/me/password', { current_password: current, new_password: next });
+      await api.post('/api/me/password', { current_password: current, new_password: next });
       setCurrent('');
       setNext('');
       setConfirm('');
@@ -90,7 +90,7 @@ export default function Profile() {
   const deleteAccount = async () => {
     setDeleteErr('');
     try {
-      await api.del('/api/v1/me');
+      await api.del('/api/me');
       setUser(null);
       navigate('/');
     } catch (e) {

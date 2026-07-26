@@ -31,7 +31,7 @@ const oauthStateCookie = "reeve_oauth_state"
 const oauthStateTTL = 10 * time.Minute
 
 // googleCallbackPath must match the redirect URI registered with Google.
-const googleCallbackPath = "/api/v1/auth/google/callback"
+const googleCallbackPath = "/api/auth/google/callback"
 
 type googleAuthView struct {
 	Enabled        bool   `json:"enabled"`

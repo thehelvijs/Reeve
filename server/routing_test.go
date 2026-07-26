@@ -16,7 +16,7 @@ func TestAlertSeverityAssigned(t *testing.T) {
 
 	// agent_offline -> error.
 	_, token := enrollHostWin(t, ts, admin, "h", 60)
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 	base := time.Now().UTC().Add(2 * time.Minute)
 	ts.app.evaluateAlerts(base)
@@ -76,7 +76,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 
-	resp, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/webhooks", map[string]any{
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks", map[string]any{
 		"owner_type":   "global",
 		"format":       "webhook",
 		"url":          "http://sink.invalid",
@@ -98,7 +98,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 		t.Fatalf("plaintext token found in stored config: %q", raw)
 	}
 
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/webhooks", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/webhooks", nil, nil)
 	var views []channelView
 	if err := json.Unmarshal(data, &views); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -132,7 +132,7 @@ func TestSeverityRankOrder(t *testing.T) {
 func TestCreateRejectsUnknownKind(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
-	resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/admin/webhooks",
+	resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks",
 		map[string]any{"owner_type": "global", "format": "sms", "url": "http://x.invalid"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("unknown kind status = %d, want 400", resp.StatusCode)
@@ -142,7 +142,7 @@ func TestCreateRejectsUnknownKind(t *testing.T) {
 func TestCreateRejectsMissingURLForHTTPKind(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
-	resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/admin/webhooks",
+	resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks",
 		map[string]any{"owner_type": "global", "format": "webhook", "url": ""}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("missing url status = %d, want 400", resp.StatusCode)

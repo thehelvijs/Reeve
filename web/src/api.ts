@@ -137,7 +137,7 @@ export interface SettingsInput {
 export async function uploadAvatar(file: File): Promise<User> {
   const form = new FormData();
   form.append('avatar', file);
-  const res = await fetch('/api/v1/me/avatar', { method: 'POST', credentials: 'include', body: form });
+  const res = await fetch('/api/me/avatar', { method: 'POST', credentials: 'include', body: form });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {

@@ -104,7 +104,7 @@ func TestLoginSetsTheReeveSessionCookie(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/auth/login",
+	resp, data := ts.do(t, c, http.MethodPost, "/api/auth/login",
 		map[string]string{"email": "boss@example.com", "password": "password123"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login = %d: %s", resp.StatusCode, data)
@@ -150,9 +150,9 @@ func TestLogRequestsLogsApiNotStatic(t *testing.T) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
 
-	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/tools", nil))
 	out := buf.String()
-	if !strings.Contains(out, "GET /api/v1/tools") || !strings.Contains(out, "418") {
+	if !strings.Contains(out, "GET /api/tools") || !strings.Contains(out, "418") {
 		t.Errorf("expected api log line with method/path/status, got %q", out)
 	}
 
@@ -168,14 +168,14 @@ func TestLogRequestsToggleOff(t *testing.T) {
 	defer restore()
 	a := &app{cfg: config{LogRequests: false}}
 	h := a.logRequests(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
-	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/tools", nil))
 	if buf.String() != "" {
 		t.Errorf("logging disabled but produced %q", buf.String())
 	}
 }
 
 func TestClientIPForwardedForOnlyWhenProxyTrusted(t *testing.T) {
-	spoofed := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+	spoofed := httptest.NewRequest(http.MethodGet, "/api/tools", nil)
 	spoofed.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
 	spoofed.RemoteAddr = "192.168.1.5:54321"
 
@@ -189,7 +189,7 @@ func TestClientIPForwardedForOnlyWhenProxyTrusted(t *testing.T) {
 		t.Errorf("clientIP = %q, want 203.0.113.9", got)
 	}
 
-	bare := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+	bare := httptest.NewRequest(http.MethodGet, "/api/tools", nil)
 	bare.RemoteAddr = "192.168.1.5:54321"
 	if got := trusting.clientIP(bare); got != "192.168.1.5" {
 		t.Errorf("clientIP = %q, want 192.168.1.5", got)
@@ -202,7 +202,7 @@ func TestRequireSameOriginRejectsCrossSiteCookieWrite(t *testing.T) {
 	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
 
 	withCookie := func(method, origin string) *http.Request {
-		r := httptest.NewRequest(method, "http://reeve.lan:8080/api/v1/credentials/c1/reveal", nil)
+		r := httptest.NewRequest(method, "http://reeve.lan:8080/api/credentials/c1/reveal", nil)
 		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: "s1"})
 		if origin != "" {
 			r.Header.Set("Origin", origin)
@@ -240,7 +240,7 @@ func TestRequireSameOriginLeavesTokenCallersAlone(t *testing.T) {
 	a := &app{cfg: config{}}
 	reached := false
 	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/ingest", nil)
+	r := httptest.NewRequest(http.MethodPost, "/api/ingest", nil)
 	r.Header.Set("Authorization", "Bearer rva_deadbeef")
 	h.ServeHTTP(httptest.NewRecorder(), r)
 	if !reached {

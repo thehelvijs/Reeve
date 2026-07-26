@@ -26,7 +26,7 @@ func uploadAvatar(t *testing.T, ts *testServer, c *http.Client, data []byte) (*h
 	fw, _ := mw.CreateFormFile("avatar", "a.png")
 	fw.Write(data)
 	mw.Close()
-	req, _ := http.NewRequest(http.MethodPost, ts.srv.URL+"/api/v1/me/avatar", &buf)
+	req, _ := http.NewRequest(http.MethodPost, ts.srv.URL+"/api/me/avatar", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("Origin", ts.srv.URL)
 	resp, err := c.Do(req)
@@ -50,7 +50,7 @@ func TestUpdateDisplayName(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
-	resp, data := ts.do(t, c, http.MethodPatch, "/api/v1/me", map[string]string{"display_name": "  Boss Lady  "}, nil)
+	resp, data := ts.do(t, c, http.MethodPatch, "/api/me", map[string]string{"display_name": "  Boss Lady  "}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch me = %d: %s", resp.StatusCode, data)
 	}
@@ -64,7 +64,7 @@ func TestUpdateDisplayName(t *testing.T) {
 	for i := range long {
 		long[i] = 'x'
 	}
-	resp, _ = ts.do(t, c, http.MethodPatch, "/api/v1/me", map[string]string{"display_name": string(long)}, nil)
+	resp, _ = ts.do(t, c, http.MethodPatch, "/api/me", map[string]string{"display_name": string(long)}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("over-long name status = %d, want 400", resp.StatusCode)
 	}
@@ -76,30 +76,30 @@ func TestChangePassword(t *testing.T) {
 	signup(t, ts, c, "boss@example.com", "password123")
 
 	// Wrong current password is rejected.
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/me/password",
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/me/password",
 		map[string]string{"current_password": "nope", "new_password": "newpassword1"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("wrong current = %d, want 400", resp.StatusCode)
 	}
 	// Weak new password is rejected.
-	resp, _ = ts.do(t, c, http.MethodPost, "/api/v1/me/password",
+	resp, _ = ts.do(t, c, http.MethodPost, "/api/me/password",
 		map[string]string{"current_password": "password123", "new_password": "short"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("weak new = %d, want 400", resp.StatusCode)
 	}
 	// Valid change succeeds; new password logs in, old does not.
-	resp, _ = ts.do(t, c, http.MethodPost, "/api/v1/me/password",
+	resp, _ = ts.do(t, c, http.MethodPost, "/api/me/password",
 		map[string]string{"current_password": "password123", "new_password": "newpassword1"}, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("change = %d, want 204", resp.StatusCode)
 	}
 	fresh := ts.client(t)
-	resp, _ = ts.do(t, fresh, http.MethodPost, "/api/v1/auth/login",
+	resp, _ = ts.do(t, fresh, http.MethodPost, "/api/auth/login",
 		map[string]string{"email": "boss@example.com", "password": "password123"}, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("old password login = %d, want 401", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, fresh, http.MethodPost, "/api/v1/auth/login",
+	resp, _ = ts.do(t, fresh, http.MethodPost, "/api/auth/login",
 		map[string]string{"email": "boss@example.com", "password": "newpassword1"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("new password login = %d, want 200", resp.StatusCode)
@@ -117,7 +117,7 @@ func TestAvatarUploadServeDelete(t *testing.T) {
 	}
 	var v userView
 	json.Unmarshal(data, &v)
-	want := "/api/v1/users/" + su.ID + "/avatar"
+	want := "/api/users/" + su.ID + "/avatar"
 	if v.AvatarURL != want {
 		t.Fatalf("avatar_url = %q, want %q", v.AvatarURL, want)
 	}
@@ -130,7 +130,7 @@ func TestAvatarUploadServeDelete(t *testing.T) {
 		t.Errorf("served bytes are not the PNG we stored")
 	}
 
-	resp, _ = ts.do(t, c, http.MethodDelete, "/api/v1/me/avatar", nil, nil)
+	resp, _ = ts.do(t, c, http.MethodDelete, "/api/me/avatar", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("delete avatar = %d", resp.StatusCode)
 	}
@@ -164,17 +164,17 @@ func TestSelfDeleteReassignsToolsAndEndsSession(t *testing.T) {
 
 	createTool(t, ts, basic, toolInput{Name: "BasicGrafana", Address: "10.0.0.5", Port: 3000})
 
-	resp, _ := ts.do(t, basic, http.MethodDelete, "/api/v1/me", nil, nil)
+	resp, _ := ts.do(t, basic, http.MethodDelete, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("self-delete = %d, want 204", resp.StatusCode)
 	}
 	// Session is gone.
-	resp, _ = ts.do(t, basic, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ = ts.do(t, basic, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("deleted user /me = %d, want 401", resp.StatusCode)
 	}
 	// The tool survived, reassigned to the admin.
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/tools", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/tools", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list tools = %d", resp.StatusCode)
 	}
@@ -188,7 +188,7 @@ func TestLastAdminCannotSelfDelete(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "admin@example.com", "password123")
 
-	resp, data := ts.do(t, admin, http.MethodDelete, "/api/v1/me", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodDelete, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("last admin self-delete = %d, want 400: %s", resp.StatusCode, data)
 	}
@@ -205,16 +205,16 @@ func TestAdminDeleteUser(t *testing.T) {
 	_, basicView := signup(t, ts, basic, "basic@example.com", "password123")
 
 	// Admin cannot delete self via the admin endpoint.
-	resp, data := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/users/"+adminView.ID, nil, nil)
+	resp, data := ts.do(t, admin, http.MethodDelete, "/api/admin/users/"+adminView.ID, nil, nil)
 	if resp.StatusCode != http.StatusBadRequest || !bytes.Contains(data, []byte("self_delete")) {
 		t.Fatalf("admin self-delete = %d: %s", resp.StatusCode, data)
 	}
 	// Admin deletes the basic user.
-	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/users/"+basicView.ID, nil, nil)
+	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/admin/users/"+basicView.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("admin delete basic = %d, want 204", resp.StatusCode)
 	}
-	resp, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/users", nil, nil)
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/admin/users", nil, nil)
 	if bytes.Contains(data, []byte("basic@example.com")) {
 		t.Errorf("deleted user still listed: %s", data)
 	}

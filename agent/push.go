@@ -130,7 +130,7 @@ func (p *pusher) flushBuffer() {
 }
 
 func (p *pusher) post(body []byte) (*contracts.PushAck, error) {
-	req, err := http.NewRequest(http.MethodPost, p.serverURL+"/api/v1/ingest", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, p.serverURL+"/api/ingest", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

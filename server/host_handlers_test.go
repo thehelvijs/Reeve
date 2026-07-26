@@ -30,7 +30,7 @@ func TestListHostsIncludesLatestMetric(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list hosts = %d: %s", resp.StatusCode, data)
 	}
@@ -121,7 +121,7 @@ func TestDeleteHostTakesItsTelemetryWithIt(t *testing.T) {
 		sql.Exec(`INSERT INTO alert_thresholds(host_id, metric, threshold) VALUES (?,'cpu',50)`, h)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil)
+	resp, data := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+h.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete host = %d: %s", resp.StatusCode, data)
 	}
@@ -149,7 +149,7 @@ func TestDeleteHostTakesItsTelemetryWithIt(t *testing.T) {
 		t.Error("deleting a host wiped the global thresholds")
 	}
 
-	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil)
+	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+h.ID, nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("second delete = %d, want 404", resp.StatusCode)
 	}
@@ -169,18 +169,18 @@ func TestDeleteHostLeavesLinkedToolsListable(t *testing.T) {
 	}
 	tool := createTool(t, ts, admin, toolInput{Name: "Orphan", HostID: h.ID})
 
-	if resp, _ := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+h.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+	if resp, _ := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+h.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete host = %d", resp.StatusCode)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/tools", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/tools", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list tools after host delete = %d: %s", resp.StatusCode, data)
 	}
 	if !bytes.Contains(data, []byte("Orphan")) {
 		t.Errorf("the tool vanished with its host: %s", data)
 	}
-	resp, data = ts.do(t, admin, http.MethodGet, "/api/v1/tools/"+tool.ID, nil, nil)
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/tools/"+tool.ID, nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("tool detail after host delete = %d: %s", resp.StatusCode, data)
 	}
@@ -197,7 +197,7 @@ func TestUpdateHostLocation(t *testing.T) {
 	}
 
 	body := map[string]any{"physical_location": "Riga, Latvia", "latitude": 56.946, "longitude": 24.106}
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/hosts/"+h.ID, body, nil)
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/hosts/"+h.ID, body, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch host = %d: %s", resp.StatusCode, data)
 	}
@@ -212,7 +212,7 @@ func TestUpdateHostLocation(t *testing.T) {
 	}
 
 	// Listing reflects the stored coordinates.
-	_, list := ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
+	_, list := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	if !bytes.Contains(list, []byte("56.946")) {
 		t.Errorf("host list missing latitude: %s", list)
 	}
@@ -233,12 +233,12 @@ func TestClearHostMetricsAdminOnly(t *testing.T) {
 
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp, _ := ts.do(t, basic, http.MethodDelete, "/api/v1/admin/hosts/"+host.ID+"/metrics", nil, nil)
+	resp, _ := ts.do(t, basic, http.MethodDelete, "/api/admin/hosts/"+host.ID+"/metrics", nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("basic clear = %d, want 403", resp.StatusCode)
 	}
 
-	resp2, data := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+host.ID+"/metrics", nil, nil)
+	resp2, data := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+host.ID+"/metrics", nil, nil)
 	if resp2.StatusCode != http.StatusNoContent {
 		t.Fatalf("admin clear = %d: %s", resp2.StatusCode, data)
 	}
@@ -250,7 +250,7 @@ func TestClearHostMetricsAdminOnly(t *testing.T) {
 		t.Errorf("expected 0 metric points after clear, got %d", len(pts))
 	}
 
-	resp3, _ := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/nope/metrics", nil, nil)
+	resp3, _ := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/nope/metrics", nil, nil)
 	if resp3.StatusCode != http.StatusNotFound {
 		t.Errorf("clear unknown host = %d, want 404", resp3.StatusCode)
 	}

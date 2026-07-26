@@ -5,7 +5,7 @@ const selectCls =
   'rounded-button border border-hairline bg-surface-1 px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
 
 // PrincipalPicker grants users and groups access to something. It reads
-// /api/v1/principals so a non-admin creator can name people too.
+// /api/principals so a non-admin creator can name people too.
 export default function PrincipalPicker({
   grants,
   onAdd,
@@ -19,7 +19,7 @@ export default function PrincipalPicker({
 
   useEffect(() => {
     api
-      .get<Principals>('/api/v1/principals')
+      .get<Principals>('/api/principals')
       .then((p) => setPrincipals({ users: p?.users ?? [], groups: p?.groups ?? [] }))
       .catch(() => setPrincipals({ users: [], groups: [] }));
   }, []);

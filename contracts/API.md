@@ -1,15 +1,15 @@
-# Reeve REST API (v1)
+# Reeve REST API
 
-Base path: `/api/v1`. All responses are JSON. LAN-only; not exposed publicly.
+Base path: `/api`. All responses are JSON. LAN-only; not exposed publicly.
 
 ## Authentication
 
-- **Session cookie** (`reeve_session`) — set by `POST /api/v1/auth/login` or
+- **Session cookie** (`reeve_session`) — set by `POST /api/auth/login` or
   `/signup`; used by the web UI. It resolves to that user's principal, never
   elevated.
 
 The agent uses a separate host **enrollment token** (`Authorization: Bearer
-rva_…`) for `POST /api/v1/ingest` only.
+rva_…`) for `POST /api/ingest` only.
 
 ## Errors
 
@@ -25,7 +25,7 @@ Common codes: `unauthenticated` (401), `forbidden` (403), `not_found` (404),
 
 ## Catalog
 
-### `GET /api/v1/tools`
+### `GET /api/tools`
 
 Returns the tools the caller may see (visibility applied per principal).
 Query params: `search`, `collection` (a collection id, not a name), `host`,
@@ -46,15 +46,15 @@ Query params: `search`, `collection` (a collection id, not a name), `host`,
 ]
 ```
 
-### `GET /api/v1/tools/{id}`
+### `GET /api/tools/{id}`
 
 Same shape, single object. Returns **404** (not 403) when the caller may not see
 the tool, so a restricted tool's existence stays hidden. Visibility: `public` = anonymous-visible; `restricted` = specific users/groups only.
 
 Credentials are retrieved only via the separate, access-checked, audited
-`POST /api/v1/credentials/{id}/reveal` — never through the catalog API.
+`POST /api/credentials/{id}/reveal` — never through the catalog API.
 
-### `POST /api/v1/tools`, `PATCH /api/v1/tools/{id}`
+### `POST /api/tools`, `PATCH /api/tools/{id}`
 
 Both accept `collection_ids`, an array of collection ids that **replaces** the
 tool's whole membership set. An id the caller cannot see is a `400
@@ -62,7 +62,7 @@ invalid_collection`, and on create the tool is not kept. The `collections`
 array in every tool response is filtered to the collections that caller may
 see, so two callers can get different arrays for the same tool.
 
-### `POST /api/v1/tools` — the `slug`
+### `POST /api/tools` — the `slug`
 
 `slug` is the name in `/go/<slug>` and is unique across the catalog. Omit it
 and the server derives one from the name (`Paperless-ngx` → `paperless-ngx`),
@@ -72,11 +72,11 @@ the caller is about to share. A slug with no letter or digit in it is `400
 invalid_slug`. A `PATCH` that omits `slug` leaves it alone, so renaming a tool
 never moves a link someone has bookmarked.
 
-### `GET /api/v1/public/tools` (no auth)
+### `GET /api/public/tools` (no auth)
 
 The unauthenticated portal surface. Returns only tools with `visibility: "public"`
 (now defined as **anonymous-visible on the LAN**). A reduced DTO, not the same
-shape as `GET /api/v1/tools`: `id`, `name`, `description`, `collections`,
+shape as `GET /api/tools`: `id`, `name`, `description`, `collections`,
 `slug`, `tags`, `scheme`, `address`, `port`, `url`, `physical_location`,
 `host_id`, `source_type`, `status`. It omits `creator_id`, `source_ref`, `visibility`,
 `can_edit`, and `log_alert_enabled`. Query params: `search`, `collection`,
@@ -104,7 +104,7 @@ the link worth bookmarking or sharing.
 - A host that is offline still redirects to the last address it reported: a
   stale answer beats no answer.
 
-### `GET /api/v1/endpoints/{slug}` (no auth for public tools)
+### `GET /api/endpoints/{slug}` (no auth for public tools)
 
 The same resolution as JSON, for scripts and for the UI.
 
@@ -136,19 +136,19 @@ cannot be hidden by putting it in a restricted collection.
 
 | Route | Auth | Notes |
 | --- | --- | --- |
-| `GET /api/v1/public/collections` | none | public collections only, `can_edit` always `false` |
-| `GET /api/v1/collections` | user | the collections the caller may see |
-| `POST /api/v1/collections` | user | any signed-in user; `201`, `400 invalid_name`, `400 invalid_visibility`, `409 name_taken` |
-| `GET /api/v1/collections/{id}` | user | adds `tool_ids`; `404` when not visible |
-| `PATCH /api/v1/collections/{id}` | editor | `200`, `403 forbidden`, `404`, `409 name_taken` |
-| `DELETE /api/v1/collections/{id}` | creator or admin | `204`, `403 forbidden` |
-| `PUT/DELETE /api/v1/collections/{id}/tools/{toolId}` | editor | `204`; `404 not_found` for an unknown tool |
-| `GET /api/v1/collections/{id}/editors` | editor | list of `{principal_type, principal_id}` |
-| `PUT/DELETE /api/v1/collections/{id}/editors/{type}/{principalId}` | editor | `204`; `400 invalid_principal` unless `type` is `user` or `group` |
-| `GET /api/v1/collections/{id}/visibility` | editor | same shape as editors |
-| `PUT/DELETE /api/v1/collections/{id}/visibility/{type}/{principalId}` | editor | as above |
-| `GET /api/v1/collections/{id}/icon` | none | as tool icons: public collections to anyone, restricted only to principals who may see them |
-| `POST/DELETE /api/v1/collections/{id}/icon` | editor | multipart `icon` field, returns `{"icon_url": "…"}` |
+| `GET /api/public/collections` | none | public collections only, `can_edit` always `false` |
+| `GET /api/collections` | user | the collections the caller may see |
+| `POST /api/collections` | user | any signed-in user; `201`, `400 invalid_name`, `400 invalid_visibility`, `409 name_taken` |
+| `GET /api/collections/{id}` | user | adds `tool_ids`; `404` when not visible |
+| `PATCH /api/collections/{id}` | editor | `200`, `403 forbidden`, `404`, `409 name_taken` |
+| `DELETE /api/collections/{id}` | creator or admin | `204`, `403 forbidden` |
+| `PUT/DELETE /api/collections/{id}/tools/{toolId}` | editor | `204`; `404 not_found` for an unknown tool |
+| `GET /api/collections/{id}/editors` | editor | list of `{principal_type, principal_id}` |
+| `PUT/DELETE /api/collections/{id}/editors/{type}/{principalId}` | editor | `204`; `400 invalid_principal` unless `type` is `user` or `group` |
+| `GET /api/collections/{id}/visibility` | editor | same shape as editors |
+| `PUT/DELETE /api/collections/{id}/visibility/{type}/{principalId}` | editor | as above |
+| `GET /api/collections/{id}/icon` | none | as tool icons: public collections to anyone, restricted only to principals who may see them |
+| `POST/DELETE /api/collections/{id}/icon` | editor | multipart `icon` field, returns `{"icon_url": "…"}` |
 
 "editor" means admin, the creator, or a user or group holding an editor grant.
 A caller who may not see a collection gets `404`, not `403`, so restricted
@@ -158,12 +158,12 @@ names do not leak.
 {
   "id": "…", "name": "Manufacturing", "description": "Shop-floor tooling.",
   "visibility": "public", "creator_id": "…",
-  "icon_url": "/api/v1/collections/…/icon",
+  "icon_url": "/api/collections/…/icon",
   "tool_count": 12, "can_edit": true, "created_at": "…"
 }
 ```
 
-### `GET /api/v1/principals`
+### `GET /api/principals`
 
 Authenticated. Returns the names a non-admin needs to fill a visibility or
 editor picker:
@@ -177,7 +177,7 @@ It exposes display name, email and group name to **any** signed-in user, and
 nothing else. Any user can create a collection and grant access to it, so the
 admin-only `/admin/users` and `/admin/groups` are not a usable source.
 
-### `GET /api/v1/public/hosts` (no auth)
+### `GET /api/public/hosts` (no auth)
 
 Returns only hosts referenced by at least one public tool, trimmed to `id`,
 `name`, and `status`. It omits `os`, `physical_location`, `agent_version`, and
@@ -186,7 +186,7 @@ are omitted.
 
 ## Agent updates (admin)
 
-The authed host payload from `GET /api/v1/hosts` (and any other endpoint that
+The authed host payload from `GET /api/hosts` (and any other endpoint that
 returns a `hostView`) carries two fields the public/anonymous host payload
 never does:
 
@@ -204,7 +204,7 @@ never does:
   - `unknown` — the server version or the host's reported version isn't a
     comparable release (e.g. a `dev` build), so no state can be derived.
 
-### `GET /api/v1/admin/agent-updates`
+### `GET /api/admin/agent-updates`
 
 Fleet rollout rollup.
 
@@ -225,19 +225,19 @@ the banner can never name a host the page renders as fine. Each entry carries
 the host `id` so the banner can link to the page where an admin takes it out of
 the rollout.
 
-### `POST /api/v1/admin/agent-updates/resume`
+### `POST /api/admin/agent-updates/resume`
 
 Releases every rollout slot stamped before the stall cutoff, un-pausing the
 rollout. `204 No Content`. Resume hands the same host its slot back on the next
 push, so a host that genuinely cannot update re-stalls; setting that host's
 policy to `off` is the way to take it out of the rollout for good.
 
-### `PUT /api/v1/admin/hosts/{id}/auto-update`
+### `PUT /api/admin/hosts/{id}/auto-update`
 
 Body `{"policy": "default" | "on" | "off"}`. `200` with the updated `hostView`;
 `400 invalid_policy` for anything else; `404 not_found` for an unknown host.
 
-### `POST /api/v1/admin/hosts/{id}/update-now`
+### `POST /api/admin/hosts/{id}/update-now`
 
 Grants the host a rollout slot immediately, bypassing both the concurrency cap
 and a paused rollout — this is an explicit operator override, not a paced grant.
@@ -257,7 +257,7 @@ reporting `auto_update_vetoed: true`.
 
 ### Settings: `agent_update`
 
-`GET/PUT /api/v1/admin/settings` carries an `agent_update` section alongside
+`GET/PUT /api/admin/settings` carries an `agent_update` section alongside
 `retention`, `smtp`, and `google`:
 
 ```json
@@ -290,7 +290,7 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 
 ## Ingest (agent → server)
 
-`POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
+`POST /api/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or oversized pushes with the standard error envelope.
 

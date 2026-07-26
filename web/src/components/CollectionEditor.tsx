@@ -37,7 +37,7 @@ export default function CollectionEditor({
 
   useEffect(() => {
     api
-      .get<Tool[]>('/api/v1/tools')
+      .get<Tool[]>('/api/tools')
       .then((t) => setTools(t ?? []))
       .catch(() => setTools([]));
   }, []);
@@ -55,12 +55,12 @@ export default function CollectionEditor({
     const before = collection?.tool_ids ?? [];
     for (const t of toolIDs) {
       if (!before.includes(t)) {
-        await api.put(`/api/v1/collections/${id}/tools/${t}`);
+        await api.put(`/api/collections/${id}/tools/${t}`);
       }
     }
     for (const t of before) {
       if (!toolIDs.includes(t)) {
-        await api.del(`/api/v1/collections/${id}/tools/${t}`);
+        await api.del(`/api/collections/${id}/tools/${t}`);
       }
     }
   };
@@ -72,12 +72,12 @@ export default function CollectionEditor({
     try {
       let id = collection?.id ?? '';
       if (collection) {
-        await api.patch<Collection>(`/api/v1/collections/${collection.id}`, body);
+        await api.patch<Collection>(`/api/collections/${collection.id}`, body);
       } else {
-        id = (await api.post<Collection>('/api/v1/collections', body)).id;
+        id = (await api.post<Collection>('/api/collections', body)).id;
       }
       await syncTools(id);
-      onSaved(await api.get<Collection>(`/api/v1/collections/${id}`));
+      onSaved(await api.get<Collection>(`/api/collections/${id}`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed');
       setBusy(false);
@@ -118,10 +118,10 @@ export default function CollectionEditor({
             <IconUploader
               url={iconURL}
               name={name}
-              path={`/api/v1/collections/${collection.id}/icon`}
+              path={`/api/collections/${collection.id}/icon`}
               onChange={() =>
                 api
-                  .get<Collection>(`/api/v1/collections/${collection.id}`)
+                  .get<Collection>(`/api/collections/${collection.id}`)
                   .then((c) => setIconURL(c.icon_url))
                   .catch(() => setIconURL(''))
               }
@@ -141,9 +141,9 @@ export default function CollectionEditor({
         </Field>
 
         {collection && visibility === 'restricted' && (
-          <GrantSection label="Who can see it" path={`/api/v1/collections/${collection.id}/visibility`} />
+          <GrantSection label="Who can see it" path={`/api/collections/${collection.id}/visibility`} />
         )}
-        {collection && <GrantSection label="Who can edit it" path={`/api/v1/collections/${collection.id}/editors`} />}
+        {collection && <GrantSection label="Who can edit it" path={`/api/collections/${collection.id}/editors`} />}
 
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-muted">Services</span>

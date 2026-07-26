@@ -11,8 +11,8 @@ export default function Requests() {
   const [tools, setTools] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
-    api.get<AccessRequest[]>(`/api/v1/access-requests?box=${box}`).then((r) => setReqs(r ?? []));
-    api.get<Tool[]>('/api/v1/tools').then((ts) => {
+    api.get<AccessRequest[]>(`/api/access-requests?box=${box}`).then((r) => setReqs(r ?? []));
+    api.get<Tool[]>('/api/tools').then((ts) => {
       const m: Record<string, string> = {};
       (ts ?? []).forEach((t) => (m[t.id] = t.name));
       setTools(m);
@@ -23,7 +23,7 @@ export default function Requests() {
   }, [load]);
 
   const decide = async (id: string, action: 'approve' | 'deny') => {
-    await api.post(`/api/v1/access-requests/${id}/${action}`, {});
+    await api.post(`/api/access-requests/${id}/${action}`, {});
     load();
   };
 

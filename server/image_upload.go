@@ -67,5 +67,5 @@ func assetURL(kind, id, leaf, path string) string {
 	if path == "" {
 		return ""
 	}
-	return "/api/v1/" + kind + "/" + id + "/" + leaf
+	return "/api/" + kind + "/" + id + "/" + leaf
 }

@@ -33,7 +33,7 @@ type userView struct {
 func (a *app) userView(u store.User) userView {
 	avatar := ""
 	if u.AvatarPath != "" {
-		avatar = "/api/v1/users/" + u.ID + "/avatar"
+		avatar = "/api/users/" + u.ID + "/avatar"
 	}
 	return userView{ID: u.ID, Email: u.Email, Role: u.Role, DisplayName: u.DisplayName, AvatarURL: avatar}
 }

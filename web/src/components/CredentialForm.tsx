@@ -42,7 +42,7 @@ export default function CredentialForm({
     }
     setBusy(true);
     try {
-      const c = await api.post<Credential>(`/api/v1/tools/${toolId}/credentials`, { type, label, secret });
+      const c = await api.post<Credential>(`/api/tools/${toolId}/credentials`, { type, label, secret });
       onSaved(c);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed');

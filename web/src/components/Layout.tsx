@@ -33,8 +33,8 @@ export default function Layout() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    prefetch('/api/v1/tools', () => api.get<Tool[]>('/api/v1/tools'));
-    prefetch('/api/v1/hosts', () => api.get<Host[]>('/api/v1/hosts'));
+    prefetch('/api/tools', () => api.get<Tool[]>('/api/tools'));
+    prefetch('/api/hosts', () => api.get<Host[]>('/api/hosts'));
   }, []);
 
   const submitSearch = () => navigate(`/catalog?q=${encodeURIComponent(search.trim())}`);

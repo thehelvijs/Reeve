@@ -33,24 +33,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     Promise.all([
-      api.get<User>('/api/v1/me').then(setUser).catch(() => setUser(null)),
-      api.get<AuthStatus>('/api/v1/auth/status').then(setStatus).catch(() => undefined),
+      api.get<User>('/api/me').then(setUser).catch(() => setUser(null)),
+      api.get<AuthStatus>('/api/auth/status').then(setStatus).catch(() => undefined),
     ]).finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
-    setUser(await api.post<User>('/api/v1/auth/login', { email, password }));
+    setUser(await api.post<User>('/api/auth/login', { email, password }));
   };
   const signup = async (email: string, password: string) => {
-    setUser(await api.post<User>('/api/v1/auth/signup', { email, password }));
+    setUser(await api.post<User>('/api/auth/signup', { email, password }));
     setStatus((s) => ({ ...s, setup_required: false }));
   };
   const logout = async () => {
-    await api.post('/api/v1/auth/logout');
+    await api.post('/api/auth/logout');
     setUser(null);
   };
   const refreshUser = async () => {
-    setUser(await api.get<User>('/api/v1/me'));
+    setUser(await api.get<User>('/api/me'));
   };
 
   return (

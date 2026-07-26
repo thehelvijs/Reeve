@@ -56,7 +56,7 @@ export default function MapPicker({
     setError('');
     setBusy(true);
     try {
-      await api.patch(`/api/v1/admin/hosts/${hostId}`, {
+      await api.patch(`/api/admin/hosts/${hostId}`, {
         physical_location: loc.trim(),
         latitude: lat,
         longitude: lon,

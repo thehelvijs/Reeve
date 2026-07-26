@@ -11,7 +11,7 @@ import (
 
 func enrollHost(t *testing.T, ts *testServer, admin *http.Client, name string) (hostID, token string) {
 	t.Helper()
-	resp, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/hosts", map[string]any{"name": name}, nil)
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/hosts", map[string]any{"name": name}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("enroll host = %d: %s", resp.StatusCode, data)
 	}
@@ -43,7 +43,7 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	admin := adminClient(t, ts)
 	hostID, token := enrollHost(t, ts, admin, "host-a")
 
-	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("ingest status = %d, want 200", resp.StatusCode)
@@ -57,7 +57,7 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	}
 
 	// Host shows online.
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	var hosts []hostView
 	json.Unmarshal(data, &hosts)
 	if len(hosts) != 1 || hosts[0].Status != "online" || hosts[0].AgentVersion != "0.1.0" {
@@ -65,7 +65,7 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	}
 
 	// Inventory reflects the pushed items.
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+hostID+"/inventory", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/inventory", nil, nil)
 	var inv inventoryResponse
 	json.Unmarshal(data, &inv)
 	if len(inv.Services) != 1 || inv.Services[0].SourceRef != "nginx.service" {
@@ -86,7 +86,7 @@ func TestIngestStoresTelemetry(t *testing.T) {
 	}
 
 	// A second push while the slot is still live must keep being honored.
-	resp, data = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	resp, data = ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("second ingest status = %d, want 200", resp.StatusCode)
@@ -105,13 +105,13 @@ func TestIngestReplacesSnapshot(t *testing.T) {
 	hostID, token := enrollHost(t, ts, admin, "host-a")
 	hdr := map[string]string{"Authorization": "Bearer " + token}
 
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(), hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(), hdr)
 	// Second push with a different service replaces the first snapshot.
 	p := samplePush()
 	p.Services = []contracts.ServiceState{{Unit: "redis.service", ActiveState: "active", SubState: "running"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p, hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", p, hdr)
 
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+hostID+"/inventory", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/inventory", nil, nil)
 	var inv inventoryResponse
 	json.Unmarshal(data, &inv)
 	if len(inv.Services) != 1 || inv.Services[0].SourceRef != "redis.service" {
@@ -124,7 +124,7 @@ func TestIngestBadTokenRejected(t *testing.T) {
 	adminClient(t, ts)
 	before := ts.app.ingestRejected.Load()
 
-	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	resp, _ := ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer rva_bogus"})
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("bad token ingest = %d, want 401", resp.StatusCode)
@@ -142,7 +142,7 @@ func TestIngestRejectsAnOversizedPush(t *testing.T) {
 	_, token := enrollHost(t, ts, admin, "host-a")
 	p := samplePush()
 	p.LogEvents = make([]contracts.LogEvent, contracts.MaxPushLogEvents+1)
-	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", p,
 		map[string]string{"Authorization": "Bearer " + token})
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Errorf("oversized ingest = %d, want 413: %s", resp.StatusCode, data)
@@ -153,13 +153,13 @@ func TestInventoryMarksLinked(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	hostID, token := enrollHost(t, ts, admin, "host-a")
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 
 	// Link a tool to the nginx unit.
 	createTool(t, ts, admin, toolInput{Name: "Nginx", HostID: hostID, SourceType: "systemd", SourceRef: "nginx.service"})
 
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+hostID+"/inventory", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/inventory", nil, nil)
 	var inv inventoryResponse
 	json.Unmarshal(data, &inv)
 	if len(inv.Services) != 1 || !inv.Services[0].Linked {
@@ -175,7 +175,7 @@ func TestCreateHostAdminOnly(t *testing.T) {
 	adminClient(t, ts)
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp, _ := ts.do(t, basic, http.MethodPost, "/api/v1/admin/hosts", map[string]any{"name": "x"}, nil)
+	resp, _ := ts.do(t, basic, http.MethodPost, "/api/admin/hosts", map[string]any{"name": "x"}, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic create host = %d, want 403", resp.StatusCode)
 	}

@@ -12,8 +12,8 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    api.get<Credential[]>(`/api/v1/tools/${tool.id}/credentials`).then((c) => setCreds(c ?? []));
-    api.get<AccessRequest[]>('/api/v1/access-requests?box=mine').then((rs) => {
+    api.get<Credential[]>(`/api/tools/${tool.id}/credentials`).then((c) => setCreds(c ?? []));
+    api.get<AccessRequest[]>('/api/access-requests?box=mine').then((rs) => {
       setPending((rs ?? []).some((r) => r.tool_id === tool.id && r.status === 'pending'));
     });
   }, [tool.id]);
@@ -24,17 +24,17 @@ export default function CredentialsSection({ tool }: { tool: Tool }) {
   const reveal = async (id: string) => {
     setError('');
     try {
-      setRevealed(await api.post<RevealedCredential>(`/api/v1/credentials/${id}/reveal`));
+      setRevealed(await api.post<RevealedCredential>(`/api/credentials/${id}/reveal`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'reveal failed');
     }
   };
   const remove = async (id: string) => {
-    await api.del(`/api/v1/credentials/${id}`);
+    await api.del(`/api/credentials/${id}`);
     load();
   };
   const requestAccess = async () => {
-    await api.post(`/api/v1/tools/${tool.id}/access-requests`, { note: '' });
+    await api.post(`/api/tools/${tool.id}/access-requests`, { note: '' });
     setPending(true);
   };
 

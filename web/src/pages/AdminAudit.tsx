@@ -16,14 +16,14 @@ export default function AdminAudit() {
   const [tools, setTools] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    api.get<RevealAuditEntry[]>('/api/v1/admin/audit/reveals').then((r) => setReveals(r ?? []));
-    api.get<GrantAuditEntry[]>('/api/v1/admin/audit/grants').then((g) => setGrants(g ?? []));
-    api.get<AdminUser[]>('/api/v1/admin/users').then((us) => {
+    api.get<RevealAuditEntry[]>('/api/admin/audit/reveals').then((r) => setReveals(r ?? []));
+    api.get<GrantAuditEntry[]>('/api/admin/audit/grants').then((g) => setGrants(g ?? []));
+    api.get<AdminUser[]>('/api/admin/users').then((us) => {
       const m: Record<string, string> = {};
       (us ?? []).forEach((u) => (m[u.id] = u.email));
       setUsers(m);
     });
-    api.get<Tool[]>('/api/v1/tools').then((ts) => {
+    api.get<Tool[]>('/api/tools').then((ts) => {
       const m: Record<string, string> = {};
       (ts ?? []).forEach((t) => (m[t.id] = t.name));
       setTools(m);

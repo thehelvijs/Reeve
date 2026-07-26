@@ -15,7 +15,7 @@ export default function Collections() {
 
   const load = useCallback(() => {
     api
-      .get<Collection[]>('/api/v1/collections')
+      .get<Collection[]>('/api/collections')
       .then((c) => setCollections(c ?? []))
       .catch(() => setCollections([]));
   }, []);

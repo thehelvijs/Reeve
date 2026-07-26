@@ -72,7 +72,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
                 <span className="h-px flex-1 bg-hairline" />
               </div>
               <a
-                href="/api/v1/auth/google/start"
+                href="/api/auth/google/start"
                 className="flex w-full items-center justify-center gap-2 rounded-button border border-hairline px-3 py-2 text-sm text-content transition-colors hover:bg-surface-2"
               >
                 <GoogleMark />

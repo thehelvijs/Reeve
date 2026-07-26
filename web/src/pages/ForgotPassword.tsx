@@ -30,7 +30,7 @@ export function ForgotPassword() {
     setError('');
     setBusy(true);
     try {
-      await api.post('/api/v1/auth/forgot', { email });
+      await api.post('/api/auth/forgot', { email });
       setSent(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'something went wrong');
@@ -87,7 +87,7 @@ export function ResetPassword() {
     setError('');
     setBusy(true);
     try {
-      await api.post('/api/v1/auth/reset', { token, password });
+      await api.post('/api/auth/reset', { token, password });
       navigate('/login');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'something went wrong');

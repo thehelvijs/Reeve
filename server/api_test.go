@@ -15,7 +15,7 @@ func bearer(token string) map[string]string {
 func TestAPIErrorEnvelope(t *testing.T) {
 	ts := newTestServer(t)
 	// Unauthenticated request returns the consistent error envelope.
-	resp, data := ts.do(t, nil, http.MethodGet, "/api/v1/tools", nil, nil)
+	resp, data := ts.do(t, nil, http.MethodGet, "/api/tools", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -37,7 +37,7 @@ func TestPublicEndpointsNoAuthExcludeRestricted(t *testing.T) {
 	createTool(t, ts, owner, toolInput{Name: "SecretVault", Visibility: "restricted"})
 
 	// No auth header, no session — the portal endpoint must still respond.
-	resp, data := ts.do(t, nil, http.MethodGet, "/api/v1/public/tools", nil, nil)
+	resp, data := ts.do(t, nil, http.MethodGet, "/api/public/tools", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("public tools = %d: %s", resp.StatusCode, data)
 	}
@@ -70,10 +70,10 @@ func TestPublicHostsNoAuth(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	hostID, token := enrollHost(t, ts, admin, "host-a")
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(), bearer(token))
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(), bearer(token))
 	createTool(t, ts, admin, toolInput{Name: "PublicOnHost", HostID: hostID})
 
-	resp, data := ts.do(t, nil, http.MethodGet, "/api/v1/public/hosts", nil, nil)
+	resp, data := ts.do(t, nil, http.MethodGet, "/api/public/hosts", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("public hosts = %d: %s", resp.StatusCode, data)
 	}

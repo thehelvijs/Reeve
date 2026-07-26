@@ -59,7 +59,7 @@ export default function ToolFormPage() {
 
   useEffect(() => {
     api
-      .get<Collection[]>('/api/v1/collections')
+      .get<Collection[]>('/api/collections')
       .then((c) => setCollections(c ?? []))
       .catch(() => setCollections([]));
   }, []);
@@ -69,7 +69,7 @@ export default function ToolFormPage() {
       return;
     }
     api
-      .get<Tool>(`/api/v1/tools/${id}`)
+      .get<Tool>(`/api/tools/${id}`)
       .then((t) => {
         setTool(t);
         setCollectionIDs(t.collections.map((c) => c.id));
@@ -127,8 +127,8 @@ export default function ToolFormPage() {
     };
     try {
       const saved = editing
-        ? await api.patch<Tool>(`/api/v1/tools/${id}`, body)
-        : await api.post<Tool>('/api/v1/tools', body);
+        ? await api.patch<Tool>(`/api/tools/${id}`, body)
+        : await api.post<Tool>('/api/tools', body);
       navigate(`/catalog/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed');
@@ -190,16 +190,16 @@ export default function ToolFormPage() {
                 <IconUploader
                   url={tool?.icon_url}
                   name={f.name}
-                  path={`/api/v1/tools/${id}/icon`}
-                  onChange={() => api.get<Tool>(`/api/v1/tools/${id}`).then(setTool)}
+                  path={`/api/tools/${id}/icon`}
+                  onChange={() => api.get<Tool>(`/api/tools/${id}`).then(setTool)}
                 />
               </div>
               <div className="space-y-1.5">
                 <span className="text-xs font-medium text-muted">Thumbnail</span>
                 <ThumbnailUploader
                   url={tool?.thumbnail_url}
-                  path={`/api/v1/tools/${id}/thumbnail`}
-                  onChange={() => api.get<Tool>(`/api/v1/tools/${id}`).then(setTool)}
+                  path={`/api/tools/${id}/thumbnail`}
+                  onChange={() => api.get<Tool>(`/api/tools/${id}`).then(setTool)}
                 />
               </div>
             </>
@@ -308,7 +308,7 @@ function CollectionPicker({
     setError('');
     setBusy(true);
     try {
-      onCreated(await api.post<Collection>('/api/v1/collections', { name: name.trim() }));
+      onCreated(await api.post<Collection>('/api/collections', { name: name.trim() }));
       setName('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed');

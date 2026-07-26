@@ -11,7 +11,7 @@ import (
 
 func createTool(t *testing.T, ts *testServer, c *http.Client, in toolInput) toolResponse {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/tools", in, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/tools", in, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create tool = %d: %s", resp.StatusCode, data)
 	}
@@ -30,7 +30,7 @@ func TestToolCreateAndList(t *testing.T) {
 		t.Fatalf("unexpected tool: %+v", tr)
 	}
 
-	_, data := ts.do(t, c, http.MethodGet, "/api/v1/tools", nil, nil)
+	_, data := ts.do(t, c, http.MethodGet, "/api/tools", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 || tools[0].Tags[0] != "metrics" {
@@ -46,7 +46,7 @@ func TestPublicToolVisibleToOthers(t *testing.T) {
 
 	other := ts.client(t)
 	signup(t, ts, other, "dev@example.com", "password123")
-	_, data := ts.do(t, other, http.MethodGet, "/api/v1/tools", nil, nil)
+	_, data := ts.do(t, other, http.MethodGet, "/api/tools", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 {
@@ -67,21 +67,21 @@ func TestRestrictedToolHiddenFromOutsiders(t *testing.T) {
 	_, dev := signup(t, ts, other, "dev@example.com", "password123")
 
 	// Absent from the list.
-	_, data := ts.do(t, other, http.MethodGet, "/api/v1/tools", nil, nil)
+	_, data := ts.do(t, other, http.MethodGet, "/api/tools", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	if len(tools) != 0 {
 		t.Fatalf("restricted tool leaked into list: %+v", tools)
 	}
 	// Detail returns 404 (existence hidden), not 403.
-	resp, _ := ts.do(t, other, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil)
+	resp, _ := ts.do(t, other, http.MethodGet, "/api/tools/"+tr.ID, nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("restricted detail = %d, want 404", resp.StatusCode)
 	}
 
 	// After a direct grant, the user can see it.
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tr.ID+"/visibility/user/"+dev.ID, nil, nil)
-	resp, _ = ts.do(t, other, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tr.ID+"/visibility/user/"+dev.ID, nil, nil)
+	resp, _ = ts.do(t, other, http.MethodGet, "/api/tools/"+tr.ID, nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("after grant detail = %d, want 200", resp.StatusCode)
 	}
@@ -97,13 +97,13 @@ func TestRestrictedToolVisibleViaGroup(t *testing.T) {
 	_, dev := signup(t, ts, other, "dev@example.com", "password123")
 
 	// Group with dev as member, granted visibility.
-	_, gd := ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	_, gd := ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	var g groupView
 	json.Unmarshal(gd, &g)
-	ts.do(t, admin, http.MethodPut, "/api/v1/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
-	ts.do(t, admin, http.MethodPut, "/api/v1/tools/"+tr.ID+"/visibility/group/"+g.ID, nil, nil)
+	ts.do(t, admin, http.MethodPut, "/api/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
+	ts.do(t, admin, http.MethodPut, "/api/tools/"+tr.ID+"/visibility/group/"+g.ID, nil, nil)
 
-	_, data := ts.do(t, other, http.MethodGet, "/api/v1/tools", nil, nil)
+	_, data := ts.do(t, other, http.MethodGet, "/api/tools", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 {
@@ -122,7 +122,7 @@ func TestToolVisibilityListAndRemove(t *testing.T) {
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 
-	resp, data := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	resp, data := ts.do(t, owner, http.MethodGet, "/api/tools/"+tr.ID+"/visibility", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list visibility = %d: %s", resp.StatusCode, data)
 	}
@@ -130,35 +130,35 @@ func TestToolVisibilityListAndRemove(t *testing.T) {
 		t.Errorf("visibility on a fresh tool = %s, want []", got)
 	}
 
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil)
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/tools/"+tr.ID+"/visibility", nil, nil)
 	var grants []visibilityGrantView
 	json.Unmarshal(data, &grants)
 	if len(grants) != 1 || grants[0].PrincipalType != "user" || grants[0].PrincipalID != devUser.ID {
 		t.Fatalf("visibility grants = %+v", grants)
 	}
-	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusOK {
 		t.Fatalf("granted user cannot see the tool: %d", resp.StatusCode)
 	}
 
-	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/tools/"+tr.ID+"/visibility/user/"+devUser.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("remove visibility = %d", resp.StatusCode)
 	}
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/tools/"+tr.ID+"/visibility", nil, nil)
 	json.Unmarshal(data, &grants)
 	if len(grants) != 0 {
 		t.Errorf("grants after removal = %+v", grants)
 	}
-	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ := ts.do(t, dev, http.MethodGet, "/api/tools/"+tr.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("tool still visible after removal: %d, want 404", resp.StatusCode)
 	}
 
 	// A removal naming a principal kind that does not exist is a typo, not a
 	// no-op, and only someone who may edit the tool may touch its visibility.
-	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tr.ID+"/visibility/robot/x", nil, nil); resp.StatusCode != http.StatusBadRequest {
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/tools/"+tr.ID+"/visibility/robot/x", nil, nil); resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("bad principal type = %d, want 400", resp.StatusCode)
 	}
-	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tr.ID+"/visibility", nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/tools/"+tr.ID+"/visibility", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("outsider listing visibility = %d, want 404", resp.StatusCode)
 	}
 }
@@ -172,11 +172,11 @@ func TestNonOwnerCannotEditOrDelete(t *testing.T) {
 	other := ts.client(t)
 	signup(t, ts, other, "dev@example.com", "password123") // basic, non-owner
 
-	resp, _ := ts.do(t, other, http.MethodPatch, "/api/v1/tools/"+tr.ID, toolInput{Name: "Hacked"}, nil)
+	resp, _ := ts.do(t, other, http.MethodPatch, "/api/tools/"+tr.ID, toolInput{Name: "Hacked"}, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("non-owner edit = %d, want 403", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, other, http.MethodDelete, "/api/v1/tools/"+tr.ID, nil, nil)
+	resp, _ = ts.do(t, other, http.MethodDelete, "/api/tools/"+tr.ID, nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("non-owner delete = %d, want 403", resp.StatusCode)
 	}
@@ -190,7 +190,7 @@ func TestAdminCanEditAnyTool(t *testing.T) {
 	signup(t, ts, dev, "dev@example.com", "password123")
 	tr := createTool(t, ts, dev, toolInput{Name: "DevTool"})
 
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/tools/"+tr.ID, toolInput{Name: "Renamed"}, nil)
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/tools/"+tr.ID, toolInput{Name: "Renamed"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("admin edit = %d: %s", resp.StatusCode, data)
 	}
@@ -203,7 +203,7 @@ func TestToolSearchFilter(t *testing.T) {
 	createTool(t, ts, c, toolInput{Name: "Grafana"})
 	pg := createTool(t, ts, c, toolInput{Name: "Postgres"})
 
-	_, data := ts.do(t, c, http.MethodGet, "/api/v1/tools?search=graf", nil, nil)
+	_, data := ts.do(t, c, http.MethodGet, "/api/tools?search=graf", nil, nil)
 	var tools []toolResponse
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 || tools[0].Name != "Grafana" {
@@ -218,7 +218,7 @@ func TestToolSearchFilter(t *testing.T) {
 		t.Fatalf("add collection tool: %v", err)
 	}
 
-	_, data = ts.do(t, c, http.MethodGet, "/api/v1/tools?collection="+col.ID, nil, nil)
+	_, data = ts.do(t, c, http.MethodGet, "/api/tools?collection="+col.ID, nil, nil)
 	json.Unmarshal(data, &tools)
 	if len(tools) != 1 || tools[0].Name != "Postgres" {
 		t.Errorf("collection filter mismatch: %+v", tools)

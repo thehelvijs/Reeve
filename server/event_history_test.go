@@ -28,7 +28,7 @@ func TestHostEventsEndpoint(t *testing.T) {
 	if _, err := ts.app.db.CreateAlertEvent(storeEvent(host.ID), nowUTC()); err != nil {
 		t.Fatal(err)
 	}
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+host.ID+"/events", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+host.ID+"/events", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("host events = %d: %s", resp.StatusCode, data)
 	}
@@ -47,12 +47,12 @@ func TestToolEventsHiddenForOutsider(t *testing.T) {
 
 	outsider := ts.client(t)
 	signup(t, ts, outsider, "dev@example.com", "password123")
-	resp, data := ts.do(t, outsider, http.MethodGet, "/api/v1/tools/"+tool.ID+"/events", nil, nil)
+	resp, data := ts.do(t, outsider, http.MethodGet, "/api/tools/"+tool.ID+"/events", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("outsider tool events = %d, want 404: %s", resp.StatusCode, data)
 	}
 
-	resp2, data2 := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/events", nil, nil)
+	resp2, data2 := ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/events", nil, nil)
 	if resp2.StatusCode != http.StatusOK {
 		t.Errorf("owner tool events = %d, want 200: %s", resp2.StatusCode, data2)
 	}

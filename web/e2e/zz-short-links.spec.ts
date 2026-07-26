@@ -9,7 +9,7 @@ async function login(page: Page) {
 }
 
 async function enrollHost(req: APIRequestContext, name: string) {
-  const res = await req.post('/api/v1/admin/hosts', { data: { name } });
+  const res = await req.post('/api/admin/hosts', { data: { name } });
   expect(res.status()).toBe(201);
   const body = await res.json();
   return { id: body.host.id as string, token: body.enroll_token as string };
@@ -17,7 +17,7 @@ async function enrollHost(req: APIRequestContext, name: string) {
 
 // Reports an address over the real ingest path, the way the agent does.
 async function reportAddress(req: APIRequestContext, token: string, ip: string) {
-  const res = await req.post('/api/v1/ingest', {
+  const res = await req.post('/api/ingest', {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       agent_version: '9.9.9',
@@ -30,7 +30,7 @@ async function reportAddress(req: APIRequestContext, token: string, ip: string) 
 }
 
 async function createTool(req: APIRequestContext, data: Record<string, unknown>) {
-  const res = await req.post('/api/v1/tools', { data });
+  const res = await req.post('/api/tools', { data });
   expect(res.status()).toBe(201);
   return res.json();
 }
@@ -61,7 +61,7 @@ test('a short link follows the host address across a lease change', async ({ pag
   const second = await request.get(`/go/${tool.slug}`, { maxRedirects: 0 });
   expect(second.headers()['location']).toBe('http://192.168.77.55:3000');
 
-  const json = await (await request.get(`/api/v1/endpoints/${tool.slug}`)).json();
+  const json = await (await request.get(`/api/endpoints/${tool.slug}`)).json();
   expect(json.source).toBe('host');
   expect(json.host_ip).toBe('192.168.77.55');
 });
@@ -85,7 +85,7 @@ test('a typed address is not overridden by the host address', async ({ page }) =
 
   const res = await request.get(`/go/${tool.slug}`, { maxRedirects: 0 });
   expect(res.headers()['location']).toBe('http://pinned.lan:9000');
-  const json = await (await request.get(`/api/v1/endpoints/${tool.slug}`)).json();
+  const json = await (await request.get(`/api/endpoints/${tool.slug}`)).json();
   expect(json.source).toBe('address');
 });
 

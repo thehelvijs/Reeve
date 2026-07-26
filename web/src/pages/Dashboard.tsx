@@ -14,16 +14,16 @@ import { useResource } from '../lib/cache';
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const toolsRes = useResource<Tool[]>('/api/v1/tools', () => api.get<Tool[]>('/api/v1/tools'), 15000);
-  const hostsRes = useResource<Host[]>('/api/v1/hosts', () => api.get<Host[]>('/api/v1/hosts'), 15000);
+  const toolsRes = useResource<Tool[]>('/api/tools', () => api.get<Tool[]>('/api/tools'), 15000);
+  const hostsRes = useResource<Host[]>('/api/hosts', () => api.get<Host[]>('/api/hosts'), 15000);
   const reqRes = useResource<AccessRequest[]>(
-    '/api/v1/access-requests?box=inbox',
-    () => api.get<AccessRequest[]>('/api/v1/access-requests?box=inbox'),
+    '/api/access-requests?box=inbox',
+    () => api.get<AccessRequest[]>('/api/access-requests?box=inbox'),
     15000,
   );
   const alertsRes = useResource<AlertEvent[]>(
-    isAdmin ? '/api/v1/admin/alerts' : '',
-    () => (isAdmin ? api.get<AlertEvent[]>('/api/v1/admin/alerts') : Promise.resolve([])),
+    isAdmin ? '/api/admin/alerts' : '',
+    () => (isAdmin ? api.get<AlertEvent[]>('/api/admin/alerts') : Promise.resolve([])),
     15000,
   );
 

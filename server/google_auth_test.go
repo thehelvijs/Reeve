@@ -63,7 +63,7 @@ func noFollow(t *testing.T) *http.Client {
 // startSignIn walks the /start leg and returns the state it minted.
 func startSignIn(t *testing.T, ts *testServer, c *http.Client) (*http.Response, string) {
 	t.Helper()
-	resp, err := c.Get(ts.srv.URL + "/api/v1/auth/google/start")
+	resp, err := c.Get(ts.srv.URL + "/api/auth/google/start")
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -79,7 +79,7 @@ func startSignIn(t *testing.T, ts *testServer, c *http.Client) (*http.Response, 
 func callback(t *testing.T, ts *testServer, c *http.Client, code, state string) *http.Response {
 	t.Helper()
 	q := url.Values{"code": {code}, "state": {state}}
-	resp, err := c.Get(ts.srv.URL + "/api/v1/auth/google/callback?" + q.Encode())
+	resp, err := c.Get(ts.srv.URL + "/api/auth/google/callback?" + q.Encode())
 	if err != nil {
 		t.Fatalf("callback: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestGoogleSignInProvisionsAccount(t *testing.T) {
 		t.Errorf("display name = %q, want the provider's name", u.DisplayName)
 	}
 	// The session cookie works, and the account has no usable password.
-	me, _ := ts.do(t, c, http.MethodGet, "/api/v1/me", nil, nil)
+	me, _ := ts.do(t, c, http.MethodGet, "/api/me", nil, nil)
 	if me.StatusCode != http.StatusOK {
 		t.Errorf("me after google sign-in status = %d, want 200", me.StatusCode)
 	}
@@ -307,7 +307,7 @@ func TestGoogleDisabledWithoutPublicURL(t *testing.T) {
 	resp, _ := startSignIn(t, ts, c)
 	assertLoginError(t, resp, "google_not_configured")
 
-	_, data := ts.do(t, nil, http.MethodGet, "/api/v1/auth/status", nil, nil)
+	_, data := ts.do(t, nil, http.MethodGet, "/api/auth/status", nil, nil)
 	if strings.Contains(string(data), `"google_enabled":true`) {
 		t.Error("auth status advertises google sign-in with no public URL")
 	}
@@ -330,7 +330,7 @@ func TestGoogleSettingsSecrecyAndValidation(t *testing.T) {
 		"enabled": true, "client_id": "client-123", "client_secret": "secret-456",
 		"allowed_domains": "Example.com, @other.com",
 	}})
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/settings", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/admin/settings", nil, nil)
 	if strings.Contains(string(data), "secret-456") {
 		t.Error("settings response leaked the client secret")
 	}

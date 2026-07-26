@@ -127,14 +127,14 @@ test.describe('portal map, anonymous', () => {
   test.beforeEach(async ({ page, context }) => {
     await blockBasemap(page);
     // The pin has to come from a host the anonymous portal can see, which is
-    // /api/v1/public/hosts — a host with no public tool never appears there, so
+    // /api/public/hosts — a host with no public tool never appears there, so
     // giving coordinates to just any host would produce no marker.
-    const publicHosts = await (await page.request.get('/api/v1/public/hosts')).json();
+    const publicHosts = await (await page.request.get('/api/public/hosts')).json();
     expect(publicHosts.length, 'no public host to pin on the map').toBeGreaterThan(0);
     const target = publicHosts[0];
 
     await login(page);
-    const res = await page.request.patch(`/api/v1/admin/hosts/${target.id}`, {
+    const res = await page.request.patch(`/api/admin/hosts/${target.id}`, {
       data: { physical_location: 'Riga, Latvia', latitude: 56.946, longitude: 24.106 },
     });
     expect(res.status()).toBe(200);

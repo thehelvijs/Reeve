@@ -15,7 +15,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/users/"+devUser.ID,
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/users/"+devUser.ID,
 		map[string]any{"role": "admin"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("promote = %d: %s", resp.StatusCode, data)
@@ -27,7 +27,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 	}
 
 	// A deactivated account's session stops working, which is the point.
-	if resp, data = ts.do(t, admin, http.MethodPatch, "/api/v1/admin/users/"+devUser.ID,
+	if resp, data = ts.do(t, admin, http.MethodPatch, "/api/admin/users/"+devUser.ID,
 		map[string]any{"active": false}, nil); resp.StatusCode != http.StatusOK {
 		t.Fatalf("deactivate = %d: %s", resp.StatusCode, data)
 	}
@@ -35,7 +35,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 	if view.Active {
 		t.Error("view still reports the account active")
 	}
-	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/v1/tools", nil, nil); resp.StatusCode != http.StatusUnauthorized {
+	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/tools", nil, nil); resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("deactivated user still authenticated: %d", resp.StatusCode)
 	}
 
@@ -43,7 +43,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 		"demote self":     {"role": "basic"},
 		"deactivate self": {"active": false},
 	} {
-		resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/users/"+adminUser.ID, body, nil)
+		resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/users/"+adminUser.ID, body, nil)
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Errorf("%s = %d, want 400: %s", name, resp.StatusCode, data)
 		}
@@ -59,7 +59,7 @@ func TestUpdateUserRoleAndActive(t *testing.T) {
 		"unknown user": {"nobody", map[string]any{"role": "basic"}, http.StatusNotFound},
 	}
 	for name, tc := range cases {
-		resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/users/"+tc.id, tc.body, nil)
+		resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/users/"+tc.id, tc.body, nil)
 		if resp.StatusCode != tc.want {
 			t.Errorf("%s = %d, want %d: %s", name, resp.StatusCode, tc.want, data)
 		}
@@ -83,14 +83,14 @@ func TestAuditListsAndFilters(t *testing.T) {
 	// One reveal per tool by the admin, one by the dev after a grant.
 	revealSecret(t, ts, admin, credA.ID)
 	revealSecret(t, ts, admin, credB.ID)
-	ts.do(t, admin, http.MethodPut, "/api/v1/tools/"+toolA.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, admin, http.MethodPut, "/api/tools/"+toolA.ID+"/access/user/"+devUser.ID, nil, nil)
 	if code, _ := revealSecret(t, ts, dev, credA.ID); code != http.StatusOK {
 		t.Fatalf("granted reveal = %d", code)
 	}
 
 	reveals := func(query string) []map[string]any {
 		t.Helper()
-		resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/audit/reveals"+query, nil, nil)
+		resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/audit/reveals"+query, nil, nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("reveals%s = %d: %s", query, resp.StatusCode, data)
 		}
@@ -119,7 +119,7 @@ func TestAuditListsAndFilters(t *testing.T) {
 		t.Errorf("reveals before the epoch window = %d, want 0", got)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/audit/grants?tool="+toolA.ID, nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/audit/grants?tool="+toolA.ID, nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("grants = %d: %s", resp.StatusCode, data)
 	}
@@ -135,7 +135,7 @@ func TestServerInfoAdminOnly(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123") // first user = admin
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/server-info", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/server-info", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("admin server-info = %d: %s", resp.StatusCode, data)
 	}
@@ -151,7 +151,7 @@ func TestServerInfoAdminOnly(t *testing.T) {
 
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123") // second user = basic
-	resp2, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/server-info", nil, nil)
+	resp2, _ := ts.do(t, basic, http.MethodGet, "/api/admin/server-info", nil, nil)
 	if resp2.StatusCode != http.StatusForbidden {
 		t.Errorf("basic user server-info = %d, want 403", resp2.StatusCode)
 	}

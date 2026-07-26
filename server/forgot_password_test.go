@@ -135,7 +135,7 @@ func TestSMTPSettingsRoundTripAndSecrecy(t *testing.T) {
 	configureRelay(t, ts, c, r)
 
 	// The password is never returned, and never stored in the clear.
-	_, data := ts.do(t, c, http.MethodGet, "/api/v1/admin/settings", nil, nil)
+	_, data := ts.do(t, c, http.MethodGet, "/api/admin/settings", nil, nil)
 	if strings.Contains(string(data), "smtp-secret") {
 		t.Error("settings response leaked the smtp password")
 	}
@@ -188,7 +188,7 @@ func TestTestEmailSendsToCallingAdmin(t *testing.T) {
 	r := newRelay(t)
 	configureRelay(t, ts, c, r)
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/settings/test-email", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/settings/test-email", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("test email status = %d, want 200", resp.StatusCode)
 	}
@@ -201,7 +201,7 @@ func TestTestEmailFailsWithoutRelay(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/settings/test-email", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/settings/test-email", nil, nil)
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Errorf("status without a relay = %d, want 502", resp.StatusCode)
 	}
@@ -225,14 +225,14 @@ func resetTokenFrom(t *testing.T, msg string) string {
 
 func forgot(t *testing.T, ts *testServer, email, ip string) *http.Response {
 	t.Helper()
-	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/auth/forgot",
+	resp, _ := ts.do(t, nil, http.MethodPost, "/api/auth/forgot",
 		map[string]string{"email": email}, fromIP(ip))
 	return resp
 }
 
 func doReset(t *testing.T, ts *testServer, token, password, ip string) *http.Response {
 	t.Helper()
-	resp, _ := ts.do(t, nil, http.MethodPost, "/api/v1/auth/reset",
+	resp, _ := ts.do(t, nil, http.MethodPost, "/api/auth/reset",
 		map[string]string{"token": token, "password": password}, fromIP(ip))
 	return resp
 }
@@ -258,7 +258,7 @@ func TestForgotPasswordEndToEnd(t *testing.T) {
 		t.Errorf("login with the reset password status = %d, want 200", resp.StatusCode)
 	}
 	// The old session and the used token are both dead.
-	resp, _ := ts.do(t, userClient, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ := ts.do(t, userClient, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("session after reset status = %d, want 401", resp.StatusCode)
 	}
@@ -343,7 +343,7 @@ func TestAuthStatusReportsPasswordResetAvailability(t *testing.T) {
 	signup(t, ts, admin, "boss@example.com", "password123")
 
 	readStatus := func() map[string]bool {
-		_, data := ts.do(t, nil, http.MethodGet, "/api/v1/auth/status", nil, nil)
+		_, data := ts.do(t, nil, http.MethodGet, "/api/auth/status", nil, nil)
 		var s map[string]bool
 		json.Unmarshal(data, &s)
 		return s

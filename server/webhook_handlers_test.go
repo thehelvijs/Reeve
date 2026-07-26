@@ -17,7 +17,7 @@ func TestWebhookCRUDOverHTTP(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
 
-	resp, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/webhooks", map[string]any{
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks", map[string]any{
 		"owner_type": "global", "url": "https://sink.invalid/hook",
 		"config": map[string]string{"token": "s3cret"}, "min_severity": "warning",
 	}, nil)
@@ -33,22 +33,22 @@ func TestWebhookCRUDOverHTTP(t *testing.T) {
 		t.Error("the config secret came back unredacted")
 	}
 
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/webhooks", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/webhooks", nil, nil)
 	var list []channelView
 	json.Unmarshal(data, &list)
 	if len(list) != 1 || list[0].ID != created.ID {
 		t.Fatalf("list = %+v", list)
 	}
 
-	if resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/webhooks/"+created.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+	if resp, _ = ts.do(t, admin, http.MethodDelete, "/api/admin/webhooks/"+created.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete = %d", resp.StatusCode)
 	}
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/webhooks", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/webhooks", nil, nil)
 	json.Unmarshal(data, &list)
 	if len(list) != 0 {
 		t.Errorf("channel survived delete: %+v", list)
 	}
-	if resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/webhooks/"+created.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ = ts.do(t, admin, http.MethodDelete, "/api/admin/webhooks/"+created.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("second delete = %d, want 404", resp.StatusCode)
 	}
 }
@@ -65,11 +65,11 @@ func TestWebhookRoutesAreAdminOnly(t *testing.T) {
 		t.Fatalf("create channel: %v", err)
 	}
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/api/v1/admin/webhooks"},
-		{http.MethodPost, "/api/v1/admin/webhooks"},
-		{http.MethodDelete, "/api/v1/admin/webhooks/" + hook.ID},
-		{http.MethodGet, "/api/v1/admin/alerts"},
-		{http.MethodGet, "/api/v1/admin/deliveries"},
+		{http.MethodGet, "/api/admin/webhooks"},
+		{http.MethodPost, "/api/admin/webhooks"},
+		{http.MethodDelete, "/api/admin/webhooks/" + hook.ID},
+		{http.MethodGet, "/api/admin/alerts"},
+		{http.MethodGet, "/api/admin/deliveries"},
 	} {
 		if resp, _ := ts.do(t, basic, tc.method, tc.path, map[string]any{}, nil); resp.StatusCode != http.StatusForbidden {
 			t.Errorf("basic user on %s %s = %d, want 403", tc.method, tc.path, resp.StatusCode)
@@ -88,7 +88,7 @@ func TestAlertEventAndDeliveryLists(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
 
-	for _, path := range []string{"/api/v1/admin/alerts", "/api/v1/admin/deliveries"} {
+	for _, path := range []string{"/api/admin/alerts", "/api/admin/deliveries"} {
 		resp, data := ts.do(t, admin, http.MethodGet, path, nil, nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("%s = %d: %s", path, resp.StatusCode, data)
@@ -112,7 +112,7 @@ func TestAlertEventAndDeliveryLists(t *testing.T) {
 		t.Fatalf("enqueue delivery: %v", err)
 	}
 
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/alerts", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/admin/alerts", nil, nil)
 	var events []struct {
 		ID      string `json:"id"`
 		Type    string `json:"type"`
@@ -123,7 +123,7 @@ func TestAlertEventAndDeliveryLists(t *testing.T) {
 		t.Errorf("alert events = %s", data)
 	}
 
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/deliveries", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/deliveries", nil, nil)
 	var deliveries []struct {
 		WebhookID string `json:"webhook_id"`
 		Status    string `json:"status"`

@@ -16,7 +16,7 @@ import (
 // downloadBackup pulls the backup bytes over the admin endpoint.
 func downloadBackup(t *testing.T, ts *testServer, c *http.Client) (*http.Response, []byte) {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodGet, ts.srv.URL+"/api/v1/admin/backup", nil)
+	req, err := http.NewRequest(http.MethodGet, ts.srv.URL+"/api/admin/backup", nil)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -41,7 +41,7 @@ func uploadRestore(t *testing.T, ts *testServer, c *http.Client, content []byte)
 	fw.Write(content)
 	mw.Close()
 
-	req, err := http.NewRequest(http.MethodPost, ts.srv.URL+"/api/v1/admin/restore", &buf)
+	req, err := http.NewRequest(http.MethodPost, ts.srv.URL+"/api/admin/restore", &buf)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestBackupKeepsCredentialsEncrypted(t *testing.T) {
 		"label":  "prod token",
 		"secret": map[string]string{"token": "super-secret-value"},
 	}
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/tools/"+tool.ID+"/credentials", body, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/tools/"+tool.ID+"/credentials", body, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create credential status = %d", resp.StatusCode)
 	}
@@ -131,7 +131,7 @@ func TestRestoreStagesAndAppliesOnStart(t *testing.T) {
 	if !ts.app.restoreStaged() {
 		t.Fatal("restore not staged on disk")
 	}
-	_, info := ts.do(t, c, http.MethodGet, "/api/v1/admin/server-info", nil, nil)
+	_, info := ts.do(t, c, http.MethodGet, "/api/admin/server-info", nil, nil)
 	if !bytes.Contains(info, []byte(`"restore_staged":true`)) {
 		t.Error("server-info does not report the staged restore")
 	}
@@ -215,7 +215,7 @@ func TestRestoreCancelDiscardsStaged(t *testing.T) {
 		t.Fatal("precondition: restore not staged")
 	}
 
-	resp, _ := ts.do(t, c, http.MethodDelete, "/api/v1/admin/restore", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodDelete, "/api/admin/restore", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("cancel status = %d, want 204", resp.StatusCode)
 	}
@@ -223,7 +223,7 @@ func TestRestoreCancelDiscardsStaged(t *testing.T) {
 		t.Error("staged restore survived a cancel")
 	}
 	// Cancelling with nothing staged is not an error.
-	resp, _ = ts.do(t, c, http.MethodDelete, "/api/v1/admin/restore", nil, nil)
+	resp, _ = ts.do(t, c, http.MethodDelete, "/api/admin/restore", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("second cancel status = %d, want 204", resp.StatusCode)
 	}

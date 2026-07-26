@@ -19,8 +19,8 @@ export default function Hosts() {
   const [tutorial, setTutorial] = useState(false);
   const [deploy, setDeploy] = useState<{ host: Host; mode: 'install' | 'uninstall' } | null>(null);
   const { data, loading, refresh } = useResource<Host[]>(
-    '/api/v1/hosts',
-    () => api.get<Host[]>('/api/v1/hosts'),
+    '/api/hosts',
+    () => api.get<Host[]>('/api/hosts'),
     15000,
   );
   const hosts = data ?? [];
@@ -127,8 +127,8 @@ export default function Hosts() {
 
 function AgentRollup() {
   const { data, refresh } = useResource<AgentUpdateRollup>(
-    '/api/v1/admin/agent-updates',
-    () => api.get<AgentUpdateRollup>('/api/v1/admin/agent-updates'),
+    '/api/admin/agent-updates',
+    () => api.get<AgentUpdateRollup>('/api/admin/agent-updates'),
     15000,
   );
   const [error, setError] = useState('');
@@ -139,7 +139,7 @@ function AgentRollup() {
   const resume = async () => {
     setError('');
     try {
-      await api.post('/api/v1/admin/agent-updates/resume', {});
+      await api.post('/api/admin/agent-updates/resume', {});
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not resume the rollout');
@@ -209,7 +209,7 @@ function EnrollModal({
   const create = async () => {
     setError('');
     try {
-      const res = await api.post<EnrollResult>('/api/v1/admin/hosts', {
+      const res = await api.post<EnrollResult>('/api/admin/hosts', {
         name,
         physical_location: location,
       });

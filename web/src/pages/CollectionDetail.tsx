@@ -22,11 +22,11 @@ export default function CollectionDetail() {
 
   const load = useCallback(() => {
     api
-      .get<Detail>(`/api/v1/collections/${id}`)
+      .get<Detail>(`/api/collections/${id}`)
       .then(setCollection)
       .catch(() => setNotFound(true));
     api
-      .get<Tool[]>(`/api/v1/tools?collection=${id}`)
+      .get<Tool[]>(`/api/tools?collection=${id}`)
       .then((t) => setTools(t ?? []))
       .catch(() => setTools([]));
   }, [id]);
@@ -38,7 +38,7 @@ export default function CollectionDetail() {
     if (!collection || !confirm(`Delete "${collection.name}"?`)) {
       return;
     }
-    await api.del(`/api/v1/collections/${collection.id}`);
+    await api.del(`/api/collections/${collection.id}`);
     navigate('/collections');
   };
 

@@ -38,8 +38,8 @@ export default function HostInventory() {
   const [metricsKey, setMetricsKey] = useState(0);
 
   const load = useCallback(() => {
-    api.get<Inv>(`/api/v1/hosts/${id}/inventory`).then(setInv);
-    api.get<Host[]>('/api/v1/hosts').then((hs) => setHost((hs ?? []).find((h) => h.id === id) ?? null));
+    api.get<Inv>(`/api/hosts/${id}/inventory`).then(setInv);
+    api.get<Host[]>('/api/hosts').then((hs) => setHost((hs ?? []).find((h) => h.id === id) ?? null));
   }, [id]);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function HostInventory() {
     if (!id || !window.confirm('Clear all stored metric history for this host? This cannot be undone.')) {
       return;
     }
-    await api.del(`/api/v1/admin/hosts/${id}/metrics`);
+    await api.del(`/api/admin/hosts/${id}/metrics`);
     setMetricsKey((k) => k + 1);
   };
 
@@ -77,7 +77,7 @@ export default function HostInventory() {
         <EntityIcon url={host?.icon_url} name={host?.name ?? 'Host'} size={36} />
         <h1 className="text-2xl font-semibold tracking-tight text-content">{host?.name ?? 'Host'}</h1>
       </div>
-      {id && <UptimeSummary path={`/api/v1/hosts/${id}/uptime`} />}
+      {id && <UptimeSummary path={`/api/hosts/${id}/uptime`} />}
       {host?.thumbnail_url && (
         <img
           src={host.thumbnail_url}
@@ -93,7 +93,7 @@ export default function HostInventory() {
             <IconUploader
               url={host?.icon_url}
               name={host?.name ?? 'Host'}
-              path={`/api/v1/admin/hosts/${id}/icon`}
+              path={`/api/admin/hosts/${id}/icon`}
               onChange={load}
             />
           </div>
@@ -101,7 +101,7 @@ export default function HostInventory() {
           <div className="mt-4">
             <ThumbnailUploader
               url={host?.thumbnail_url}
-              path={`/api/v1/admin/hosts/${id}/thumbnail`}
+              path={`/api/admin/hosts/${id}/thumbnail`}
               onChange={load}
             />
           </div>
@@ -135,11 +135,11 @@ export default function HostInventory() {
               </Button>
             </div>
           )}
-          <HostMetrics key={metricsKey} path={`/api/v1/hosts/${id}/metrics`} />
+          <HostMetrics key={metricsKey} path={`/api/hosts/${id}/metrics`} />
         </div>
       )}
 
-      {id && <EventHistory path={`/api/v1/hosts/${id}/events`} />}
+      {id && <EventHistory path={`/api/hosts/${id}/events`} />}
 
       {id && user?.role === 'admin' && <HostThresholds hostId={id} />}
 
@@ -158,7 +158,7 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
     setError('');
     setBusy(true);
     try {
-      await api.put(`/api/v1/admin/hosts/${host.id}/auto-update`, { policy });
+      await api.put(`/api/admin/hosts/${host.id}/auto-update`, { policy });
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save the policy');
@@ -171,7 +171,7 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
     setError('');
     setBusy(true);
     try {
-      await api.post(`/api/v1/admin/hosts/${host.id}/update-now`, {});
+      await api.post(`/api/admin/hosts/${host.id}/update-now`, {});
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not start the update');
@@ -241,7 +241,7 @@ function HostThresholds({ hostId }: { hostId: string }) {
   const [saved, setSaved] = useState(false);
 
   const load = useCallback(() => {
-    api.get<ThresholdsPayload>(`/api/v1/admin/hosts/${hostId}/thresholds`).then((t) => {
+    api.get<ThresholdsPayload>(`/api/admin/hosts/${hostId}/thresholds`).then((t) => {
       const next: ThresholdRows = {};
       for (const key of METRIC_KEYS) {
         const row = t.thresholds?.[key];
@@ -270,7 +270,7 @@ function HostThresholds({ hostId }: { hostId: string }) {
       }
     }
     try {
-      await api.put(`/api/v1/admin/hosts/${hostId}/thresholds`, { thresholds });
+      await api.put(`/api/admin/hosts/${hostId}/thresholds`, { thresholds });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (e) {
@@ -282,7 +282,7 @@ function HostThresholds({ hostId }: { hostId: string }) {
     setError('');
     setSaved(false);
     try {
-      await api.del(`/api/v1/admin/hosts/${hostId}/thresholds`);
+      await api.del(`/api/admin/hosts/${hostId}/thresholds`);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed to reset thresholds');

@@ -15,7 +15,7 @@ import (
 // it "online" across an injected time span.
 func enrollHostWin(t *testing.T, ts *testServer, admin *http.Client, name string, offlineAfter int) (string, string) {
 	t.Helper()
-	resp, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/hosts",
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/hosts",
 		map[string]any{"name": name, "offline_after_secs": offlineAfter}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("enroll = %d: %s", resp.StatusCode, data)
@@ -45,7 +45,7 @@ func TestDownAlertDebounceFireResolve(t *testing.T) {
 
 	down := samplePush()
 	down.Services = []contracts.ServiceState{{Unit: "web.service", ActiveState: "failed", SubState: "failed"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", down, hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", down, hdr)
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "web.service"})
 	ts.app.db.CreateWebhook("global", "", "http://sink.invalid", "", "", "")
 
@@ -69,7 +69,7 @@ func TestDownAlertDebounceFireResolve(t *testing.T) {
 	// Recover: service active again.
 	up := samplePush()
 	up.Services = []contracts.ServiceState{{Unit: "web.service", ActiveState: "active", SubState: "running"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", up, hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", up, hdr)
 	ts.app.evaluateAlerts(t0.Add(70 * time.Second)) // resolve
 	if n := countRows(t, ts, `SELECT COUNT(*) FROM alert_events WHERE resolved_at IS NOT NULL`); n != 1 {
 		t.Errorf("expected event resolved, got %d resolved", n)
@@ -86,14 +86,14 @@ func TestFlapSuppressed(t *testing.T) {
 	hdr := map[string]string{"Authorization": "Bearer " + token}
 	down := samplePush()
 	down.Services = []contracts.ServiceState{{Unit: "web.service", ActiveState: "failed"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", down, hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", down, hdr)
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "web.service"})
 
 	t0 := time.Now().UTC()
 	ts.app.evaluateAlerts(t0) // pending
 	up := samplePush()
 	up.Services = []contracts.ServiceState{{Unit: "web.service", ActiveState: "active", SubState: "running"}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", up, hdr)
+	ts.do(t, nil, http.MethodPost, "/api/ingest", up, hdr)
 	ts.app.evaluateAlerts(t0.Add(10 * time.Second)) // back to ok before debounce
 	if n := countRows(t, ts, `SELECT COUNT(*) FROM alert_events`); n != 0 {
 		t.Errorf("flap fired an alert: %d events", n)
@@ -104,7 +104,7 @@ func TestAgentOfflineAlert(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	_, token := enrollHostWin(t, ts, admin, "h", 60)
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
 	ts.app.db.CreateWebhook("global", "", "http://sink.invalid", "", "", "")
 
@@ -123,7 +123,7 @@ func TestLogErrorAlert(t *testing.T) {
 	hostID, token := enrollHostWin(t, ts, admin, "h", 3600)
 	p := samplePush()
 	p.LogEvents = []contracts.LogEvent{{Source: "web", Level: "error", Message: "boom", At: time.Now().UTC()}}
-	ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p, map[string]string{"Authorization": "Bearer " + token})
+	ts.do(t, nil, http.MethodPost, "/api/ingest", p, map[string]string{"Authorization": "Bearer " + token})
 
 	// Tool with log alerts on, matching the log source "web".
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "web"})

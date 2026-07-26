@@ -11,7 +11,7 @@ async function login(page: Page) {
 }
 
 async function createHost(req: APIRequestContext, name: string) {
-  const res = await req.post('/api/v1/admin/hosts', { data: { name } });
+  const res = await req.post('/api/admin/hosts', { data: { name } });
   expect(res.status()).toBe(201);
   const body = await res.json();
   return { id: body.host.id as string, token: body.enroll_token as string };
@@ -24,7 +24,7 @@ async function push(
   agentVersion: string,
   vetoed = false,
 ): Promise<{ check_now: boolean }> {
-  const res = await req.post('/api/v1/ingest', {
+  const res = await req.post('/api/ingest', {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       agent_version: agentVersion,
@@ -41,7 +41,7 @@ async function setFleetPolicy(
   req: APIRequestContext,
   patch: { enabled: boolean; concurrency: number; stall_secs: number },
 ) {
-  const res = await req.put('/api/v1/admin/settings', { data: { agent_update: patch } });
+  const res = await req.put('/api/admin/settings', { data: { agent_update: patch } });
   expect(res.status()).toBe(200);
 }
 
@@ -170,7 +170,7 @@ test('a per-host policy of off disables updates for that host alone', async ({ p
   await push(req, control.token, SERVER_VERSION);
 
   // Setting the policy off released the slot the first push claimed, so the host stays out of the rollup's stalled set no matter how long it sits on the old version. Asserted, not worked around: a dangling row here used to read as a fleet-wide stall.
-  const rollup = await (await req.get('/api/v1/admin/agent-updates')).json();
+  const rollup = await (await req.get('/api/admin/agent-updates')).json();
   expect(rollup.paused).toBe(false);
   expect(rollup.stalled).toEqual([]);
   expect(rollup.counts.stalled).toBe(0);
@@ -199,7 +199,7 @@ test('taking a stalled host out of the rollout clears the pause', async ({ page 
   await page.goto('/hosts');
   await expect(pausedBanner(page)).toHaveCount(0);
 
-  const rollup = await (await req.get('/api/v1/admin/agent-updates')).json();
+  const rollup = await (await req.get('/api/admin/agent-updates')).json();
   expect(rollup.paused).toBe(false);
   expect(rollup.counts.stalled).toBe(0);
 

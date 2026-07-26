@@ -25,7 +25,7 @@ func TestGzipCompressesJSON(t *testing.T) {
 		io.WriteString(w, body)
 	}))
 
-	resp := gzipRequest(t, h, "/api/v1/hosts/x/metrics")
+	resp := gzipRequest(t, h, "/api/hosts/x/metrics")
 	if resp.Header.Get("Content-Encoding") != "gzip" {
 		t.Fatalf("Content-Encoding = %q, want gzip", resp.Header.Get("Content-Encoding"))
 	}
@@ -114,7 +114,7 @@ func TestGzipLeavesClientsThatDoNotAskAlone(t *testing.T) {
 		io.WriteString(w, body)
 	}))
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/tools", nil))
 	if enc := rec.Result().Header.Get("Content-Encoding"); enc != "" {
 		t.Errorf("Content-Encoding = %q, want none", enc)
 	}

@@ -24,7 +24,7 @@ func TestThresholdsAdminGetSet(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/thresholds", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/thresholds", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("get thresholds = %d: %s", resp.StatusCode, data)
 	}
@@ -41,7 +41,7 @@ func TestThresholdsAdminGetSet(t *testing.T) {
 			"temp": map[string]any{"enabled": true, "threshold": 75},
 		},
 	}
-	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/v1/admin/thresholds", body, nil)
+	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/admin/thresholds", body, nil)
 	if resp2.StatusCode != http.StatusNoContent && resp2.StatusCode != http.StatusOK {
 		t.Fatalf("put thresholds = %d", resp2.StatusCode)
 	}
@@ -51,7 +51,7 @@ func TestThresholdsAdminGetSet(t *testing.T) {
 
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp3, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/thresholds", nil, nil)
+	resp3, _ := ts.do(t, basic, http.MethodGet, "/api/admin/thresholds", nil, nil)
 	if resp3.StatusCode != http.StatusForbidden {
 		t.Errorf("basic get thresholds = %d, want 403", resp3.StatusCode)
 	}
@@ -66,7 +66,7 @@ func TestHostThresholdsAdminGetSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/hosts/"+host.ID+"/thresholds", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/hosts/"+host.ID+"/thresholds", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("get host thresholds = %d: %s", resp.StatusCode, data)
 	}
@@ -81,7 +81,7 @@ func TestHostThresholdsAdminGetSet(t *testing.T) {
 			"cpu": map[string]any{"enabled": true, "threshold": 50},
 		},
 	}
-	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/v1/admin/hosts/"+host.ID+"/thresholds", body, nil)
+	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+host.ID+"/thresholds", body, nil)
 	if resp2.StatusCode != http.StatusNoContent && resp2.StatusCode != http.StatusOK {
 		t.Fatalf("put host thresholds = %d", resp2.StatusCode)
 	}
@@ -91,7 +91,7 @@ func TestHostThresholdsAdminGetSet(t *testing.T) {
 
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp3, _ := ts.do(t, basic, http.MethodPut, "/api/v1/admin/thresholds", body, nil)
+	resp3, _ := ts.do(t, basic, http.MethodPut, "/api/admin/thresholds", body, nil)
 	if resp3.StatusCode != http.StatusForbidden {
 		t.Errorf("basic put thresholds = %d, want 403", resp3.StatusCode)
 	}
@@ -111,7 +111,7 @@ func TestHostThresholdsReset(t *testing.T) {
 			"cpu": map[string]any{"enabled": true, "threshold": 50},
 		},
 	}
-	resp, _ := ts.do(t, admin, http.MethodPut, "/api/v1/admin/hosts/"+host.ID+"/thresholds", body, nil)
+	resp, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+host.ID+"/thresholds", body, nil)
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		t.Fatalf("put host thresholds = %d", resp.StatusCode)
 	}
@@ -121,12 +121,12 @@ func TestHostThresholdsReset(t *testing.T) {
 
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	respBasic, _ := ts.do(t, basic, http.MethodDelete, "/api/v1/admin/hosts/"+host.ID+"/thresholds", nil, nil)
+	respBasic, _ := ts.do(t, basic, http.MethodDelete, "/api/admin/hosts/"+host.ID+"/thresholds", nil, nil)
 	if respBasic.StatusCode != http.StatusForbidden {
 		t.Errorf("basic delete host thresholds = %d, want 403", respBasic.StatusCode)
 	}
 
-	respDel, _ := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/"+host.ID+"/thresholds", nil, nil)
+	respDel, _ := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+host.ID+"/thresholds", nil, nil)
 	if respDel.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete host thresholds = %d, want 204", respDel.StatusCode)
 	}
@@ -140,7 +140,7 @@ func TestHostThresholdsUnknownHost(t *testing.T) {
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
 
-	resp, _ := ts.do(t, admin, http.MethodGet, "/api/v1/admin/hosts/unknown/thresholds", nil, nil)
+	resp, _ := ts.do(t, admin, http.MethodGet, "/api/admin/hosts/unknown/thresholds", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("get unknown host thresholds = %d, want 404", resp.StatusCode)
 	}
@@ -150,12 +150,12 @@ func TestHostThresholdsUnknownHost(t *testing.T) {
 			"cpu": map[string]any{"enabled": true, "threshold": 50},
 		},
 	}
-	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/v1/admin/hosts/unknown/thresholds", body, nil)
+	resp2, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/unknown/thresholds", body, nil)
 	if resp2.StatusCode != http.StatusNotFound {
 		t.Errorf("put unknown host thresholds = %d, want 404", resp2.StatusCode)
 	}
 
-	resp3, _ := ts.do(t, admin, http.MethodDelete, "/api/v1/admin/hosts/unknown/thresholds", nil, nil)
+	resp3, _ := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/unknown/thresholds", nil, nil)
 	if resp3.StatusCode != http.StatusNotFound {
 		t.Errorf("delete unknown host thresholds = %d, want 404", resp3.StatusCode)
 	}

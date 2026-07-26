@@ -14,7 +14,7 @@ export default function AdminWebhooks() {
   const [minSeverity, setMinSeverity] = useState<Severity>('info');
   const [error, setError] = useState('');
 
-  const load = () => api.get<Webhook[]>('/api/v1/admin/webhooks').then((h) => setHooks(h ?? []));
+  const load = () => api.get<Webhook[]>('/api/admin/webhooks').then((h) => setHooks(h ?? []));
   useEffect(() => {
     load();
   }, []);
@@ -26,7 +26,7 @@ export default function AdminWebhooks() {
       config.token = token.trim();
     }
     try {
-      await api.post('/api/v1/admin/webhooks', {
+      await api.post('/api/admin/webhooks', {
         owner_type: ownerType,
         owner_id: ownerId,
         url,
@@ -44,7 +44,7 @@ export default function AdminWebhooks() {
     }
   };
   const remove = async (id: string) => {
-    await api.del(`/api/v1/admin/webhooks/${id}`);
+    await api.del(`/api/admin/webhooks/${id}`);
     load();
   };
 

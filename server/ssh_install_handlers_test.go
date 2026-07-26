@@ -24,7 +24,7 @@ func sshBody() map[string]any {
 // createHostFor makes a host and returns its id and one-time enrollment token.
 func createHostFor(t *testing.T, ts *testServer, c *http.Client, name string) (id, token string) {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts", map[string]any{"name": name}, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/admin/hosts", map[string]any{"name": name}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create host status = %d: %s", resp.StatusCode, data)
 	}
@@ -58,7 +58,7 @@ func TestSSHInstallRejectsIncompleteTargets(t *testing.T) {
 		for name, mutate := range cases {
 			body := sshBody()
 			mutate(body)
-			resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+id+"/"+path, body, nil)
+			resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+id+"/"+path, body, nil)
 			if resp.StatusCode != http.StatusBadRequest {
 				t.Errorf("%s %s status = %d, want 400", path, name, resp.StatusCode)
 			}
@@ -75,7 +75,7 @@ func TestSSHInstallRejectsLoopbackServerURL(t *testing.T) {
 	id, _ := createHostFor(t, ts, c, "db-1")
 	ts.app.cfg.PublicURL = ""
 
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+id+"/ssh-install", sshBody(), nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+id+"/ssh-install", sshBody(), nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400: %s", resp.StatusCode, data)
 	}
@@ -114,8 +114,8 @@ func TestSSHEndpointsAreAdminOnlyAndScopedToAHost(t *testing.T) {
 	signup(t, ts, basic, "dev@example.com", "password123")
 
 	for _, path := range []string{
-		"/api/v1/admin/hosts/" + id + "/ssh-install",
-		"/api/v1/admin/hosts/" + id + "/ssh-uninstall",
+		"/api/admin/hosts/" + id + "/ssh-install",
+		"/api/admin/hosts/" + id + "/ssh-uninstall",
 	} {
 		if resp, _ := ts.do(t, basic, http.MethodPost, path, sshBody(), nil); resp.StatusCode != http.StatusForbidden {
 			t.Errorf("basic user on %s status = %d, want 403", path, resp.StatusCode)
@@ -124,14 +124,14 @@ func TestSSHEndpointsAreAdminOnlyAndScopedToAHost(t *testing.T) {
 			t.Errorf("anonymous on %s status = %d, want 401", path, resp.StatusCode)
 		}
 	}
-	if resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/admin/ssh-probe", map[string]any{"address": "10.0.0.1"}, nil); resp.StatusCode == http.StatusForbidden {
+	if resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/ssh-probe", map[string]any{"address": "10.0.0.1"}, nil); resp.StatusCode == http.StatusForbidden {
 		t.Error("admin was refused the probe endpoint")
 	}
-	if resp, _ := ts.do(t, basic, http.MethodPost, "/api/v1/admin/ssh-probe", map[string]any{"address": "10.0.0.1"}, nil); resp.StatusCode != http.StatusForbidden {
+	if resp, _ := ts.do(t, basic, http.MethodPost, "/api/admin/ssh-probe", map[string]any{"address": "10.0.0.1"}, nil); resp.StatusCode != http.StatusForbidden {
 		t.Error("probe endpoint is not admin gated")
 	}
 	// Unknown host, valid payload.
-	resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/admin/hosts/nope/ssh-install", sshBody(), nil)
+	resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/hosts/nope/ssh-install", sshBody(), nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("unknown host status = %d, want 404", resp.StatusCode)
 	}
@@ -142,7 +142,7 @@ func TestSSHProbeValidatesAddress(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/ssh-probe", map[string]any{"address": "  "}, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/ssh-probe", map[string]any{"address": "  "}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("blank address status = %d, want 400", resp.StatusCode)
 	}
@@ -194,7 +194,7 @@ func TestSSHInstallRotatesTheEnrollmentToken(t *testing.T) {
 	body := sshBody()
 	body["address"] = "127.0.0.1"
 	body["port"] = 1
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+id+"/ssh-install", body, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+id+"/ssh-install", body, nil)
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("status = %d, want 502 from an unreachable host", resp.StatusCode)
 	}

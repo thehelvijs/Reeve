@@ -8,7 +8,7 @@ import (
 
 func getSettings(t *testing.T, ts *testServer, c *http.Client) (*http.Response, settingsView) {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodGet, "/api/v1/admin/settings", nil, nil)
+	resp, data := ts.do(t, c, http.MethodGet, "/api/admin/settings", nil, nil)
 	var v settingsView
 	json.Unmarshal(data, &v)
 	return resp, v
@@ -16,7 +16,7 @@ func getSettings(t *testing.T, ts *testServer, c *http.Client) (*http.Response, 
 
 func putSettings(t *testing.T, ts *testServer, c *http.Client, body any) (*http.Response, settingsView) {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPut, "/api/v1/admin/settings", body, nil)
+	resp, data := ts.do(t, c, http.MethodPut, "/api/admin/settings", body, nil)
 	var v settingsView
 	json.Unmarshal(data, &v)
 	return resp, v
@@ -59,7 +59,7 @@ func TestSettingsDisableSignupBlocksNewAccounts(t *testing.T) {
 		t.Errorf("signup after disabling status = %d, want 403", resp.StatusCode)
 	}
 
-	_, data := ts.do(t, nil, http.MethodGet, "/api/v1/auth/status", nil, nil)
+	_, data := ts.do(t, nil, http.MethodGet, "/api/auth/status", nil, nil)
 	var status map[string]bool
 	json.Unmarshal(data, &status)
 	if status["signup_enabled"] {

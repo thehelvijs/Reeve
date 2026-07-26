@@ -121,7 +121,7 @@ func pushIP(t *testing.T, ts *testServer, admin *http.Client, name, ip string) s
 	hostID, token := enrollHost(t, ts, admin, name)
 	p := samplePush()
 	p.IPAddress = ip
-	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", p,
 		map[string]string{"Authorization": "Bearer " + token})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
@@ -194,7 +194,7 @@ func TestEndpointJSON(t *testing.T) {
 		HostID: hostID, Scheme: "http", Port: 3000,
 	})
 
-	resp, data := ts.do(t, nil, http.MethodGet, "/api/v1/endpoints/grafana", nil, nil)
+	resp, data := ts.do(t, nil, http.MethodGet, "/api/endpoints/grafana", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d: %s", resp.StatusCode, data)
 	}
@@ -272,7 +272,7 @@ func TestOfflineHostStillRedirects(t *testing.T) {
 	if resp.StatusCode != http.StatusFound {
 		t.Fatalf("status = %d, want 302 even for an offline host", resp.StatusCode)
 	}
-	_, data := ts.do(t, nil, http.MethodGet, "/api/v1/endpoints/grafana", nil, nil)
+	_, data := ts.do(t, nil, http.MethodGet, "/api/endpoints/grafana", nil, nil)
 	var v endpointView
 	json.Unmarshal(data, &v)
 	if v.HostOnline {
@@ -292,13 +292,13 @@ func TestSlugCollisionsAndOverrides(t *testing.T) {
 
 	// An explicitly requested slug that is taken is a 409, not a silent rename:
 	// the caller is about to share that URL.
-	resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/tools",
+	resp, _ := ts.do(t, admin, http.MethodPost, "/api/tools",
 		toolInput{Name: "Third", Slug: "grafana", SourceType: "manual", Visibility: "public"}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("duplicate slug status = %d, want 409", resp.StatusCode)
 	}
 
-	resp, _ = ts.do(t, admin, http.MethodPost, "/api/v1/tools",
+	resp, _ = ts.do(t, admin, http.MethodPost, "/api/tools",
 		toolInput{Name: "Fourth", Slug: "!!!", SourceType: "manual", Visibility: "public"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("unusable slug status = %d, want 400", resp.StatusCode)
@@ -313,7 +313,7 @@ func TestRenameKeepsTheSlug(t *testing.T) {
 		Name: "Grafana", SourceType: "manual", Visibility: "public", Address: "10.0.0.1",
 	})
 
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/tools/"+tool.ID,
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/tools/"+tool.ID,
 		toolInput{Name: "Metrics", SourceType: "manual", Visibility: "public", Address: "10.0.0.1"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("rename = %d: %s", resp.StatusCode, data)
@@ -332,7 +332,7 @@ func TestSlugCanBeChangedDeliberately(t *testing.T) {
 		Name: "Grafana", SourceType: "manual", Visibility: "public", Address: "10.0.0.1",
 	})
 
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/tools/"+tool.ID,
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/tools/"+tool.ID,
 		toolInput{Name: "Grafana", Slug: "metrics", SourceType: "manual", Visibility: "public", Address: "10.0.0.1"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("slug change = %d: %s", resp.StatusCode, data)
@@ -351,7 +351,7 @@ func TestIngestStoresTheReportedAddress(t *testing.T) {
 	admin := adminClient(t, ts)
 	hostID := pushIP(t, ts, admin, "pc2", "192.168.1.42")
 
-	_, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	var hosts []hostView
 	json.Unmarshal(data, &hosts)
 	for _, h := range hosts {

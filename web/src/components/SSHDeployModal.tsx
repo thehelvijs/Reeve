@@ -45,7 +45,7 @@ export default function SSHDeployModal({
   const probe = async () => {
     setError('');
     try {
-      const res = await api.post<{ fingerprint: string; key_type: string }>('/api/v1/admin/ssh-probe', {
+      const res = await api.post<{ fingerprint: string; key_type: string }>('/api/admin/ssh-probe', {
         address: target.address,
         port: Number(target.port),
       });
@@ -69,7 +69,7 @@ export default function SSHDeployModal({
       passphrase: auth === 'key' ? target.passphrase : '',
     };
     try {
-      const res = await api.post<{ output: string }>(`/api/v1/admin/hosts/${hostId}/${path}`, payload);
+      const res = await api.post<{ output: string }>(`/api/admin/hosts/${hostId}/${path}`, payload);
       setOutput(res.output);
       setStage('done');
       onDone();

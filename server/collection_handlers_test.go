@@ -67,7 +67,7 @@ func TestCollectionCreateAndEditPermissions(t *testing.T) {
 	stranger, strangerUser := newUser(t, ts, "stranger@example.com")
 
 	// Any signed-in user can create.
-	resp, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	resp, body := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Manufacturing", "description": "Shop floor."}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create by basic user = %d, want 201: %s", resp.StatusCode, body)
@@ -75,14 +75,14 @@ func TestCollectionCreateAndEditPermissions(t *testing.T) {
 	id := jsonString(t, body, "id")
 
 	// A stranger cannot edit.
-	resp, _ = ts.do(t, stranger, http.MethodPatch, "/api/v1/collections/"+id,
+	resp, _ = ts.do(t, stranger, http.MethodPatch, "/api/collections/"+id,
 		map[string]any{"name": "Hijacked"}, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("stranger PATCH = %d, want 403", resp.StatusCode)
 	}
 
 	// The creator can.
-	resp, _ = ts.do(t, owner, http.MethodPatch, "/api/v1/collections/"+id,
+	resp, _ = ts.do(t, owner, http.MethodPatch, "/api/collections/"+id,
 		map[string]any{"name": "Manufacturing", "description": "Updated."}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("creator PATCH = %d, want 200", resp.StatusCode)
@@ -90,30 +90,30 @@ func TestCollectionCreateAndEditPermissions(t *testing.T) {
 
 	// An added editor can.
 	resp, _ = ts.do(t, owner, http.MethodPut,
-		"/api/v1/collections/"+id+"/editors/user/"+strangerUser.ID, nil, nil)
+		"/api/collections/"+id+"/editors/user/"+strangerUser.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("add editor = %d, want 204", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, stranger, http.MethodPatch, "/api/v1/collections/"+id,
+	resp, _ = ts.do(t, stranger, http.MethodPatch, "/api/collections/"+id,
 		map[string]any{"name": "Manufacturing"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("editor PATCH = %d, want 200", resp.StatusCode)
 	}
 
 	// An admin can.
-	resp, _ = ts.do(t, admin, http.MethodPatch, "/api/v1/collections/"+id,
+	resp, _ = ts.do(t, admin, http.MethodPatch, "/api/collections/"+id,
 		map[string]any{"name": "Manufacturing"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("admin PATCH = %d, want 200", resp.StatusCode)
 	}
 
 	// An editor who is not the creator cannot delete.
-	resp, _ = ts.do(t, stranger, http.MethodDelete, "/api/v1/collections/"+id, nil, nil)
+	resp, _ = ts.do(t, stranger, http.MethodDelete, "/api/collections/"+id, nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("editor DELETE = %d, want 403", resp.StatusCode)
 	}
 	// The creator can.
-	resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/collections/"+id, nil, nil)
+	resp, _ = ts.do(t, owner, http.MethodDelete, "/api/collections/"+id, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("creator DELETE = %d, want 204", resp.StatusCode)
 	}
@@ -123,33 +123,33 @@ func TestCollectionValidation(t *testing.T) {
 	ts := newTestServer(t)
 	owner, _ := newUser(t, ts, "boss@example.com")
 
-	resp, _ := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	resp, _ := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "   "}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("blank name = %d, want 400", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	resp, _ = ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Ops", "visibility": "secret"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("bad visibility = %d, want 400", resp.StatusCode)
 	}
-	resp, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	resp, body := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Ops"}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create = %d: %s", resp.StatusCode, body)
 	}
-	resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	resp, _ = ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Ops"}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("duplicate name = %d, want 409", resp.StatusCode)
 	}
 
 	id := jsonString(t, body, "id")
-	resp, _ = ts.do(t, owner, http.MethodPut, "/api/v1/collections/"+id+"/editors/robot/x", nil, nil)
+	resp, _ = ts.do(t, owner, http.MethodPut, "/api/collections/"+id+"/editors/robot/x", nil, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("bad principal type = %d, want 400", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, owner, http.MethodPut, "/api/v1/collections/"+id+"/tools/nosuchtool", nil, nil)
+	resp, _ = ts.do(t, owner, http.MethodPut, "/api/collections/"+id+"/tools/nosuchtool", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("unknown tool = %d, want 404", resp.StatusCode)
 	}
@@ -160,16 +160,16 @@ func TestCollectionToolsAndGrantRoutes(t *testing.T) {
 	owner, _ := newUser(t, ts, "boss@example.com")
 	viewerClient, viewer := newUser(t, ts, "viewer@example.com")
 
-	_, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	_, body := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Metrics"}, nil)
 	id := jsonString(t, body, "id")
 	tool := createTool(t, ts, owner, toolInput{Name: "Grafana"})
 
-	resp, _ := ts.do(t, owner, http.MethodPut, "/api/v1/collections/"+id+"/tools/"+tool.ID, nil, nil)
+	resp, _ := ts.do(t, owner, http.MethodPut, "/api/collections/"+id+"/tools/"+tool.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("add tool = %d, want 204", resp.StatusCode)
 	}
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections/"+id, nil, nil)
 	var detail struct {
 		ToolCount int      `json:"tool_count"`
 		CanEdit   bool     `json:"can_edit"`
@@ -183,27 +183,27 @@ func TestCollectionToolsAndGrantRoutes(t *testing.T) {
 		t.Error("creator can_edit = false")
 	}
 
-	resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/collections/"+id+"/tools/"+tool.ID, nil, nil)
+	resp, _ = ts.do(t, owner, http.MethodDelete, "/api/collections/"+id+"/tools/"+tool.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("remove tool = %d, want 204", resp.StatusCode)
 	}
 
-	ts.do(t, owner, http.MethodPut, "/api/v1/collections/"+id+"/visibility/user/"+viewer.ID, nil, nil)
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id+"/visibility", nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/collections/"+id+"/visibility/user/"+viewer.ID, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections/"+id+"/visibility", nil, nil)
 	var grants []visibilityGrantView
 	json.Unmarshal(body, &grants)
 	if len(grants) != 1 || grants[0].PrincipalID != viewer.ID {
 		t.Errorf("visibility grants = %+v", grants)
 	}
-	ts.do(t, owner, http.MethodDelete, "/api/v1/collections/"+id+"/visibility/user/"+viewer.ID, nil, nil)
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id+"/visibility", nil, nil)
+	ts.do(t, owner, http.MethodDelete, "/api/collections/"+id+"/visibility/user/"+viewer.ID, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections/"+id+"/visibility", nil, nil)
 	json.Unmarshal(body, &grants)
 	if len(grants) != 0 {
 		t.Errorf("visibility grants after revoke = %+v", grants)
 	}
 
-	ts.do(t, owner, http.MethodPut, "/api/v1/collections/"+id+"/editors/user/"+viewer.ID, nil, nil)
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id+"/editors", nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/collections/"+id+"/editors/user/"+viewer.ID, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections/"+id+"/editors", nil, nil)
 	json.Unmarshal(body, &grants)
 	if len(grants) != 1 || grants[0].PrincipalID != viewer.ID {
 		t.Errorf("editor grants = %+v", grants)
@@ -211,18 +211,18 @@ func TestCollectionToolsAndGrantRoutes(t *testing.T) {
 
 	// Removing the editor takes the edit right with it, or a demoted editor
 	// would keep writing to the collection.
-	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/v1/collections/"+id, map[string]any{"name": "Theirs"}, nil); resp.StatusCode != http.StatusOK {
+	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/collections/"+id, map[string]any{"name": "Theirs"}, nil); resp.StatusCode != http.StatusOK {
 		t.Fatalf("granted editor cannot edit: %d", resp.StatusCode)
 	}
-	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/collections/"+id+"/editors/user/"+viewer.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/collections/"+id+"/editors/user/"+viewer.ID, nil, nil); resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("remove editor = %d, want 204", resp.StatusCode)
 	}
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections/"+id+"/editors", nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections/"+id+"/editors", nil, nil)
 	json.Unmarshal(body, &grants)
 	if len(grants) != 0 {
 		t.Errorf("editor grants after removal = %+v", grants)
 	}
-	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/v1/collections/"+id, map[string]any{"name": "Mine"}, nil); resp.StatusCode != http.StatusForbidden {
+	if resp, _ = ts.do(t, viewerClient, http.MethodPatch, "/api/collections/"+id, map[string]any{"name": "Mine"}, nil); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("removed editor can still edit: %d, want 403", resp.StatusCode)
 	}
 }
@@ -232,25 +232,25 @@ func TestCollectionVisibilityOverHTTP(t *testing.T) {
 	owner, _ := newUser(t, ts, "boss@example.com")
 	stranger, _ := newUser(t, ts, "stranger@example.com")
 
-	_, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	_, body := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Secret", "visibility": "restricted"}, nil)
 	id := jsonString(t, body, "id")
 
-	resp, _ := ts.do(t, stranger, http.MethodGet, "/api/v1/collections/"+id, nil, nil)
+	resp, _ := ts.do(t, stranger, http.MethodGet, "/api/collections/"+id, nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("invisible GET = %d, want 404 so the name does not leak", resp.StatusCode)
 	}
 
-	_, body = ts.do(t, nil, http.MethodGet, "/api/v1/public/collections", nil, nil)
+	_, body = ts.do(t, nil, http.MethodGet, "/api/public/collections", nil, nil)
 	if containsName(t, body, "Secret") {
 		t.Error("public collection list leaked a restricted collection")
 	}
 
-	_, body = ts.do(t, stranger, http.MethodGet, "/api/v1/collections", nil, nil)
+	_, body = ts.do(t, stranger, http.MethodGet, "/api/collections", nil, nil)
 	if containsName(t, body, "Secret") {
 		t.Error("authenticated list leaked a collection the caller cannot see")
 	}
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/collections", nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/collections", nil, nil)
 	if !containsName(t, body, "Secret") {
 		t.Error("creator's own collection missing from their list")
 	}
@@ -260,9 +260,9 @@ func TestListPrincipals(t *testing.T) {
 	ts := newTestServer(t)
 	admin, _ := newUser(t, ts, "boss@example.com")
 	basic, _ := newUser(t, ts, "dev@example.com")
-	ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 
-	resp, body := ts.do(t, basic, http.MethodGet, "/api/v1/principals", nil, nil)
+	resp, body := ts.do(t, basic, http.MethodGet, "/api/principals", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("principals for a basic user = %d: %s", resp.StatusCode, body)
 	}
@@ -280,7 +280,7 @@ func TestListPrincipals(t *testing.T) {
 		}
 	}
 
-	resp, _ = ts.do(t, nil, http.MethodGet, "/api/v1/principals", nil, nil)
+	resp, _ = ts.do(t, nil, http.MethodGet, "/api/principals", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("anonymous principals = %d, want 401", resp.StatusCode)
 	}
@@ -320,26 +320,26 @@ func TestToolPayloadCollections(t *testing.T) {
 	owner, _ := newUser(t, ts, "boss@example.com")
 	stranger, _ := newUser(t, ts, "stranger@example.com")
 
-	_, body := ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	_, body := ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Hidden", "visibility": "restricted"}, nil)
 	hidden := jsonString(t, body, "id")
-	_, body = ts.do(t, owner, http.MethodPost, "/api/v1/collections",
+	_, body = ts.do(t, owner, http.MethodPost, "/api/collections",
 		map[string]any{"name": "Shown"}, nil)
 	shown := jsonString(t, body, "id")
 
-	resp, body := ts.do(t, owner, http.MethodPost, "/api/v1/tools",
+	resp, body := ts.do(t, owner, http.MethodPost, "/api/tools",
 		map[string]any{"name": "grafana", "collection_ids": []string{hidden, shown}}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create tool = %d: %s", resp.StatusCode, body)
 	}
 	toolID := jsonString(t, body, "id")
 
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/tools/"+toolID, nil, nil)
 	if !containsName(t, body, "Hidden") || !containsName(t, body, "Shown") {
 		t.Errorf("creator's tool payload is missing a collection they can see: %s", body)
 	}
 
-	_, body = ts.do(t, stranger, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	_, body = ts.do(t, stranger, http.MethodGet, "/api/tools/"+toolID, nil, nil)
 	if containsName(t, body, "Hidden") {
 		t.Error("tool payload leaked a collection the caller cannot see")
 	}
@@ -347,7 +347,7 @@ func TestToolPayloadCollections(t *testing.T) {
 		t.Error("tool payload dropped a public collection")
 	}
 
-	_, body = ts.do(t, nil, http.MethodGet, "/api/v1/public/tools", nil, nil)
+	_, body = ts.do(t, nil, http.MethodGet, "/api/public/tools", nil, nil)
 	if containsName(t, body, "Hidden") {
 		t.Error("public tool payload leaked a restricted collection")
 	}
@@ -355,22 +355,22 @@ func TestToolPayloadCollections(t *testing.T) {
 		t.Error("public tool payload dropped a public collection")
 	}
 
-	resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/tools",
+	resp, _ = ts.do(t, owner, http.MethodPost, "/api/tools",
 		map[string]any{"name": "bogus", "collection_ids": []string{"no-such-id"}}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("unknown collection id = %d, want 400", resp.StatusCode)
 	}
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools?search=bogus", nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/tools?search=bogus", nil, nil)
 	if containsName(t, body, "bogus") {
 		t.Error("a tool rejected for an unknown collection id was still created")
 	}
 
-	resp, _ = ts.do(t, owner, http.MethodPatch, "/api/v1/tools/"+toolID,
+	resp, _ = ts.do(t, owner, http.MethodPatch, "/api/tools/"+toolID,
 		map[string]any{"name": "grafana", "collection_ids": []string{shown}}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("update tool = %d", resp.StatusCode)
 	}
-	_, body = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+toolID, nil, nil)
+	_, body = ts.do(t, owner, http.MethodGet, "/api/tools/"+toolID, nil, nil)
 	if containsName(t, body, "Hidden") {
 		t.Error("collection_ids on update did not replace the membership set")
 	}

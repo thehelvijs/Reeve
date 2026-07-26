@@ -20,7 +20,7 @@ export default function AdminSettings() {
 
   useEffect(() => {
     api
-      .get<Settings>('/api/v1/admin/settings')
+      .get<Settings>('/api/admin/settings')
       .then(setSettings)
       .catch((e) => setError(e instanceof Error ? e.message : 'could not load settings'));
   }, []);
@@ -28,7 +28,7 @@ export default function AdminSettings() {
   const save = async (patch: SettingsInput) => {
     setError('');
     try {
-      setSettings(await api.put<Settings>('/api/v1/admin/settings', patch));
+      setSettings(await api.put<Settings>('/api/admin/settings', patch));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save settings');
     }
@@ -234,7 +234,7 @@ function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch
   const sendTest = async () => {
     setTesting('sending');
     try {
-      const r = await api.post<{ sent_to: string }>('/api/v1/admin/settings/test-email');
+      const r = await api.post<{ sent_to: string }>('/api/admin/settings/test-email');
       setTesting(`sent to ${r.sent_to}`);
     } catch (e) {
       setTesting(e instanceof Error ? e.message : 'send failed');

@@ -19,13 +19,13 @@ func TestHostMetricsEndpointContainers(t *testing.T) {
 	push.Metrics = contracts.HostMetrics{CPUPct: 10, MemUsed: 2000, MemTotal: 8000}
 	push.Containers = []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}}
 	push.ContainerStats = []contracts.ContainerSample{{ContainerID: "c1", CPUPct: 2, MemUsed: 1000, MemLimit: 5000}}
-	resp, data := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", push,
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
 		map[string]string{"Authorization": "Bearer " + dockerToken})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
 	}
 
-	resp, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+dockerHost+"/metrics?range=1h", nil, nil)
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/hosts/"+dockerHost+"/metrics?range=1h", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("metrics = %d: %s", resp.StatusCode, data)
 	}
@@ -58,13 +58,13 @@ func TestHostMetricsEndpointContainers(t *testing.T) {
 	plain.Metrics = contracts.HostMetrics{CPUPct: 5, MemUsed: 1000, MemTotal: 8000}
 	plain.Containers = nil
 	plain.ContainerStats = nil
-	resp, data = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", plain,
+	resp, data = ts.do(t, nil, http.MethodPost, "/api/ingest", plain,
 		map[string]string{"Authorization": "Bearer " + plainToken})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("plain ingest = %d: %s", resp.StatusCode, data)
 	}
 
-	resp, data = ts.do(t, admin, http.MethodGet, "/api/v1/hosts/"+plainHost+"/metrics?range=1h", nil, nil)
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/hosts/"+plainHost+"/metrics?range=1h", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("plain metrics = %d: %s", resp.StatusCode, data)
 	}
@@ -100,7 +100,7 @@ func TestHostUptimeEndpoint(t *testing.T) {
 	}
 
 	for _, c := range []*http.Client{admin, basic} {
-		resp, data := ts.do(t, c, http.MethodGet, "/api/v1/hosts/"+host.ID+"/uptime?range=24h", nil, nil)
+		resp, data := ts.do(t, c, http.MethodGet, "/api/hosts/"+host.ID+"/uptime?range=24h", nil, nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("host uptime = %d: %s", resp.StatusCode, data)
 		}
@@ -124,7 +124,7 @@ func TestHostUptimeNotFound(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/hosts/nope/uptime", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts/nope/uptime", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404: %s", resp.StatusCode, data)
 	}
@@ -148,7 +148,7 @@ func TestToolUptimeEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, data := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/uptime?range=7d", nil, nil)
+	resp, data := ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/uptime?range=7d", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("tool uptime = %d: %s", resp.StatusCode, data)
 	}
@@ -175,7 +175,7 @@ func TestToolUptimeHiddenForOutsider(t *testing.T) {
 
 	outsider := ts.client(t)
 	signup(t, ts, outsider, "dev@example.com", "password123")
-	resp, data := ts.do(t, outsider, http.MethodGet, "/api/v1/tools/"+tool.ID+"/uptime", nil, nil)
+	resp, data := ts.do(t, outsider, http.MethodGet, "/api/tools/"+tool.ID+"/uptime", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("outsider tool uptime = %d, want 404: %s", resp.StatusCode, data)
 	}
@@ -194,7 +194,7 @@ func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/v1/admin/server-metrics?range=24h", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/server-metrics?range=24h", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("server-metrics = %d: %s", resp.StatusCode, data)
 	}
@@ -209,7 +209,7 @@ func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
 	}
 
 	// The reserved self host must never appear in the host list.
-	_, hdata := ts.do(t, admin, http.MethodGet, "/api/v1/hosts", nil, nil)
+	_, hdata := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	var hosts []hostView
 	if err := json.Unmarshal(hdata, &hosts); err != nil {
 		t.Fatal(err)
@@ -223,7 +223,7 @@ func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
 	// Non-admins cannot read server metrics.
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp2, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/server-metrics", nil, nil)
+	resp2, _ := ts.do(t, basic, http.MethodGet, "/api/admin/server-metrics", nil, nil)
 	if resp2.StatusCode != http.StatusForbidden {
 		t.Fatalf("basic server-metrics = %d, want 403", resp2.StatusCode)
 	}

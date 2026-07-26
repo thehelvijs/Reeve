@@ -10,7 +10,7 @@ import (
 
 func createCred(t *testing.T, ts *testServer, c *http.Client, toolID string, in credentialInput) credentialView {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/tools/"+toolID+"/credentials", in, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/tools/"+toolID+"/credentials", in, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create cred = %d: %s", resp.StatusCode, data)
 	}
@@ -21,7 +21,7 @@ func createCred(t *testing.T, ts *testServer, c *http.Client, toolID string, in 
 
 func revealSecret(t *testing.T, ts *testServer, c *http.Client, cid string) (int, map[string]string) {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/credentials/"+cid+"/reveal", nil, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/credentials/"+cid+"/reveal", nil, nil)
 	var out struct {
 		Secret map[string]string `json:"secret"`
 	}
@@ -83,7 +83,7 @@ func TestNonAccessUserCannotReveal(t *testing.T) {
 	signup(t, ts, other, "dev@example.com", "password123")
 
 	// Can see the tool + credential metadata, but not reveal.
-	_, data := ts.do(t, other, http.MethodGet, "/api/v1/tools/"+tool.ID+"/credentials", nil, nil)
+	_, data := ts.do(t, other, http.MethodGet, "/api/tools/"+tool.ID+"/credentials", nil, nil)
 	var metas []credentialView
 	json.Unmarshal(data, &metas)
 	if len(metas) != 1 || metas[0].CanReveal {
@@ -108,7 +108,7 @@ func TestRequestApproveRevealFlow(t *testing.T) {
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 
 	// Dev requests access.
-	resp, data := ts.do(t, dev, http.MethodPost, "/api/v1/tools/"+tool.ID+"/access-requests",
+	resp, data := ts.do(t, dev, http.MethodPost, "/api/tools/"+tool.ID+"/access-requests",
 		map[string]string{"note": "need it"}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("request = %d: %s", resp.StatusCode, data)
@@ -117,13 +117,13 @@ func TestRequestApproveRevealFlow(t *testing.T) {
 	json.Unmarshal(data, &req)
 
 	// Duplicate open request blocked.
-	resp, _ = ts.do(t, dev, http.MethodPost, "/api/v1/tools/"+tool.ID+"/access-requests", map[string]string{}, nil)
+	resp, _ = ts.do(t, dev, http.MethodPost, "/api/tools/"+tool.ID+"/access-requests", map[string]string{}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("duplicate request = %d, want 409", resp.StatusCode)
 	}
 
 	// It shows in the owner's inbox.
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/access-requests?box=inbox", nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/access-requests?box=inbox", nil, nil)
 	var inbox []requestView
 	json.Unmarshal(data, &inbox)
 	if len(inbox) != 1 || inbox[0].RequesterID != devUser.ID {
@@ -136,7 +136,7 @@ func TestRequestApproveRevealFlow(t *testing.T) {
 	}
 
 	// Owner approves.
-	resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/access-requests/"+req.ID+"/approve", map[string]string{}, nil)
+	resp, _ = ts.do(t, owner, http.MethodPost, "/api/access-requests/"+req.ID+"/approve", map[string]string{}, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("approve = %d", resp.StatusCode)
 	}
@@ -163,13 +163,13 @@ func TestRevokeRemovesAccess(t *testing.T) {
 
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
 
 	if code, _ := revealSecret(t, ts, dev, cred.ID); code != http.StatusOK {
 		t.Fatalf("granted reveal = %d, want 200", code)
 	}
 	// Revoke.
-	ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, owner, http.MethodDelete, "/api/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
 	if code, _ := revealSecret(t, ts, dev, cred.ID); code != http.StatusForbidden {
 		t.Errorf("post-revoke reveal = %d, want 403", code)
 	}
@@ -187,10 +187,10 @@ func TestGrantRejectsAnUnknownPrincipal(t *testing.T) {
 		path string
 		want int
 	}{
-		"unknown user":   {"/api/v1/tools/" + tool.ID + "/access/user/nobody", http.StatusNotFound},
-		"unknown group":  {"/api/v1/tools/" + tool.ID + "/access/group/nogroup", http.StatusNotFound},
-		"bad type":       {"/api/v1/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
-		"bad type on rm": {"/api/v1/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
+		"unknown user":   {"/api/tools/" + tool.ID + "/access/user/nobody", http.StatusNotFound},
+		"unknown group":  {"/api/tools/" + tool.ID + "/access/group/nogroup", http.StatusNotFound},
+		"bad type":       {"/api/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
+		"bad type on rm": {"/api/tools/" + tool.ID + "/access/robot/whoever", http.StatusBadRequest},
 	}
 	for name, tc := range cases {
 		method := http.MethodPut
@@ -222,12 +222,12 @@ func TestNonOwnerCannotApprove(t *testing.T) {
 
 	third := ts.client(t)
 	signup(t, ts, third, "eve@example.com", "password123")
-	resp, data := ts.do(t, third, http.MethodPost, "/api/v1/tools/"+tool.ID+"/access-requests", map[string]string{}, nil)
+	resp, data := ts.do(t, third, http.MethodPost, "/api/tools/"+tool.ID+"/access-requests", map[string]string{}, nil)
 	var req requestView
 	json.Unmarshal(data, &req)
 
 	// Eve (not owner, not admin) cannot approve.
-	resp, _ = ts.do(t, third, http.MethodPost, "/api/v1/access-requests/"+req.ID+"/approve", map[string]string{}, nil)
+	resp, _ = ts.do(t, third, http.MethodPost, "/api/access-requests/"+req.ID+"/approve", map[string]string{}, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("non-owner approve = %d, want 403", resp.StatusCode)
 	}
@@ -240,7 +240,7 @@ func TestCredentialRotate(t *testing.T) {
 	tool := createTool(t, ts, c, toolInput{Name: "Box"})
 	cred := createCred(t, ts, c, tool.ID, credentialInput{Type: "kv", Secret: map[string]string{"k": "old"}})
 
-	resp, _ := ts.do(t, c, http.MethodPatch, "/api/v1/credentials/"+cred.ID,
+	resp, _ := ts.do(t, c, http.MethodPatch, "/api/credentials/"+cred.ID,
 		credentialInput{Type: "kv", Label: "rotated", Secret: map[string]string{"k": "new"}}, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("rotate = %d", resp.StatusCode)
@@ -263,15 +263,15 @@ func TestDeleteCredential(t *testing.T) {
 	// manage are separate rights.
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
 	if code, _ := revealSecret(t, ts, dev, cred.ID); code != http.StatusOK {
 		t.Fatalf("granted reveal = %d, want 200", code)
 	}
-	if resp, _ := ts.do(t, dev, http.MethodDelete, "/api/v1/credentials/"+cred.ID, nil, nil); resp.StatusCode != http.StatusForbidden {
+	if resp, _ := ts.do(t, dev, http.MethodDelete, "/api/credentials/"+cred.ID, nil, nil); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("grantee delete = %d, want 403", resp.StatusCode)
 	}
 
-	resp, data := ts.do(t, owner, http.MethodDelete, "/api/v1/credentials/"+cred.ID, nil, nil)
+	resp, data := ts.do(t, owner, http.MethodDelete, "/api/credentials/"+cred.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete = %d: %s", resp.StatusCode, data)
 	}
@@ -281,13 +281,13 @@ func TestDeleteCredential(t *testing.T) {
 	if code, _ := revealSecret(t, ts, owner, cred.ID); code != http.StatusNotFound {
 		t.Errorf("reveal after delete = %d, want 404", code)
 	}
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/credentials", nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/credentials", nil, nil)
 	var list []credentialView
 	json.Unmarshal(data, &list)
 	if len(list) != 0 {
 		t.Errorf("credential still listed: %+v", list)
 	}
-	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/v1/credentials/"+cred.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ = ts.do(t, owner, http.MethodDelete, "/api/credentials/"+cred.ID, nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("second delete = %d, want 404", resp.StatusCode)
 	}
 }
@@ -303,12 +303,12 @@ func TestDenyAccessRequest(t *testing.T) {
 
 	dev := ts.client(t)
 	signup(t, ts, dev, "dev@example.com", "password123")
-	_, data := ts.do(t, dev, http.MethodPost, "/api/v1/tools/"+tool.ID+"/access-requests",
+	_, data := ts.do(t, dev, http.MethodPost, "/api/tools/"+tool.ID+"/access-requests",
 		map[string]string{"note": "please"}, nil)
 	var req requestView
 	json.Unmarshal(data, &req)
 
-	resp, data := ts.do(t, owner, http.MethodPost, "/api/v1/access-requests/"+req.ID+"/deny", nil, nil)
+	resp, data := ts.do(t, owner, http.MethodPost, "/api/access-requests/"+req.ID+"/deny", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("deny = %d: %s", resp.StatusCode, data)
 	}
@@ -320,7 +320,7 @@ func TestDenyAccessRequest(t *testing.T) {
 	}
 
 	// The requester sees the decision on their own list.
-	_, data = ts.do(t, dev, http.MethodGet, "/api/v1/access-requests", nil, nil)
+	_, data = ts.do(t, dev, http.MethodGet, "/api/access-requests", nil, nil)
 	var mine []requestView
 	json.Unmarshal(data, &mine)
 	if len(mine) != 1 || mine[0].Status != "denied" {
@@ -328,10 +328,10 @@ func TestDenyAccessRequest(t *testing.T) {
 	}
 
 	// Deciding twice is a conflict, so a denial cannot be quietly reversed.
-	if resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/access-requests/"+req.ID+"/approve", nil, nil); resp.StatusCode != http.StatusConflict {
+	if resp, _ = ts.do(t, owner, http.MethodPost, "/api/access-requests/"+req.ID+"/approve", nil, nil); resp.StatusCode != http.StatusConflict {
 		t.Errorf("approve after deny = %d, want 409", resp.StatusCode)
 	}
-	if resp, _ = ts.do(t, owner, http.MethodPost, "/api/v1/access-requests/nope/deny", nil, nil); resp.StatusCode != http.StatusNotFound {
+	if resp, _ = ts.do(t, owner, http.MethodPost, "/api/access-requests/nope/deny", nil, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("deny of an unknown request = %d, want 404", resp.StatusCode)
 	}
 }
@@ -346,11 +346,11 @@ func TestListToolAccess(t *testing.T) {
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 
-	_, data := ts.do(t, owner, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	_, data := ts.do(t, owner, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	var g groupView
 	json.Unmarshal(data, &g)
 
-	resp, data := ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/access", nil, nil)
+	resp, data := ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/access", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list access = %d: %s", resp.StatusCode, data)
 	}
@@ -358,9 +358,9 @@ func TestListToolAccess(t *testing.T) {
 		t.Errorf("access on a fresh tool = %s, want []", got)
 	}
 
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
-	ts.do(t, owner, http.MethodPut, "/api/v1/tools/"+tool.ID+"/access/group/"+g.ID, nil, nil)
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/access", nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tool.ID+"/access/user/"+devUser.ID, nil, nil)
+	ts.do(t, owner, http.MethodPut, "/api/tools/"+tool.ID+"/access/group/"+g.ID, nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/access", nil, nil)
 	var grants []accessGrantView
 	json.Unmarshal(data, &grants)
 	kinds := map[string]string{}
@@ -371,15 +371,15 @@ func TestListToolAccess(t *testing.T) {
 		t.Fatalf("access list = %+v", grants)
 	}
 
-	ts.do(t, owner, http.MethodDelete, "/api/v1/tools/"+tool.ID+"/access/group/"+g.ID, nil, nil)
-	_, data = ts.do(t, owner, http.MethodGet, "/api/v1/tools/"+tool.ID+"/access", nil, nil)
+	ts.do(t, owner, http.MethodDelete, "/api/tools/"+tool.ID+"/access/group/"+g.ID, nil, nil)
+	_, data = ts.do(t, owner, http.MethodGet, "/api/tools/"+tool.ID+"/access", nil, nil)
 	json.Unmarshal(data, &grants)
 	if len(grants) != 1 || grants[0].PrincipalType != "user" {
 		t.Errorf("access list after revoke = %+v", grants)
 	}
 
 	// Only someone who may edit the tool may read who has access to it.
-	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/v1/tools/"+tool.ID+"/access", nil, nil); resp.StatusCode != http.StatusForbidden {
+	if resp, _ = ts.do(t, dev, http.MethodGet, "/api/tools/"+tool.ID+"/access", nil, nil); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("grantee reading the access list = %d, want 403", resp.StatusCode)
 	}
 }
@@ -402,14 +402,14 @@ func TestNonAdminApproverInbox(t *testing.T) {
 	dev := ts.client(t)
 	_, devUser := signup(t, ts, dev, "dev@example.com", "password123")
 	for _, id := range []string{mine.ID, theirs.ID} {
-		resp, data := ts.do(t, dev, http.MethodPost, "/api/v1/tools/"+id+"/access-requests",
+		resp, data := ts.do(t, dev, http.MethodPost, "/api/tools/"+id+"/access-requests",
 			map[string]string{"note": "please"}, nil)
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("request on %s = %d: %s", id, resp.StatusCode, data)
 		}
 	}
 
-	resp, data := ts.do(t, owner, http.MethodGet, "/api/v1/access-requests?box=inbox", nil, nil)
+	resp, data := ts.do(t, owner, http.MethodGet, "/api/access-requests?box=inbox", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("inbox = %d: %s", resp.StatusCode, data)
 	}
@@ -420,7 +420,7 @@ func TestNonAdminApproverInbox(t *testing.T) {
 	}
 
 	// A user who created nothing has an empty inbox, not everyone's requests.
-	_, data = ts.do(t, dev, http.MethodGet, "/api/v1/access-requests?box=inbox", nil, nil)
+	_, data = ts.do(t, dev, http.MethodGet, "/api/access-requests?box=inbox", nil, nil)
 	json.Unmarshal(data, &inbox)
 	if len(inbox) != 0 {
 		t.Errorf("non-creator inbox = %s, want empty", data)
@@ -429,7 +429,7 @@ func TestNonAdminApproverInbox(t *testing.T) {
 	// The admin sees both, since they may decide anything.
 	adminC := ts.client(t)
 	loginWith(t, ts, adminC, "boss@example.com", "password123")
-	_, data = ts.do(t, adminC, http.MethodGet, "/api/v1/access-requests?box=inbox", nil, nil)
+	_, data = ts.do(t, adminC, http.MethodGet, "/api/access-requests?box=inbox", nil, nil)
 	json.Unmarshal(data, &inbox)
 	if len(inbox) != 2 {
 		t.Errorf("admin inbox = %s, want both requests", data)
@@ -441,7 +441,7 @@ func TestAuditAdminOnly(t *testing.T) {
 	signup(t, ts, ts.client(t), "boss@example.com", "password123") // admin
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/audit/reveals", nil, nil)
+	resp, _ := ts.do(t, basic, http.MethodGet, "/api/admin/audit/reveals", nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic audit access = %d, want 403", resp.StatusCode)
 	}

@@ -9,7 +9,7 @@ import (
 
 func signup(t *testing.T, ts *testServer, c *http.Client, email, pass string) (*http.Response, userView) {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/auth/signup",
+	resp, data := ts.do(t, c, http.MethodPost, "/api/auth/signup",
 		credentials{Email: email, Password: pass}, nil)
 	var v userView
 	json.Unmarshal(data, &v)
@@ -68,12 +68,12 @@ func TestLoginGoodAndBad(t *testing.T) {
 	ts := newTestServer(t)
 	signup(t, ts, ts.client(t), "a@b.com", "password123")
 
-	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/auth/login",
 		credentials{Email: "a@b.com", Password: "password123"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("good login status = %d, want 200", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+	resp, _ = ts.do(t, ts.client(t), http.MethodPost, "/api/auth/login",
 		credentials{Email: "a@b.com", Password: "wrong"}, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("bad login status = %d, want 401", resp.StatusCode)
@@ -82,7 +82,7 @@ func TestLoginGoodAndBad(t *testing.T) {
 
 func TestMeRequiresAuth(t *testing.T) {
 	ts := newTestServer(t)
-	resp, _ := ts.do(t, ts.client(t), http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ := ts.do(t, ts.client(t), http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
 	}
@@ -93,7 +93,7 @@ func TestSessionCookieFlowAndLogout(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "a@b.com", "password123")
 
-	resp, data := ts.do(t, c, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, data := ts.do(t, c, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("me status = %d", resp.StatusCode)
 	}
@@ -103,8 +103,8 @@ func TestSessionCookieFlowAndLogout(t *testing.T) {
 		t.Errorf("me email = %q", v.Email)
 	}
 
-	ts.do(t, c, http.MethodPost, "/api/v1/auth/logout", nil, nil)
-	resp, _ = ts.do(t, c, http.MethodGet, "/api/v1/me", nil, nil)
+	ts.do(t, c, http.MethodPost, "/api/auth/logout", nil, nil)
+	resp, _ = ts.do(t, c, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("after logout status = %d, want 401", resp.StatusCode)
 	}
@@ -113,7 +113,7 @@ func TestSessionCookieFlowAndLogout(t *testing.T) {
 func TestAuthStatusSetupFlag(t *testing.T) {
 	ts := newTestServer(t)
 	// No users yet -> setup required.
-	_, data := ts.do(t, nil, http.MethodGet, "/api/v1/auth/status", nil, nil)
+	_, data := ts.do(t, nil, http.MethodGet, "/api/auth/status", nil, nil)
 	var s map[string]bool
 	json.Unmarshal(data, &s)
 	if !s["setup_required"] {
@@ -121,7 +121,7 @@ func TestAuthStatusSetupFlag(t *testing.T) {
 	}
 	// After the first signup -> no longer required.
 	signup(t, ts, ts.client(t), "boss@example.com", "password123")
-	_, data = ts.do(t, nil, http.MethodGet, "/api/v1/auth/status", nil, nil)
+	_, data = ts.do(t, nil, http.MethodGet, "/api/auth/status", nil, nil)
 	json.Unmarshal(data, &s)
 	if s["setup_required"] {
 		t.Errorf("setup should be complete after first user: %v", s)
@@ -139,7 +139,7 @@ func fromIP(ip string) map[string]string {
 func login(t *testing.T, ts *testServer, email, pass, ip string) *http.Response {
 	t.Helper()
 	ts.app.cfg.TrustProxyHeaders = true
-	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/auth/login",
 		credentials{Email: email, Password: pass}, fromIP(ip))
 	return resp
 }
@@ -150,13 +150,13 @@ func TestLoginThrottleIgnoresSpoofedForwardedFor(t *testing.T) {
 	ts := newTestServer(t)
 	signup(t, ts, ts.client(t), "a@b.com", "password123")
 	for i := 0; i < 5; i++ {
-		resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+		resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/auth/login",
 			credentials{Email: "a@b.com", Password: "wrong"}, fromIP(fmt.Sprintf("10.0.0.%d", i)))
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("attempt %d status = %d, want 401", i+1, resp.StatusCode)
 		}
 	}
-	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/v1/auth/login",
+	resp, _ := ts.do(t, ts.client(t), http.MethodPost, "/api/auth/login",
 		credentials{Email: "a@b.com", Password: "wrong"}, fromIP("10.0.0.99"))
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Errorf("status after 5 failures from rotating spoofed IPs = %d, want 429", resp.StatusCode)
@@ -167,7 +167,7 @@ func TestLoginThrottleIgnoresSpoofedForwardedFor(t *testing.T) {
 // resulting session.
 func loginWith(t *testing.T, ts *testServer, c *http.Client, email, pass string) *http.Response {
 	t.Helper()
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/auth/login",
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/auth/login",
 		credentials{Email: email, Password: pass}, nil)
 	return resp
 }

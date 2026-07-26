@@ -68,7 +68,7 @@ func TestResetPasswordCLIUnknownEmail(t *testing.T) {
 func adminResetPassword(t *testing.T, ts *testServer, c *http.Client, userID, password string) (*http.Response, map[string]any) {
 	t.Helper()
 	body := map[string]string{"password": password}
-	resp, data := ts.do(t, c, http.MethodPost, "/api/v1/admin/users/"+userID+"/password", body, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/admin/users/"+userID+"/password", body, nil)
 	out := map[string]any{}
 	json.Unmarshal(data, &out)
 	return resp, out
@@ -82,7 +82,7 @@ func TestAdminResetPasswordSetsItAndSignsTargetOut(t *testing.T) {
 	_, target := signup(t, ts, userClient, "dev@example.com", "password123")
 
 	// The target has a live session; it must not survive the reset.
-	resp, _ := ts.do(t, userClient, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ := ts.do(t, userClient, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("target session precondition status = %d, want 200", resp.StatusCode)
 	}
@@ -92,7 +92,7 @@ func TestAdminResetPasswordSetsItAndSignsTargetOut(t *testing.T) {
 		t.Fatalf("reset status = %d, want 200", resp.StatusCode)
 	}
 
-	resp, _ = ts.do(t, userClient, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ = ts.do(t, userClient, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("target session after reset status = %d, want 401", resp.StatusCode)
 	}
@@ -156,16 +156,16 @@ func TestChangePasswordDropsOtherSessions(t *testing.T) {
 	}
 
 	body := map[string]string{"current_password": "password123", "new_password": "brand-new-password"}
-	resp, _ := ts.do(t, first, http.MethodPost, "/api/v1/me/password", body, nil)
+	resp, _ := ts.do(t, first, http.MethodPost, "/api/me/password", body, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("change password status = %d, want 204", resp.StatusCode)
 	}
 
-	resp, _ = ts.do(t, first, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ = ts.do(t, first, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("caller session after change status = %d, want 200", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, second, http.MethodGet, "/api/v1/me", nil, nil)
+	resp, _ = ts.do(t, second, http.MethodGet, "/api/me", nil, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("other session after change status = %d, want 401", resp.StatusCode)
 	}

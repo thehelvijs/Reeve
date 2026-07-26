@@ -11,8 +11,8 @@ export default function AdminGroups() {
   const [creating, setCreating] = useState(false);
 
   const load = () => {
-    api.get<Group[]>('/api/v1/admin/groups').then((g) => setGroups(g ?? []));
-    api.get<AdminUser[]>('/api/v1/admin/users').then((u) => setUsers(u ?? []));
+    api.get<Group[]>('/api/admin/groups').then((g) => setGroups(g ?? []));
+    api.get<AdminUser[]>('/api/admin/users').then((u) => setUsers(u ?? []));
   };
   useEffect(() => {
     load();
@@ -24,15 +24,15 @@ export default function AdminGroups() {
     if (!userId) {
       return;
     }
-    await api.put(`/api/v1/admin/groups/${groupId}/members/${userId}`);
+    await api.put(`/api/admin/groups/${groupId}/members/${userId}`);
     load();
   };
   const removeMember = async (groupId: string, userId: string) => {
-    await api.del(`/api/v1/admin/groups/${groupId}/members/${userId}`);
+    await api.del(`/api/admin/groups/${groupId}/members/${userId}`);
     load();
   };
   const remove = async (groupId: string) => {
-    await api.del(`/api/v1/admin/groups/${groupId}`);
+    await api.del(`/api/admin/groups/${groupId}`);
     load();
   };
 
@@ -120,7 +120,7 @@ function CreateGroupModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
     setError('');
     setBusy(true);
     try {
-      await api.post('/api/v1/admin/groups', { name });
+      await api.post('/api/admin/groups', { name });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'failed');

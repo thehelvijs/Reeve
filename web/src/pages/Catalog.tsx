@@ -23,14 +23,14 @@ export default function Catalog() {
 
   useEffect(() => {
     api
-      .get<Collection[]>('/api/v1/collections')
+      .get<Collection[]>('/api/collections')
       .then((c) => setCollections(c ?? []))
       .catch(() => setCollections([]));
   }, []);
 
   const { data, loading } = useResource<Tool[]>(
-    '/api/v1/tools',
-    () => api.get<Tool[]>('/api/v1/tools'),
+    '/api/tools',
+    () => api.get<Tool[]>('/api/tools'),
     15000,
   );
   const tools = useMemo(() => data ?? [], [data]);

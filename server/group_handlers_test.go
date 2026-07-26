@@ -19,7 +19,7 @@ func TestGroupCRUDAndMembership(t *testing.T) {
 	_, dev := signup(t, ts, ts.client(t), "dev@example.com", "password123")
 
 	// Create.
-	resp, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create group = %d: %s", resp.StatusCode, data)
 	}
@@ -27,13 +27,13 @@ func TestGroupCRUDAndMembership(t *testing.T) {
 	json.Unmarshal(data, &g)
 
 	// Add member.
-	resp, _ = ts.do(t, admin, http.MethodPut, "/api/v1/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
+	resp, _ = ts.do(t, admin, http.MethodPut, "/api/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("add member = %d", resp.StatusCode)
 	}
 
 	// List reflects the member.
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/groups", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/groups", nil, nil)
 	var groups []groupView
 	json.Unmarshal(data, &groups)
 	if len(groups) != 1 || len(groups[0].Members) != 1 || groups[0].Members[0] != dev.ID {
@@ -41,19 +41,19 @@ func TestGroupCRUDAndMembership(t *testing.T) {
 	}
 
 	// Remove member.
-	ts.do(t, admin, http.MethodDelete, "/api/v1/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/groups", nil, nil)
+	ts.do(t, admin, http.MethodDelete, "/api/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/groups", nil, nil)
 	json.Unmarshal(data, &groups)
 	if len(groups[0].Members) != 0 {
 		t.Errorf("member not removed: %+v", groups[0])
 	}
 
 	// Delete cascades membership (no FK error, group gone).
-	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/v1/admin/groups/"+g.ID, nil, nil)
+	resp, _ = ts.do(t, admin, http.MethodDelete, "/api/admin/groups/"+g.ID, nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete group = %d", resp.StatusCode)
 	}
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/groups", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/groups", nil, nil)
 	json.Unmarshal(data, &groups)
 	if len(groups) != 0 {
 		t.Errorf("group not deleted: %+v", groups)
@@ -67,18 +67,18 @@ func TestRenameGroup(t *testing.T) {
 	admin := adminClient(t, ts)
 	_, dev := signup(t, ts, ts.client(t), "dev@example.com", "password123")
 
-	_, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	_, data := ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	var g groupView
 	json.Unmarshal(data, &g)
-	ts.do(t, admin, http.MethodPut, "/api/v1/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
-	ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "taken"}, nil)
+	ts.do(t, admin, http.MethodPut, "/api/admin/groups/"+g.ID+"/members/"+dev.ID, nil, nil)
+	ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "taken"}, nil)
 
-	resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/groups/"+g.ID, map[string]string{"name": "  platform  "}, nil)
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/groups/"+g.ID, map[string]string{"name": "  platform  "}, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("rename = %d: %s", resp.StatusCode, data)
 	}
 
-	_, data = ts.do(t, admin, http.MethodGet, "/api/v1/admin/groups", nil, nil)
+	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/groups", nil, nil)
 	var groups []groupView
 	json.Unmarshal(data, &groups)
 	var renamed *groupView
@@ -107,7 +107,7 @@ func TestRenameGroup(t *testing.T) {
 		"unknown group": {"nope", map[string]string{"name": "whatever"}, http.StatusNotFound},
 	}
 	for name, tc := range cases {
-		resp, data := ts.do(t, admin, http.MethodPatch, "/api/v1/admin/groups/"+tc.id, tc.body, nil)
+		resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/groups/"+tc.id, tc.body, nil)
 		if resp.StatusCode != tc.want {
 			t.Errorf("%s = %d, want %d: %s", name, resp.StatusCode, tc.want, data)
 		}
@@ -117,8 +117,8 @@ func TestRenameGroup(t *testing.T) {
 func TestDuplicateGroupName(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
-	ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
-	resp, _ := ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
+	resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("dup group name = %d, want 409", resp.StatusCode)
 	}
@@ -129,7 +129,7 @@ func TestGroupsAdminOnly(t *testing.T) {
 	adminClient(t, ts)
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/groups", nil, nil)
+	resp, _ := ts.do(t, basic, http.MethodGet, "/api/admin/groups", nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic on groups = %d, want 403", resp.StatusCode)
 	}
@@ -138,10 +138,10 @@ func TestGroupsAdminOnly(t *testing.T) {
 func TestAddMissingUserToGroup(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
-	_, data := ts.do(t, admin, http.MethodPost, "/api/v1/admin/groups", map[string]string{"name": "ops"}, nil)
+	_, data := ts.do(t, admin, http.MethodPost, "/api/admin/groups", map[string]string{"name": "ops"}, nil)
 	var g groupView
 	json.Unmarshal(data, &g)
-	resp, _ := ts.do(t, admin, http.MethodPut, "/api/v1/admin/groups/"+g.ID+"/members/nouser", nil, nil)
+	resp, _ := ts.do(t, admin, http.MethodPut, "/api/admin/groups/"+g.ID+"/members/nouser", nil, nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("add missing user = %d, want 404", resp.StatusCode)
 	}

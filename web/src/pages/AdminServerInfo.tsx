@@ -19,7 +19,7 @@ interface ServerInfo {
 export default function AdminServerInfo() {
   const [info, setInfo] = useState<ServerInfo | null>(null);
 
-  const load = () => api.get<ServerInfo>('/api/v1/admin/server-info').then(setInfo).catch(() => setInfo(null));
+  const load = () => api.get<ServerInfo>('/api/admin/server-info').then(setInfo).catch(() => setInfo(null));
   useEffect(() => {
     load();
   }, []);
@@ -54,7 +54,7 @@ export default function AdminServerInfo() {
       </Card>
 
       <div className="mt-6">
-        <HostMetrics path="/api/v1/admin/server-metrics" />
+        <HostMetrics path="/api/admin/server-metrics" />
       </div>
 
       <h2 className="mt-8 text-sm font-medium text-content">Details</h2>
@@ -85,7 +85,7 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
     setBusy(true);
     const form = new FormData();
     form.append('backup', file);
-    const res = await fetch('/api/v1/admin/restore', { method: 'POST', credentials: 'include', body: form });
+    const res = await fetch('/api/admin/restore', { method: 'POST', credentials: 'include', body: form });
     const text = await res.text();
     const data = text ? JSON.parse(text) : null;
     setBusy(false);
@@ -107,7 +107,7 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
   const cancel = async () => {
     setError('');
     setNote('');
-    await api.del('/api/v1/admin/restore');
+    await api.del('/api/admin/restore');
     onChange();
   };
 
@@ -130,7 +130,7 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <a
-          href="/api/v1/admin/backup"
+          href="/api/admin/backup"
           className="rounded-button border border-hairline px-3 py-1.5 text-sm text-content transition-colors hover:bg-surface-2"
         >
           Download backup

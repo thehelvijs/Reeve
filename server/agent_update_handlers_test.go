@@ -24,7 +24,7 @@ type rollupResponse struct {
 // on the page looks fine.
 func fetchRollup(t *testing.T, ts *testServer, c *http.Client) rollupResponse {
 	t.Helper()
-	resp, body := ts.do(t, c, http.MethodGet, "/api/v1/admin/agent-updates", nil, nil)
+	resp, body := ts.do(t, c, http.MethodGet, "/api/admin/agent-updates", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("rollup status = %d, want 200: %s", resp.StatusCode, body)
 	}
@@ -115,7 +115,7 @@ func TestListHostsReportsAutoUpdateAndState(t *testing.T) {
 	}
 
 	resp, body := ts.do(t, c, http.MethodPut,
-		"/api/v1/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "off"}, nil)
+		"/api/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "off"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
@@ -135,7 +135,7 @@ func TestListHostsReportsAutoUpdateAndState(t *testing.T) {
 
 func hostFromList(t *testing.T, ts *testServer, c *http.Client, id string) (hostView, []byte) {
 	t.Helper()
-	_, body := ts.do(t, c, http.MethodGet, "/api/v1/hosts", nil, nil)
+	_, body := ts.do(t, c, http.MethodGet, "/api/hosts", nil, nil)
 	var hosts []hostView
 	if err := json.Unmarshal(body, &hosts); err != nil {
 		t.Fatalf("decode hosts: %v", err)
@@ -156,7 +156,7 @@ func TestSetHostAutoUpdatePolicy(t *testing.T) {
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 
 	resp, _ := ts.do(t, c, http.MethodPut,
-		"/api/v1/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "off"}, nil)
+		"/api/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "off"}, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
@@ -166,7 +166,7 @@ func TestSetHostAutoUpdatePolicy(t *testing.T) {
 	}
 
 	resp, _ = ts.do(t, c, http.MethodPut,
-		"/api/v1/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "sometimes"}, nil)
+		"/api/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "sometimes"}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("bad policy status = %d, want 400", resp.StatusCode)
 	}
@@ -179,7 +179,7 @@ func TestUpdateNowRefusesDisabledHost(t *testing.T) {
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	ts.app.db.SetHostAutoUpdate(h.ID, store.AutoUpdateOff)
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("status = %d, want 409", resp.StatusCode)
 	}
@@ -194,7 +194,7 @@ func TestUpdateNowRefusesUpToDateHost(t *testing.T) {
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	reportVersion(t, ts, h.ID, ts.app.cfg.Version)
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("status = %d, want 409", resp.StatusCode)
 	}
@@ -213,7 +213,7 @@ func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
 		c := adminClient(t, ts)
 		h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 
-		resp, body := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+		resp, body := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("status = %d, want 409: %s", resp.StatusCode, body)
 		}
@@ -230,7 +230,7 @@ func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
 		h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 		reportVersion(t, ts, h.ID, "0.1.0")
 
-		resp, body := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+		resp, body := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("status = %d, want 409: %s", resp.StatusCode, body)
 		}
@@ -248,7 +248,7 @@ func TestUpdateNowStampsASlot(t *testing.T) {
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	reportVersion(t, ts, h.ID, "0.0.1")
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204", resp.StatusCode)
 	}
@@ -275,7 +275,7 @@ func TestResumeClearsStalledHosts(t *testing.T) {
 		t.Fatalf("stalled = %+v, want the web-1 row with its id", out.Stalled)
 	}
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/agent-updates/resume", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/agent-updates/resume", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("resume status = %d, want 204", resp.StatusCode)
 	}
@@ -305,7 +305,7 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 			name: "an admin sets it to never update",
 			disable: func(t *testing.T, ts *testServer, c *http.Client, hostID string) {
 				resp, body := ts.do(t, c, http.MethodPut,
-					"/api/v1/admin/hosts/"+hostID+"/auto-update", map[string]string{"policy": "off"}, nil)
+					"/api/admin/hosts/"+hostID+"/auto-update", map[string]string{"policy": "off"}, nil)
 				if resp.StatusCode != http.StatusOK {
 					t.Fatalf("set policy off = %d: %s", resp.StatusCode, body)
 				}
@@ -320,7 +320,7 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 			hostID, token := enrollHost(t, ts, c, "canary")
 
 			p := samplePush()
-			resp, body := ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+			resp, body := ts.do(t, nil, http.MethodPost, "/api/ingest", p,
 				map[string]string{"Authorization": "Bearer " + token})
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("first ingest = %d: %s", resp.StatusCode, body)
@@ -335,7 +335,7 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 			// Past the one-second stall window, still on the old version.
 			time.Sleep(1100 * time.Millisecond)
 			p.AutoUpdateVetoed = tc.pushVetoed
-			resp, body = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", p,
+			resp, body = ts.do(t, nil, http.MethodPost, "/api/ingest", p,
 				map[string]string{"Authorization": "Bearer " + token})
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("second ingest = %d: %s", resp.StatusCode, body)
@@ -355,7 +355,7 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 
 			// The real cost of the wedge: another host must still be grantable.
 			otherID, otherToken := enrollHost(t, ts, c, "other")
-			resp, body = ts.do(t, nil, http.MethodPost, "/api/v1/ingest", samplePush(),
+			resp, body = ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 				map[string]string{"Authorization": "Bearer " + otherToken})
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("other ingest = %d: %s", resp.StatusCode, body)
@@ -425,10 +425,10 @@ func TestAgentUpdateEndpointsAreAdminOnly(t *testing.T) {
 		path   string
 		body   any
 	}{
-		{http.MethodGet, "/api/v1/admin/agent-updates", nil},
-		{http.MethodPost, "/api/v1/admin/agent-updates/resume", nil},
-		{http.MethodPut, "/api/v1/admin/hosts/" + h.ID + "/auto-update", map[string]string{"policy": "off"}},
-		{http.MethodPost, "/api/v1/admin/hosts/" + h.ID + "/update-now", nil},
+		{http.MethodGet, "/api/admin/agent-updates", nil},
+		{http.MethodPost, "/api/admin/agent-updates/resume", nil},
+		{http.MethodPut, "/api/admin/hosts/" + h.ID + "/auto-update", map[string]string{"policy": "off"}},
+		{http.MethodPost, "/api/admin/hosts/" + h.ID + "/update-now", nil},
 	}
 	for _, tc := range cases {
 		resp, _ := ts.do(t, basic, tc.method, tc.path, tc.body, nil)
