@@ -129,6 +129,23 @@ func TestSettingsPartialUpdateKeepsOtherSections(t *testing.T) {
 	if v.SignupEnabled {
 		t.Error("saving retention re-opened signup")
 	}
+
+	putSettings(t, ts, c, map[string]any{
+		"agent_update": map[string]any{"enabled": false, "concurrency": 7, "stall_secs": 300},
+	})
+	_, v2 := putSettings(t, ts, c, map[string]any{"retention": map[string]int{
+		"raw_secs": 7200, "fivemin_secs": 14400, "onehour_secs": 172800,
+	}})
+	if v2.AgentUpdate.Concurrency != 7 || v2.AgentUpdate.StallSecs != 300 || v2.AgentUpdate.Enabled {
+		t.Errorf("saving retention clobbered agent_update: %+v", v2.AgentUpdate)
+	}
+
+	_, v3 := putSettings(t, ts, c, map[string]any{
+		"agent_update": map[string]any{"enabled": true, "concurrency": 4, "stall_secs": 120},
+	})
+	if v3.Retention.RawSecs != 7200 {
+		t.Errorf("saving agent_update clobbered retention: %+v", v3.Retention)
+	}
 }
 
 func TestSettingsAdminOnly(t *testing.T) {

@@ -23,7 +23,14 @@ func (a *app) handleGetAgentUpdates(w http.ResponseWriter, _ *http.Request) {
 	}
 	now := time.Now().UTC()
 	uc := a.updateContext()
-	counts := map[string]int{}
+	counts := map[string]int{
+		updateStateUpToDate: 0,
+		updateStateOutdated: 0,
+		updateStateUpdating: 0,
+		updateStateStalled:  0,
+		updateStateDisabled: 0,
+		updateStateUnknown:  0,
+	}
 	for _, h := range hosts {
 		counts[updateStateFor(h, uc, now)]++
 	}
@@ -95,6 +102,10 @@ func (a *app) handleHostUpdateNow(w http.ResponseWriter, r *http.Request) {
 	}
 	if !effectiveAutoUpdate(h.AutoUpdate, a.agentUpdateConfig().Enabled) {
 		writeError(w, http.StatusConflict, "update_disabled", "auto-update is off for this host")
+		return
+	}
+	if h.AgentVersion == a.cfg.Version {
+		writeError(w, http.StatusConflict, "already_up_to_date", "host is already on the current version")
 		return
 	}
 	if err := a.db.StartHostUpdate(id, time.Now().UTC()); err != nil {

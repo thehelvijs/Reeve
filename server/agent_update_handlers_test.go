@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,9 +63,70 @@ func TestAgentUpdateRollupCountsHosts(t *testing.T) {
 	if out.Counts[updateStateOutdated] != 1 {
 		t.Errorf("outdated = %d, want 1", out.Counts[updateStateOutdated])
 	}
+	if len(out.Counts) != 6 {
+		t.Errorf("counts has %d keys, want all 6 update states present: %+v", len(out.Counts), out.Counts)
+	}
 	if out.Paused {
 		t.Error("rollup reports paused with nothing stalled")
 	}
+}
+
+// The list endpoint is the only place an operator sees these fields; a
+// dropped field or a wrong JSON tag would pass every other test in this file.
+func TestListHostsReportsAutoUpdateAndState(t *testing.T) {
+	ts := newTestServer(t)
+	c := ts.client(t)
+	signup(t, ts, c, "admin@example.com", "password123")
+	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	reportVersion(t, ts, h.ID, "0.0.1")
+
+	before, rawList := hostFromList(t, ts, c, h.ID)
+	if before.AutoUpdate != store.AutoUpdateDefault {
+		t.Errorf("auto_update = %q, want %q", before.AutoUpdate, store.AutoUpdateDefault)
+	}
+	if before.UpdateState != updateStateOutdated {
+		t.Errorf("update_state = %q, want %q", before.UpdateState, updateStateOutdated)
+	}
+	// Guards the wire key itself, not just the Go struct round trip.
+	for _, key := range []string{`"auto_update":"default"`, `"update_state":"outdated"`} {
+		if !strings.Contains(string(rawList), key) {
+			t.Errorf("raw list response missing %s: %s", key, rawList)
+		}
+	}
+
+	resp, body := ts.do(t, c, http.MethodPut,
+		"/api/v1/admin/hosts/"+h.ID+"/auto-update", map[string]string{"policy": "off"}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var putResp hostView
+	if err := json.Unmarshal(body, &putResp); err != nil {
+		t.Fatalf("decode put response: %v", err)
+	}
+	if putResp.AutoUpdate != store.AutoUpdateOff || putResp.UpdateState != updateStateDisabled {
+		t.Errorf("put response auto_update/update_state = %q/%q, want off/disabled", putResp.AutoUpdate, putResp.UpdateState)
+	}
+
+	after, _ := hostFromList(t, ts, c, h.ID)
+	if after.UpdateState != updateStateDisabled {
+		t.Errorf("list update_state after policy off = %q, want %q", after.UpdateState, updateStateDisabled)
+	}
+}
+
+func hostFromList(t *testing.T, ts *testServer, c *http.Client, id string) (hostView, []byte) {
+	t.Helper()
+	_, body := ts.do(t, c, http.MethodGet, "/api/v1/hosts", nil, nil)
+	var hosts []hostView
+	if err := json.Unmarshal(body, &hosts); err != nil {
+		t.Fatalf("decode hosts: %v", err)
+	}
+	for _, h := range hosts {
+		if h.ID == id {
+			return h, body
+		}
+	}
+	t.Fatalf("host %s missing from list", id)
+	return hostView{}, nil
 }
 
 func TestSetHostAutoUpdatePolicy(t *testing.T) {
@@ -103,6 +165,25 @@ func TestUpdateNowRefusesDisabledHost(t *testing.T) {
 	}
 }
 
+// A host already on the server's version must never hold a slot: an offline
+// one would occupy it until the stall window pauses the whole fleet.
+func TestUpdateNowRefusesUpToDateHost(t *testing.T) {
+	ts := newTestServer(t)
+	c := ts.client(t)
+	signup(t, ts, c, "admin@example.com", "password123")
+	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	reportVersion(t, ts, h.ID, ts.app.cfg.Version)
+
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/v1/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("status = %d, want 409", resp.StatusCode)
+	}
+	got, _ := ts.app.db.GetHost(h.ID)
+	if got.UpdateStartedAt != nil {
+		t.Error("refused update-now still stamped a slot")
+	}
+}
+
 func TestUpdateNowStampsASlot(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
@@ -129,8 +210,13 @@ func TestResumeClearsStalledHosts(t *testing.T) {
 	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
 
 	resp, body := ts.do(t, c, http.MethodGet, "/api/v1/admin/agent-updates", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("rollup status = %d, want 200: %s", resp.StatusCode, body)
+	}
 	var out rollupResponse
-	json.Unmarshal(body, &out)
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatalf("decode rollup: %v", err)
+	}
 	if !out.Paused {
 		t.Fatalf("rollup should be paused with a stalled host, got %s", body)
 	}
@@ -151,10 +237,23 @@ func TestAgentUpdateEndpointsAreAdminOnly(t *testing.T) {
 	signup(t, ts, admin, "admin@example.com", "password123")
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
+	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 
-	resp, _ := ts.do(t, basic, http.MethodGet, "/api/v1/admin/agent-updates", nil, nil)
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("basic user status = %d, want 403", resp.StatusCode)
+	cases := []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{http.MethodGet, "/api/v1/admin/agent-updates", nil},
+		{http.MethodPost, "/api/v1/admin/agent-updates/resume", nil},
+		{http.MethodPut, "/api/v1/admin/hosts/" + h.ID + "/auto-update", map[string]string{"policy": "off"}},
+		{http.MethodPost, "/api/v1/admin/hosts/" + h.ID + "/update-now", nil},
+	}
+	for _, tc := range cases {
+		resp, _ := ts.do(t, basic, tc.method, tc.path, tc.body, nil)
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("%s %s status = %d, want 403", tc.method, tc.path, resp.StatusCode)
+		}
 	}
 }
 

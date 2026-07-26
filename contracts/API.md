@@ -188,7 +188,11 @@ Grants the host a rollout slot immediately, bypassing both the concurrency cap
 and a paused rollout — this is an explicit operator override, not a paced grant.
 `204 No Content`. `409 update_vetoed` if the host itself refuses updates
 (`REEVE_AUTO_UPDATE=false`); `409 update_disabled` if auto-update is off for
-the host by policy; `404 not_found` for an unknown host.
+the host by policy; `409 already_up_to_date` if the host's reported
+`agent_version` already matches the server version — stamping a slot for a
+host with nothing to do would occupy a concurrency slot indefinitely if that
+host is offline, silently pausing the rest of the fleet; `404 not_found` for
+an unknown host.
 
 ### Settings: `agent_update`
 
