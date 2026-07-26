@@ -147,8 +147,8 @@ func (a *app) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"host":            hostToView(h, time.Now().UTC(), a.updateContext()),
 		"enroll_token":    token,
-		"install_command": a.agentInstallCommand(token),
-		"run_command":     a.agentRunCommand(token),
+		"install_command": a.agentInstallCommand(r, token),
+		"run_command":     a.agentRunCommand(r, token),
 	})
 }
 
@@ -274,12 +274,8 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 
 // agentInstallCommand renders the one-line host installer (systemd, full
 // visibility). Mirrors agentRunCommand's URL resolution.
-func (a *app) agentInstallCommand(token string) string {
-	url := a.cfg.PublicURL
-	if url == "" {
-		url = "http://" + a.cfg.Addr
-	}
-	url = strings.TrimSuffix(url, "/")
+func (a *app) agentInstallCommand(r *http.Request, token string) string {
+	url := strings.TrimSuffix(a.baseURL(r), "/")
 	return fmt.Sprintf(
 		"curl -fsSL %s/install.sh | sudo "+
 			"REEVE_SERVER_URL=%s REEVE_AGENT_TOKEN=%s bash",
@@ -287,11 +283,8 @@ func (a *app) agentInstallCommand(token string) string {
 }
 
 // agentRunCommand renders a copy-paste Docker command to enroll the agent.
-func (a *app) agentRunCommand(token string) string {
-	url := a.cfg.PublicURL
-	if url == "" {
-		url = "http://" + a.cfg.Addr
-	}
+func (a *app) agentRunCommand(r *http.Request, token string) string {
+	url := strings.TrimSuffix(a.baseURL(r), "/")
 	return fmt.Sprintf(
 		"docker run -d --name reeve-agent --restart unless-stopped "+
 			"-v /var/run/docker.sock:/var/run/docker.sock:ro "+

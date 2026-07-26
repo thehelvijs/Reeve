@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,6 +43,24 @@ func (a *app) baseURL(r *http.Request) string {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+// reachableFromOtherHosts reports whether an agent on another machine could dial
+// base. A loopback origin means the admin reached the UI over localhost, so the
+// resolved URL is only valid inside this box.
+func reachableFromOtherHosts(base string) bool {
+	u, err := url.Parse(base)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "" || host == "localhost" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return !ip.IsLoopback() && !ip.IsUnspecified()
+	}
+	return true
 }
 
 // handleForgotPassword mails a reset link. It answers 204 whether or not the

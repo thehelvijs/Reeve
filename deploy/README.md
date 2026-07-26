@@ -6,8 +6,7 @@ LAN-only. Nothing here should be exposed to the public internet.
 
 ```sh
 cp deploy/.env.example deploy/.env
-# set REEVE_MASTER_KEY (openssl rand -base64 32) and
-# REEVE_PUBLIC_URL=http://<lan-ip>:8080
+# set REEVE_MASTER_KEY (openssl rand -base64 32)
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
@@ -142,8 +141,11 @@ it. Credentials are used for that one operation and never stored, and a fresh
 enrollment token is minted for each push. **Remove agent** does the reverse and
 leaves the host in the catalog with its history.
 
-This needs `REEVE_PUBLIC_URL` set, since it is the address the agent is
-told to push to.
+The address the agent is told to push to defaults to whatever host you reached
+the UI on, so opening it at `http://<lan-ip>:8080` needs no configuration. Set
+`REEVE_PUBLIC_URL` when that differs from the address agents should use, or when
+you are working over `localhost` — a loopback origin is refused, since an agent
+on another machine cannot dial it.
 
 The address is resolved by the server, not your browser. A `.local` name is
 answered by multicast, which no DNS server and no static Go binary can do, so

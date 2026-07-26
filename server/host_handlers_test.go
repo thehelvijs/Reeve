@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func TestListHostsIncludesLatestMetric(t *testing.T) {
 
 func TestAgentInstallCommandShape(t *testing.T) {
 	a := &app{cfg: config{PublicURL: "http://10.0.0.2:8080"}}
-	cmd := a.agentInstallCommand("tok-123")
+	cmd := a.agentInstallCommand(httptest.NewRequest(http.MethodPost, "/", nil), "tok-123")
 	for _, want := range []string{
 		"curl -fsSL http://10.0.0.2:8080/install.sh",
 		"REEVE_SERVER_URL=http://10.0.0.2:8080",
@@ -71,6 +72,22 @@ func TestAgentInstallCommandShape(t *testing.T) {
 	} {
 		if !strings.Contains(cmd, want) {
 			t.Errorf("install command missing %q: %s", want, cmd)
+		}
+	}
+}
+
+// With no REEVE_PUBLIC_URL the enroll commands use the address the admin's
+// browser reached the UI on, which on a LAN is the server's LAN address.
+func TestAgentCommandsFallBackToRequestHost(t *testing.T) {
+	a := &app{cfg: config{Addr: "127.0.0.1:8080"}}
+	r := httptest.NewRequest(http.MethodPost, "/", nil)
+	r.Host = "192.168.1.50:8080"
+	for _, cmd := range []string{a.agentInstallCommand(r, "tok"), a.agentRunCommand(r, "tok")} {
+		if !strings.Contains(cmd, "REEVE_SERVER_URL=http://192.168.1.50:8080") {
+			t.Errorf("command did not use the request host: %s", cmd)
+		}
+		if strings.Contains(cmd, "127.0.0.1") {
+			t.Errorf("command leaked the bind address: %s", cmd)
 		}
 	}
 }

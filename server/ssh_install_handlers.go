@@ -96,9 +96,10 @@ func (a *app) handleSSHInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	serverURL := a.baseURL(r)
-	if a.cfg.PublicURL == "" {
-		writeError(w, http.StatusBadRequest, "no_public_url",
-			"set REEVE_PUBLIC_URL so the agent knows where to push telemetry")
+	if a.cfg.PublicURL == "" && !reachableFromOtherHosts(serverURL) {
+		writeError(w, http.StatusBadRequest, "unreachable_server_url",
+			"reach this UI by the server's LAN address instead of "+serverURL+
+				", or set REEVE_PUBLIC_URL, so the agent has an address it can push to")
 		return
 	}
 

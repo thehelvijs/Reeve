@@ -66,8 +66,9 @@ func TestSSHInstallRejectsIncompleteTargets(t *testing.T) {
 	}
 }
 
-// Without a public URL the agent would be pushed a server address it cannot use.
-func TestSSHInstallRequiresPublicURL(t *testing.T) {
+// A loopback origin resolves to an address the remote agent cannot dial, so the
+// push is refused rather than enrolling a host that can never report.
+func TestSSHInstallRejectsLoopbackServerURL(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
@@ -80,8 +81,26 @@ func TestSSHInstallRequiresPublicURL(t *testing.T) {
 	}
 	var out map[string]string
 	json.Unmarshal(data, &out)
-	if out["code"] != "no_public_url" {
-		t.Errorf("code = %q, want no_public_url", out["code"])
+	if out["code"] != "unreachable_server_url" {
+		t.Errorf("code = %q, want unreachable_server_url", out["code"])
+	}
+}
+
+func TestReachableFromOtherHosts(t *testing.T) {
+	for base, want := range map[string]bool{
+		"http://192.168.1.50:8080":  true,
+		"https://reeve.example.com": true,
+		"http://10.0.0.2":           true,
+		"http://[fd00::1]:8080":     true,
+		"http://127.0.0.1:8080":     false,
+		"http://localhost:8080":     false,
+		"http://0.0.0.0:8080":       false,
+		"http://[::1]:8080":         false,
+		"":                          false,
+	} {
+		if got := reachableFromOtherHosts(base); got != want {
+			t.Errorf("reachableFromOtherHosts(%q) = %v, want %v", base, got, want)
+		}
 	}
 }
 
