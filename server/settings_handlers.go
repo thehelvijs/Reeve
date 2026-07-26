@@ -67,16 +67,24 @@ type retentionView struct {
 	OneHourSecs int `json:"onehour_secs"`
 }
 
+type agentUpdateView struct {
+	Enabled     bool `json:"enabled"`
+	Concurrency int  `json:"concurrency"`
+	StallSecs   int  `json:"stall_secs"`
+}
+
 type settingsView struct {
-	SignupEnabled bool           `json:"signup_enabled"`
-	Retention     retentionView  `json:"retention"`
-	SMTP          smtpView       `json:"smtp"`
-	Google        googleAuthView `json:"google"`
+	SignupEnabled bool            `json:"signup_enabled"`
+	Retention     retentionView   `json:"retention"`
+	SMTP          smtpView        `json:"smtp"`
+	Google        googleAuthView  `json:"google"`
+	AgentUpdate   agentUpdateView `json:"agent_update"`
 }
 
 // handleGetSettings returns every instance-wide setting an admin can change.
 func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 	ret := a.db.EffectiveRetention()
+	au := a.agentUpdateConfig()
 	writeJSON(w, http.StatusOK, settingsView{
 		SignupEnabled: a.db.GetBoolSetting(settingSignupEnabled, true),
 		Retention: retentionView{
@@ -84,8 +92,9 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 			FiveMinSecs: int(ret.FiveMin.Seconds()),
 			OneHourSecs: int(ret.OneHour.Seconds()),
 		},
-		SMTP:   a.smtpView(),
-		Google: a.googleAuthView(),
+		SMTP:        a.smtpView(),
+		Google:      a.googleAuthView(),
+		AgentUpdate: agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
 	})
 }
 
@@ -99,8 +108,13 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			FiveMinSecs int `json:"fivemin_secs"`
 			OneHourSecs int `json:"onehour_secs"`
 		} `json:"retention"`
-		SMTP   *smtpInput   `json:"smtp"`
-		Google *googleInput `json:"google"`
+		SMTP        *smtpInput   `json:"smtp"`
+		Google      *googleInput `json:"google"`
+		AgentUpdate *struct {
+			Enabled     bool `json:"enabled"`
+			Concurrency int  `json:"concurrency"`
+			StallSecs   int  `json:"stall_secs"`
+		} `json:"agent_update"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
@@ -146,6 +160,23 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if in.AgentUpdate != nil {
+		if err := validateAgentUpdate(in.AgentUpdate.Concurrency, in.AgentUpdate.StallSecs); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_agent_update", err.Error())
+			return
+		}
+		writes := map[string]string{
+			settingAgentUpdateEnabled:     strconv.FormatBool(in.AgentUpdate.Enabled),
+			settingAgentUpdateConcurrency: strconv.Itoa(in.AgentUpdate.Concurrency),
+			settingAgentUpdateStallSecs:   strconv.Itoa(in.AgentUpdate.StallSecs),
+		}
+		for key, value := range writes {
+			if err := a.db.SetSetting(key, value); err != nil {
+				writeError(w, http.StatusInternalServerError, "internal", "could not save agent update settings")
+				return
+			}
+		}
+	}
 	a.handleGetSettings(w, r)
 }
 
@@ -164,6 +195,18 @@ func validateRetention(ret store.Retention) error {
 	}
 	if !(ret.Raw <= ret.FiveMin && ret.FiveMin <= ret.OneHour) {
 		return errors.New("retention must not shrink as resolution coarsens: raw <= 5m <= 1h")
+	}
+	return nil
+}
+
+// validateAgentUpdate keeps a rollout from being configured into a stampede or
+// a stall window so short that every host looks wedged.
+func validateAgentUpdate(concurrency, stallSecs int) error {
+	if concurrency < minAgentUpdateConcurrency || concurrency > maxAgentUpdateConcurrency {
+		return errors.New("concurrency must be between 1 and 100")
+	}
+	if stallSecs < minAgentUpdateStallSecs || stallSecs > maxAgentUpdateStallSecs {
+		return errors.New("stall timeout must be between 1 and 86400 seconds")
 	}
 	return nil
 }

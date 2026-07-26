@@ -62,33 +62,35 @@ func TestApplyPushRecordsVeto(t *testing.T) {
 func TestUpdateSlotLifecycle(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	other, _ := db.CreateHost("web-2", "linux", "", "hash-2", 60)
 	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	cutoff := now.Add(-15 * time.Minute)
 
 	if err := db.StartHostUpdate(h.ID, now); err != nil {
 		t.Fatalf("start update: %v", err)
 	}
-	live, err := db.CountLiveUpdateSlots(cutoff)
+	names, err := db.ListStalledHostNames(cutoff)
 	if err != nil {
-		t.Fatalf("count live: %v", err)
+		t.Fatalf("list stalled: %v", err)
 	}
-	if live != 1 {
-		t.Errorf("live slots = %d, want 1", live)
+	if len(names) != 0 {
+		t.Errorf("stalled names = %v, want none: the slot is still live", names)
 	}
-	stalled, err := db.CountStalledUpdates(cutoff)
-	if err != nil {
-		t.Fatalf("count stalled: %v", err)
-	}
-	if stalled != 0 {
-		t.Errorf("stalled = %d, want 0", stalled)
+	if ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1); err != nil {
+		t.Fatalf("try start: %v", err)
+	} else if ok {
+		t.Error("granted a slot while the live one held the cap of 1")
 	}
 
 	if err := db.ClearHostUpdateSlot(h.ID); err != nil {
 		t.Fatalf("clear slot: %v", err)
 	}
-	live, _ = db.CountLiveUpdateSlots(cutoff)
-	if live != 0 {
-		t.Errorf("live slots after clear = %d, want 0", live)
+	ok, err := db.TryStartHostUpdate(other.ID, now, cutoff, 1)
+	if err != nil {
+		t.Fatalf("try start after clear: %v", err)
+	}
+	if !ok {
+		t.Error("clearing the slot did not free the cap for another host")
 	}
 }
 
@@ -100,13 +102,6 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 
 	db.StartHostUpdate(h.ID, started)
 
-	stalled, err := db.CountStalledUpdates(cutoff)
-	if err != nil {
-		t.Fatalf("count stalled: %v", err)
-	}
-	if stalled != 1 {
-		t.Errorf("stalled = %d, want 1", stalled)
-	}
 	names, err := db.ListStalledHostNames(cutoff)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
@@ -118,9 +113,9 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 	if err := db.ClearStalledUpdates(cutoff); err != nil {
 		t.Fatalf("clear stalled: %v", err)
 	}
-	stalled, _ = db.CountStalledUpdates(cutoff)
-	if stalled != 0 {
-		t.Errorf("stalled after clear = %d, want 0", stalled)
+	names, _ = db.ListStalledHostNames(cutoff)
+	if len(names) != 0 {
+		t.Errorf("stalled names after clear = %v, want none", names)
 	}
 }
 
@@ -135,12 +130,12 @@ func TestSlotStampsCompareCorrectlyAcrossFractions(t *testing.T) {
 	db.StartHostUpdate(early.ID, base.Add(500*time.Millisecond))
 	db.StartHostUpdate(late.ID, base.Add(2*time.Second))
 
-	live, err := db.CountLiveUpdateSlots(base.Add(time.Second))
+	names, err := db.ListStalledHostNames(base.Add(time.Second))
 	if err != nil {
-		t.Fatalf("count live: %v", err)
+		t.Fatalf("list stalled: %v", err)
 	}
-	if live != 1 {
-		t.Errorf("live slots = %d, want 1 (only the later stamp)", live)
+	if len(names) != 1 || names[0] != "early" {
+		t.Errorf("stalled names = %v, want [early] (only the earlier stamp)", names)
 	}
 }
 
@@ -237,9 +232,15 @@ func TestTryStartHostUpdateIsAtomicUnderConcurrency(t *testing.T) {
 	if granted != concurrencyCap {
 		t.Errorf("granted = %d, want exactly the cap of %d", granted, concurrencyCap)
 	}
-	live, err := db.CountLiveUpdateSlots(cutoff)
-	if err != nil {
-		t.Fatalf("count live: %v", err)
+	live := 0
+	for _, id := range ids {
+		h, err := db.GetHost(id)
+		if err != nil {
+			t.Fatalf("get host: %v", err)
+		}
+		if h.UpdateStartedAt != nil {
+			live++
+		}
 	}
 	if live != concurrencyCap {
 		t.Errorf("live slots after the race = %d, want %d", live, concurrencyCap)

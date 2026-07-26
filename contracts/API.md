@@ -136,6 +136,76 @@ Returns only hosts referenced by at least one public tool, trimmed to `id`,
 `last_seen_at`. Hosts whose tools are all restricted, or that have no tools,
 are omitted.
 
+## Agent updates (admin)
+
+The authed host payload from `GET /api/v1/hosts` (and any other endpoint that
+returns a `hostView`) carries two fields the public/anonymous host payload
+never does:
+
+- `auto_update` — the host's policy override: `default` (inherit the fleet
+  setting), `on`, or `off`.
+- `update_state` — one of:
+  - `up_to_date` — the host's `agent_version` matches the running server version.
+  - `outdated` — behind the server version, auto-update enabled, no slot yet.
+  - `updating` — holds a rollout slot and is inside the stall window.
+  - `stalled` — held a slot past the stall window without checking in on the
+    new version.
+  - `disabled` — auto-update is off, either by the host's own veto
+    (`REEVE_AUTO_UPDATE=false`) or by policy (fleet default off with no
+    per-host override, or an explicit `off` override).
+  - `unknown` — the server version or the host's reported version isn't a
+    comparable release (e.g. a `dev` build), so no state can be derived.
+
+### `GET /api/v1/admin/agent-updates`
+
+Fleet rollout rollup.
+
+```json
+{
+  "server_version": "1.4.0",
+  "counts": {"up_to_date": 12, "outdated": 2, "updating": 1, "stalled": 0, "disabled": 3, "unknown": 0},
+  "paused": false,
+  "stalled": []
+}
+```
+
+`paused` is `true` whenever `stalled` is non-empty — a stalled host halts the
+rollout for every other host until it's cleared.
+
+### `POST /api/v1/admin/agent-updates/resume`
+
+Releases every rollout slot stamped before the stall cutoff, un-pausing the
+rollout. `204 No Content`.
+
+### `PUT /api/v1/admin/hosts/{id}/auto-update`
+
+Body `{"policy": "default" | "on" | "off"}`. `200` with the updated `hostView`;
+`400 invalid_policy` for anything else; `404 not_found` for an unknown host.
+
+### `POST /api/v1/admin/hosts/{id}/update-now`
+
+Grants the host a rollout slot immediately, bypassing both the concurrency cap
+and a paused rollout — this is an explicit operator override, not a paced grant.
+`204 No Content`. `409 update_vetoed` if the host itself refuses updates
+(`REEVE_AUTO_UPDATE=false`); `409 update_disabled` if auto-update is off for
+the host by policy; `404 not_found` for an unknown host.
+
+### Settings: `agent_update`
+
+`GET/PUT /api/v1/admin/settings` carries an `agent_update` section alongside
+`retention`, `smtp`, and `google`:
+
+```json
+{ "agent_update": {"enabled": true, "concurrency": 3, "stall_secs": 900} }
+```
+
+`enabled` is the fleet-wide default auto-update policy (a host's own
+`auto_update` override wins over it). `concurrency` (1-100) caps how many
+hosts may hold a rollout slot at once. `stall_secs` (1-86400) is how long a
+host may hold a slot before it's considered stalled and pauses the rollout.
+`PUT` validates both bounds and returns `400 invalid_agent_update` on failure;
+like the other settings sections, omitting `agent_update` leaves it unchanged.
+
 ## Other endpoints (used by the web UI)
 
 - Auth: `POST /auth/signup`, `/auth/login`, `/auth/logout`; `GET /me`.
@@ -150,7 +220,8 @@ are omitted.
   `/hosts/{id}/uptime`.
 - Admin (`role=admin`): `/admin/users`, `/admin/groups`, `/admin/hosts`,
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
-  `/admin/audit/reveals|grants`, `/admin/server-info`.
+  `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
+  (see Agent updates above).
 
 ## Ingest (agent → server)
 

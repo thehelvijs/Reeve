@@ -62,26 +62,6 @@ func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency in
 	return n == 1, nil
 }
 
-// CountLiveUpdateSlots counts hosts stamped at or after cutoff, still inside the
-// stall window and therefore occupying a slot.
-func (db *DB) CountLiveUpdateSlots(cutoff time.Time) (int, error) {
-	return db.countUpdateSlots(`update_started_at >= ?`, cutoff)
-}
-
-// CountStalledUpdates counts hosts stamped before cutoff: told to update and
-// never seen again on the new version.
-func (db *DB) CountStalledUpdates(cutoff time.Time) (int, error) {
-	return db.countUpdateSlots(`update_started_at < ?`, cutoff)
-}
-
-func (db *DB) countUpdateSlots(cond string, cutoff time.Time) (int, error) {
-	var n int
-	err := db.sql.QueryRow(
-		`SELECT COUNT(*) FROM hosts WHERE id != ? AND update_started_at IS NOT NULL AND `+cond,
-		ServerHostID, cutoff.UTC().Format(slotStamp)).Scan(&n)
-	return n, err
-}
-
 // ListStalledHostNames names the hosts that wedged a rollout, for the UI banner.
 func (db *DB) ListStalledHostNames(cutoff time.Time) ([]string, error) {
 	rows, err := db.sql.Query(

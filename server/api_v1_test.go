@@ -80,7 +80,7 @@ func TestPublicHostsNoAuth(t *testing.T) {
 	if !strings.Contains(string(data), "host-a") {
 		t.Fatalf("expected host-a in public hosts: %s", data)
 	}
-	for _, field := range []string{"agent_version", "physical_location", "\"os\""} {
+	for _, field := range []string{"agent_version", "physical_location", "\"os\"", "auto_update", "update_state"} {
 		if strings.Contains(string(data), field) {
 			t.Errorf("public host response leaked %q: %s", field, data)
 		}
