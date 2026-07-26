@@ -47,3 +47,6 @@ __pycache__/
 
 # Python
 .pytest_cache/
+
+# Superpowers specs/plans: local working docs, not part of the repo
+docs/superpowers/
