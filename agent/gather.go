@@ -47,6 +47,7 @@ var control = newController(false)
 func gather(version string, cfg config) contracts.Push {
 	push := contracts.Push{
 		AgentVersion:     version,
+		AgentChecksum:    selfChecksum(),
 		AutoUpdateVetoed: !cfg.AutoUpdate,
 		ControlEnabled:   cfg.AllowControl,
 		CommandResults:   control.takeResults(),

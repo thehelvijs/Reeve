@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"log"
 	"time"
 
@@ -48,18 +51,46 @@ func (a *app) agentUpdateConfig() agentUpdateConfig {
 
 // updateContext is the fleet-wide state a host view needs to derive its state.
 type updateContext struct {
-	ServerVersion string
-	FleetDefault  bool
-	Stall         time.Duration
+	// Published is the set of sha256 sums of the agent builds this server
+	// serves. Empty when it ships no agents, which makes every host unknown
+	// rather than outdated: there is nothing to update to.
+	Published    map[string]bool
+	FleetDefault bool
+	Stall        time.Duration
 }
 
 func (a *app) updateContext() updateContext {
 	cfg := a.agentUpdateConfig()
 	return updateContext{
-		ServerVersion: a.cfg.Version,
-		FleetDefault:  cfg.Enabled,
-		Stall:         time.Duration(cfg.StallSecs) * time.Second,
+		Published:    a.publishedChecksums(),
+		FleetDefault: cfg.Enabled,
+		Stall:        time.Duration(cfg.StallSecs) * time.Second,
 	}
+}
+
+// publishedChecksums hashes every embedded agent build once. The files are
+// baked into the binary, so the answer cannot change while the server runs.
+func (a *app) publishedChecksums() map[string]bool {
+	a.sumsOnce.Do(func() {
+		a.sums = map[string]bool{}
+		if a.agentFS == nil {
+			return
+		}
+		for arch := range supportedArches {
+			f, err := a.agentFS.Open(agentBinaryPrefix + arch)
+			if err != nil {
+				continue
+			}
+			h := sha256.New()
+			_, err = io.Copy(h, f)
+			f.Close()
+			if err != nil {
+				continue
+			}
+			a.sums[hex.EncodeToString(h.Sum(nil))] = true
+		}
+	})
+	return a.sums
 }
 
 // effectiveAutoUpdate resolves the fleet default against a host's override.
@@ -73,20 +104,21 @@ func effectiveAutoUpdate(policy string, fleetDefault bool) bool {
 	return fleetDefault
 }
 
-// versionComparable reports whether a version string names a real release. A
-// dev build has no published checksum to chase, so it is never called outdated.
-func versionComparable(v string) bool {
-	return v != "" && v != "dev"
+// comparable reports whether there is a build on both sides to compare. An
+// agent that reported no checksum, or a server that ships no agents, has
+// nothing to chase and is never called outdated.
+func (uc updateContext) comparable(h store.Host) bool {
+	return len(uc.Published) > 0 && h.AgentChecksum != ""
 }
 
 func updateStateFor(h store.Host, uc updateContext, now time.Time) string {
 	if h.AutoUpdateVetoed || !effectiveAutoUpdate(h.AutoUpdate, uc.FleetDefault) {
 		return updateStateDisabled
 	}
-	if !versionComparable(uc.ServerVersion) || !versionComparable(h.AgentVersion) {
+	if !uc.comparable(h) {
 		return updateStateUnknown
 	}
-	if h.AgentVersion == uc.ServerVersion {
+	if uc.Published[h.AgentChecksum] {
 		return updateStateUpToDate
 	}
 	if h.UpdateStartedAt == nil {
@@ -112,17 +144,12 @@ func (a *app) releaseSlot(h *store.Host) {
 }
 
 // decideCheckNow answers one agent's push: may it self-update right now? The
-// reported version and veto come from the push, which is newer than the row.
+// reported checksum and veto come from the push, which is newer than the row.
 // It derives the same updateStateFor an operator sees, so ingest and the host
 // view can never disagree about why a host was or wasn't granted a slot.
-func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, now time.Time) bool {
-	cfg := a.agentUpdateConfig()
-	uc := updateContext{
-		ServerVersion: a.cfg.Version,
-		FleetDefault:  cfg.Enabled,
-		Stall:         time.Duration(cfg.StallSecs) * time.Second,
-	}
-	h.AgentVersion = reportedVersion
+func (a *app) decideCheckNow(h store.Host, reportedChecksum string, vetoed bool, now time.Time) bool {
+	uc := a.updateContext()
+	h.AgentChecksum = reportedChecksum
 	h.AutoUpdateVetoed = vetoed
 
 	state := updateStateFor(h, uc, now)
@@ -134,6 +161,7 @@ func (a *app) decideCheckNow(h store.Host, reportedVersion string, vetoed bool, 
 	case updateStateUpdating:
 		return true
 	case updateStateOutdated:
+		cfg := a.agentUpdateConfig()
 		cutoff := now.Add(-uc.Stall)
 		granted, err := a.db.TryStartHostUpdate(h.ID, now, cutoff, cfg.Concurrency, cfg.Enabled)
 		if err != nil {

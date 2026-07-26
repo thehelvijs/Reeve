@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS hosts (
     -- server. Tools on this host with no address of their own follow it.
     ip_address         TEXT NOT NULL DEFAULT '',
     agent_version      TEXT NOT NULL DEFAULT '',
+    -- sha256 of the binary the agent last reported running. What "up to date"
+    -- is decided against, since a version string does not identify a build.
+    agent_checksum     TEXT NOT NULL DEFAULT '',
     auto_update        TEXT NOT NULL DEFAULT 'default'
                          CHECK (auto_update IN ('default','on','off')),
     auto_update_vetoed INTEGER NOT NULL DEFAULT 0,

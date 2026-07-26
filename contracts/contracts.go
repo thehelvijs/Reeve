@@ -29,7 +29,13 @@ const (
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {
-	AgentVersion     string `json:"agent_version"`
+	AgentVersion string `json:"agent_version"`
+	// AgentChecksum is the sha256 of the running agent binary. The self-update
+	// decides by comparing it to the checksum the server publishes, so the
+	// server judges "up to date" the same way rather than by version string:
+	// two builds of one version are different binaries, and a rebuild has to
+	// roll out.
+	AgentChecksum    string `json:"agent_checksum"`
 	AutoUpdateVetoed bool   `json:"auto_update_vetoed"`
 	// IPAddress is the host's address on the route to the server, so a tool
 	// pinned to this host can be reached after its DHCP lease changes. Empty

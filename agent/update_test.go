@@ -256,3 +256,23 @@ func TestShouldTickerUpdate(t *testing.T) {
 		t.Error("the ticker fired on a host that vetoed auto-update")
 	}
 }
+
+// The server judges "up to date" by comparing this to the checksum it
+// publishes, so an agent that reports nothing can never be called current.
+func TestSelfChecksumHashesTheRunningBinary(t *testing.T) {
+	sum := selfChecksum()
+	if !isSHA256Hex(sum) {
+		t.Fatalf("selfChecksum() = %q, want a sha256 hex digest", sum)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Skipf("no executable path: %v", err)
+	}
+	want, err := sha256File(exe)
+	if err != nil {
+		t.Fatalf("hash test binary: %v", err)
+	}
+	if sum != want {
+		t.Errorf("selfChecksum() = %s, want the running binary's %s", sum, want)
+	}
+}

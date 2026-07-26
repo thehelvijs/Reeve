@@ -125,6 +125,7 @@ func runOnce(p *pusher, cfg config, version string, lastAck *time.Time) bool {
 func commandReport(version string, cfg config, res contracts.CommandResult) contracts.Push {
 	return contracts.Push{
 		AgentVersion:   version,
+		AgentChecksum:  selfChecksum(),
 		SentAt:         time.Now().UTC(),
 		ControlEnabled: cfg.AllowControl,
 		CommandResults: []contracts.CommandResult{res},

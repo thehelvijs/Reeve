@@ -29,12 +29,13 @@ func enrollHost(t *testing.T, ts *testServer, admin *http.Client, name string) (
 
 func samplePush() contracts.Push {
 	return contracts.Push{
-		AgentVersion:    "0.1.0",
-		SentAt:          time.Unix(1_700_000_000, 0).UTC(),
-		Services:        []contracts.ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
-		Containers:      []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
-		CronJobs:        []contracts.CronState{{Name: "backup", Schedule: "0 3 * * *"}},
-		LogEvents:       []contracts.LogEvent{{Source: "web", Level: "error", Message: "boom", At: time.Unix(1_700_000_000, 0).UTC()}},
+		AgentVersion:  "0.1.0",
+		AgentChecksum: "old-sum",
+		SentAt:        time.Unix(1_700_000_000, 0).UTC(),
+		Services:      []contracts.ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
+		Containers:    []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
+		CronJobs:      []contracts.CronState{{Name: "backup", Schedule: "0 3 * * *"}},
+		LogEvents:     []contracts.LogEvent{{Source: "web", Level: "error", Message: "boom", At: time.Unix(1_700_000_000, 0).UTC()}},
 	}
 }
 

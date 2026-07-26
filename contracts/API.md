@@ -193,16 +193,20 @@ never does:
 - `auto_update` — the host's policy override: `default` (inherit the fleet
   setting), `on`, or `off`.
 - `update_state` — one of:
-  - `up_to_date` — the host's `agent_version` matches the running server version.
-  - `outdated` — behind the server version, auto-update enabled, no slot yet.
+  - `up_to_date` — the host reported the sha256 of one of the agent builds
+    this server publishes, which is the same comparison the agent's own
+    self-update makes. Version strings decide nothing: two builds of one
+    version are different binaries.
+  - `outdated` — running a binary this server does not publish, auto-update
+    enabled, no slot yet.
   - `updating` — holds a rollout slot and is inside the stall window.
   - `stalled` — held a slot past the stall window without checking in on the
     new version.
   - `disabled` — auto-update is off, either by the host's own veto
     (`REEVE_AUTO_UPDATE=false`) or by policy (fleet default off with no
     per-host override, or an explicit `off` override).
-  - `unknown` — the server version or the host's reported version isn't a
-    comparable release (e.g. a `dev` build), so no state can be derived.
+  - `unknown` — the host has never reported a checksum, or the server ships no
+    agent builds, so there is nothing to compare.
 
 ### `GET /api/admin/agent-updates`
 
@@ -243,13 +247,13 @@ Grants the host a rollout slot immediately, bypassing both the concurrency cap
 and a paused rollout — this is an explicit operator override, not a paced grant.
 `204 No Content`. `409 update_vetoed` if the host itself refuses updates
 (`REEVE_AUTO_UPDATE=false`); `409 update_disabled` if auto-update is off for
-the host by policy; `409 already_up_to_date` if the host's reported
-`agent_version` already matches the server version — stamping a slot for a
-host with nothing to do would occupy a concurrency slot indefinitely if that
-host is offline, silently pausing the rest of the fleet;
-`409 version_unknown` if the server or the host is on a `dev` build or the host
-has never reported, since a slot granted against an incomparable version can
-never clear; `404 not_found` for an unknown host.
+the host by policy; `409 already_up_to_date` if the host already
+reported the published build's checksum — stamping a slot for a host with
+nothing to do would occupy a concurrency slot indefinitely if that host is
+offline, silently pausing the rest of the fleet;
+`409 version_unknown` if the server ships no agent builds or the host has never
+reported a checksum, since a slot granted with nothing to compare can never
+clear; `404 not_found` for an unknown host.
 
 Setting the host's policy to `off` also releases any slot it holds, so "Never
 update" reliably takes a host out of a rollout it is wedging. So does a push
@@ -337,7 +341,9 @@ before they are invoked, since they kill the agent that would report them.
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or oversized pushes with the standard error envelope.
 
-The agent reports `auto_update_vetoed` (`true` when the host set
+The agent reports `agent_checksum` (the sha256 of the binary it is running,
+which is what the server judges `update_state` against),
+`auto_update_vetoed` (`true` when the host set
 `REEVE_AUTO_UPDATE=false` and will refuse any update) and `ip_address`, the
 host's own address on the route to this server. An empty `ip_address` leaves
 the stored one alone: a tick that could not work the address out is not

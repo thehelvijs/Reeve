@@ -40,7 +40,7 @@ func (a *app) handleGetAgentUpdates(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, agentUpdateRollup{
-		ServerVersion: uc.ServerVersion,
+		ServerVersion: a.cfg.Version,
 		Counts:        counts,
 		Paused:        len(stalled) > 0,
 		Stalled:       stalled,
@@ -104,13 +104,14 @@ func (a *app) handleHostUpdateNow(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "update_disabled", "auto-update is off for this host")
 		return
 	}
-	if !versionComparable(a.cfg.Version) || !versionComparable(h.AgentVersion) {
+	uc := a.updateContext()
+	if !uc.comparable(h) {
 		writeError(w, http.StatusConflict, "version_unknown",
-			"no comparable release version on the server or the host, so there is nothing to update to")
+			"no agent build to compare on the server or the host, so there is nothing to update to")
 		return
 	}
-	if h.AgentVersion == a.cfg.Version {
-		writeError(w, http.StatusConflict, "already_up_to_date", "host is already on the current version")
+	if uc.Published[h.AgentChecksum] {
+		writeError(w, http.StatusConflict, "already_up_to_date", "host is already running the published build")
 		return
 	}
 	if err := a.db.StartHostUpdate(id, time.Now().UTC()); err != nil {

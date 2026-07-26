@@ -18,8 +18,8 @@ const EMPTY: SSHTarget = {
 };
 
 // Server-driven agent deployment: the server SSHes into the machine, copies the
-// agent, and runs the same installer the curl one-liner runs. Credentials are
-// sent for this operation only and never stored.
+// agent, and runs the same installer the curl one-liner runs. An install keeps
+// the login as a host credential unless the box below is unticked.
 export default function SSHDeployModal({
   hostId,
   hostName,

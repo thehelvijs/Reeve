@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thehelvijs/Reeve/signing"
@@ -130,6 +131,21 @@ func isSHA256Hex(s string) bool {
 	}
 	return true
 }
+
+// selfChecksum is the sha256 of the running binary, hashed once. The update
+// path replaces the file and exits, so it cannot change under a live process.
+// Empty when it cannot be read, which the server reads as "cannot judge".
+var selfChecksum = sync.OnceValue(func() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	sum, err := sha256File(exe)
+	if err != nil {
+		return ""
+	}
+	return sum
+})
 
 func sha256File(path string) (string, error) {
 	f, err := os.Open(path)

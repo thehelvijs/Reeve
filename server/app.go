@@ -42,6 +42,8 @@ type app struct {
 	ingestRejected atomic.Int64
 	agentFS        fs.FS
 	scriptFS       fs.FS
+	sumsOnce       sync.Once
+	sums           map[string]bool
 	// send delivers one webhook payload; nil uses the real HTTP transport. A
 	// field so tests can substitute a fake.
 	send         func(notifyChannel, string) error

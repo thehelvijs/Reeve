@@ -40,6 +40,9 @@ func TestGatherCollectsConcurrently(t *testing.T) {
 	if push.Metrics.MemTotal == 0 {
 		t.Error("host metrics missing: MemTotal is zero")
 	}
+	if !isSHA256Hex(push.AgentChecksum) {
+		t.Errorf("agent checksum = %q; without it the server cannot tell this build from any other", push.AgentChecksum)
+	}
 	if !push.AutoUpdateVetoed {
 		t.Error("REEVE_AUTO_UPDATE=false was not reported to the server")
 	}

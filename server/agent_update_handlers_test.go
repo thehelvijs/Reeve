@@ -51,12 +51,13 @@ func timeMinus(t *testing.T, secs int) time.Time {
 	return time.Now().UTC().Add(-time.Duration(secs) * time.Second)
 }
 
-// reportVersion puts a host on a given agent version through the real push path.
-func reportVersion(t *testing.T, ts *testServer, hostID, version string) {
+// reportBuild puts a host on a given agent build through the real push path.
+func reportBuild(t *testing.T, ts *testServer, hostID, checksum string) {
 	t.Helper()
 	push := contracts.Push{
-		AgentVersion:    version,
-		SentAt:          time.Now().UTC(),
+		AgentVersion:  "0.1.0",
+		AgentChecksum: checksum,
+		SentAt:        time.Now().UTC(),
 	}
 	if err := ts.app.db.ApplyPush(hostID, push, time.Now().UTC()); err != nil {
 		t.Fatalf("apply push: %v", err)
@@ -65,13 +66,14 @@ func reportVersion(t *testing.T, ts *testServer, hostID, version string) {
 
 func TestAgentUpdateRollupCountsHosts(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 
 	current, _ := ts.app.db.CreateHost("current", "linux", "", "hash-c", 60)
-	reportVersion(t, ts, current.ID, ts.app.cfg.Version)
+	reportBuild(t, ts, current.ID, publishAgent(t, ts.app))
 	behind, _ := ts.app.db.CreateHost("behind", "linux", "", "hash-b", 60)
-	reportVersion(t, ts, behind.ID, "0.0.1")
+	reportBuild(t, ts, behind.ID, "old-sum")
 
 	out := fetchRollup(t, ts, c)
 	if out.ServerVersion != ts.app.cfg.Version {
@@ -95,10 +97,11 @@ func TestAgentUpdateRollupCountsHosts(t *testing.T) {
 // dropped field or a wrong JSON tag would pass every other test in this file.
 func TestListHostsReportsAutoUpdateAndState(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	reportVersion(t, ts, h.ID, "0.0.1")
+	reportBuild(t, ts, h.ID, "old-sum")
 
 	before, rawList := hostFromList(t, ts, c, h.ID)
 	if before.AutoUpdate != store.AutoUpdateDefault {
@@ -192,7 +195,7 @@ func TestUpdateNowRefusesUpToDateHost(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	reportVersion(t, ts, h.ID, ts.app.cfg.Version)
+	reportBuild(t, ts, h.ID, publishAgent(t, ts.app))
 
 	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusConflict {
@@ -204,9 +207,9 @@ func TestUpdateNowRefusesUpToDateHost(t *testing.T) {
 	}
 }
 
-// Neither a host that has never reported nor a dev server build has a version
-// to compare, so update-now would stamp a slot that can never clear and would
-// pause the whole fleet once the stall window passed.
+// Neither a host that has never reported nor a server shipping no agent builds
+// has a build to compare, so update-now would stamp a slot that can never clear
+// and would pause the whole fleet once the stall window passed.
 func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
 	t.Run("host never reported", func(t *testing.T) {
 		ts := newTestServer(t)
@@ -223,12 +226,13 @@ func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
 		}
 	})
 
-	t.Run("dev server build", func(t *testing.T) {
+	t.Run("server ships no agent builds", func(t *testing.T) {
 		ts := newTestServer(t)
+		publishAgent(t, ts.app)
 		c := adminClient(t, ts)
-		ts.app.cfg.Version = "dev"
+		ts.app.agentFS = nil
 		h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-		reportVersion(t, ts, h.ID, "0.1.0")
+		reportBuild(t, ts, h.ID, "old-sum")
 
 		resp, body := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 		if resp.StatusCode != http.StatusConflict {
@@ -236,17 +240,18 @@ func TestUpdateNowRefusesIncomparableVersions(t *testing.T) {
 		}
 		got, _ := ts.app.db.GetHost(h.ID)
 		if got.UpdateStartedAt != nil {
-			t.Error("a dev server build stamped a slot that can never clear")
+			t.Error("a server with no agent builds stamped a slot that can never clear")
 		}
 	})
 }
 
 func TestUpdateNowStampsASlot(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	reportVersion(t, ts, h.ID, "0.0.1")
+	reportBuild(t, ts, h.ID, "old-sum")
 
 	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusNoContent {
@@ -260,11 +265,12 @@ func TestUpdateNowStampsASlot(t *testing.T) {
 
 func TestResumeClearsStalledHosts(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	ts.app.db.SetSetting(settingAgentUpdateStallSecs, "1")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	reportVersion(t, ts, h.ID, "0.0.1")
+	reportBuild(t, ts, h.ID, "old-sum")
 	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
 
 	out := fetchRollup(t, ts, c)
@@ -315,6 +321,7 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ts := newTestServer(t)
+			publishAgent(t, ts.app)
 			c := adminClient(t, ts)
 			ts.app.db.SetSetting(settingAgentUpdateStallSecs, "1")
 			hostID, token := enrollHost(t, ts, c, "canary")
@@ -381,12 +388,13 @@ func TestAnIneligibleHostReleasesItsSlot(t *testing.T) {
 // through the fleet default instead of the per-host policy.
 func TestFleetToggleOffDoesNotStallOnADefaultPolicyHost(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	ts.app.db.SetSetting(settingAgentUpdateStallSecs, "1")
 
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	reportVersion(t, ts, h.ID, "0.0.1")
+	reportBuild(t, ts, h.ID, "old-sum")
 	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
 
 	ts.app.db.SetSetting(settingAgentUpdateEnabled, "false")
@@ -405,7 +413,7 @@ func TestFleetToggleOffDoesNotStallOnADefaultPolicyHost(t *testing.T) {
 	// The real cost of the wedge: another host must still be grantable.
 	other, _ := ts.app.db.CreateHost("other", "linux", "", "hash-o", 60)
 	ts.app.db.SetHostAutoUpdate(other.ID, store.AutoUpdateOn)
-	reportVersion(t, ts, other.ID, "0.0.1")
+	reportBuild(t, ts, other.ID, "old-sum")
 	other, _ = ts.app.db.GetHost(other.ID)
 	if !ts.app.decideCheckNow(other, "0.0.1", false, time.Now().UTC()) {
 		t.Error("the fleet was still halted behind the ineligible default-policy host")

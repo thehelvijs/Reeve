@@ -13,13 +13,13 @@ func TestApplyPushStoresEverySection(t *testing.T) {
 	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 
 	push := contracts.Push{
-		AgentVersion:    "1.2.3",
-		Services:        []contracts.ServiceState{{Unit: "web.service", ActiveState: "active", SubState: "running"}},
-		Containers:      []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
-		CronJobs:        []contracts.CronState{{Name: "backup.sh", Schedule: "0 * * * *"}},
-		ContainerStats:  []contracts.ContainerSample{{ContainerID: "c1", CPUPct: 7, MemUsed: 100, MemLimit: 200}},
-		LogEvents:       []contracts.LogEvent{{Source: "journald", Level: "error", Message: "boom", At: now}},
-		Metrics:         contracts.HostMetrics{CPUPct: 42, MemUsed: 5, MemTotal: 10},
+		AgentVersion:   "1.2.3",
+		Services:       []contracts.ServiceState{{Unit: "web.service", ActiveState: "active", SubState: "running"}},
+		Containers:     []contracts.ContainerState{{ID: "c1", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
+		CronJobs:       []contracts.CronState{{Name: "backup.sh", Schedule: "0 * * * *"}},
+		ContainerStats: []contracts.ContainerSample{{ContainerID: "c1", CPUPct: 7, MemUsed: 100, MemLimit: 200}},
+		LogEvents:      []contracts.LogEvent{{Source: "journald", Level: "error", Message: "boom", At: now}},
+		Metrics:        contracts.HostMetrics{CPUPct: 42, MemUsed: 5, MemTotal: 10},
 	}
 	if err := db.ApplyPush(host, push, now); err != nil {
 		t.Fatalf("ApplyPush: %v", err)
@@ -147,5 +147,30 @@ func TestLatestHostMetricsBatchesEveryHost(t *testing.T) {
 	single, ok := db.LatestHostMetric(withSamples)
 	if !ok || single.CPUPct != got.CPUPct || !single.TS.Equal(got.TS) {
 		t.Errorf("single lookup = %+v, want the same point as the batch %+v", single, got)
+	}
+}
+
+// The checksum is what "up to date" is judged against, and a push that could
+// not hash its own binary must not erase the last known one: an agent that
+// failed one read is not evidence the binary changed.
+func TestApplyPushKeepsLastKnownChecksum(t *testing.T) {
+	db := openTemp(t)
+	host := seedHost(t, db)
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := db.ApplyPush(host, contracts.Push{AgentChecksum: "abc123"}, now); err != nil {
+		t.Fatalf("ApplyPush: %v", err)
+	}
+	h, err := db.GetHost(host)
+	if err != nil || h.AgentChecksum != "abc123" {
+		t.Fatalf("agent_checksum = %q, err = %v, want abc123", h.AgentChecksum, err)
+	}
+
+	if err := db.ApplyPush(host, contracts.Push{AgentChecksum: ""}, now); err != nil {
+		t.Fatalf("ApplyPush: %v", err)
+	}
+	h, _ = db.GetHost(host)
+	if h.AgentChecksum != "abc123" {
+		t.Errorf("agent_checksum = %q after a push with none, want the last known abc123", h.AgentChecksum)
 	}
 }

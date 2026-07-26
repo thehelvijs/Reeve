@@ -27,8 +27,10 @@ type Host struct {
 	PhysicalLocation string
 	// IPAddress is where the agent last reported this host to be, on the route
 	// from the host to the server. Empty until the first push.
-	IPAddress        string
-	AgentVersion     string
+	IPAddress    string
+	AgentVersion string
+	// AgentChecksum is the sha256 of the binary the agent last reported.
+	AgentChecksum    string
 	AutoUpdate       string
 	AutoUpdateVetoed bool
 	UpdateStartedAt  *time.Time
@@ -182,7 +184,7 @@ func (db *DB) DeleteHost(id string) error {
 	return db.exec1(`DELETE FROM hosts WHERE id = ?`, id)
 }
 
-const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, auto_update, auto_update_vetoed, update_started_at, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
+const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
 
 func (db *DB) scanHost(row scanner) (Host, error) {
 	var h Host
@@ -190,7 +192,7 @@ func (db *DB) scanHost(row scanner) (Host, error) {
 	var lastSeen, updateStarted *string
 	var lat, lng sql.NullFloat64
 	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.IPAddress, &h.AgentVersion,
-		&h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &lastSeen,
+		&h.AgentChecksum, &h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &lastSeen,
 		&h.OfflineAfterSecs, &h.ControlEnabled, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng); err != nil {
 		return Host{}, err
 	}

@@ -7,7 +7,7 @@ COPY theme theme
 RUN cd web && npm ci && npm run build
 
 FROM golang:1.25-alpine AS build
-ARG VERSION=docker
+ARG VERSION=
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -23,7 +23,9 @@ RUN --mount=type=secret,id=signing_key \
        else \
          python3 scripts/release.py --embed; \
        fi
-RUN CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION}" -o /out/server ./server
+# Falls back to the VERSION file rather than a placeholder: the version this
+# server reports is what an operator reads in the UI.
+RUN CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION:-$(cat VERSION)}" -o /out/server ./server
 
 FROM alpine:3.20
 RUN adduser -D -u 10001 reeve && mkdir -p /data && chown reeve:reeve /data

@@ -49,10 +49,12 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 			`UPDATE hosts
 			 SET last_seen_at = ?, agent_version = ?, auto_update_vetoed = ?,
 			     control_enabled = ?,
+			     agent_checksum = CASE WHEN ? = '' THEN agent_checksum ELSE ? END,
 			     ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END,
 			     update_started_at = CASE WHEN ? THEN NULL ELSE update_started_at END
 			 WHERE id = ?`,
 			now.UTC().Format(time.RFC3339Nano), p.AgentVersion, p.AutoUpdateVetoed, p.ControlEnabled,
+			p.AgentChecksum, p.AgentChecksum,
 			p.IPAddress, p.IPAddress, p.AutoUpdateVetoed, hostID)
 		return err
 	})

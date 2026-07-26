@@ -64,7 +64,7 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	ack := contracts.PushAck{
-		CheckNow: a.decideCheckNow(host, push.AgentVersion, push.AutoUpdateVetoed, time.Now().UTC()),
+		CheckNow: a.decideCheckNow(host, push.AgentChecksum, push.AutoUpdateVetoed, time.Now().UTC()),
 	}
 	if push.ControlEnabled {
 		cmds, err := a.db.ClaimPendingCommands(host.ID, contracts.MaxAckCommands, time.Now().UTC())
