@@ -17,6 +17,10 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     channel: 'chrome',
+    // Specs that drive the API directly reuse the browser's session cookie, so
+    // they have to look like the browser to the server's same-origin check. A
+    // page's own requests already carry this same value.
+    extraHTTPHeaders: { Origin: 'http://127.0.0.1:5173' },
   },
   webServer: [
     {
