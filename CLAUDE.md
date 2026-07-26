@@ -27,8 +27,8 @@ them. `make dist` produces the full release set.
   `contracts.PushProtocolVersion` means updating producer, consumer and tests
   together, since the server hard-rejects a mismatch at ingest.
 - The schema is one file, `server/internal/store/migrations/0001_init.sql`.
-  A schema change adds a numbered migration next to it; it never edits that
-  file in place.
+  Reeve is pre-release with no installed base, so a schema change edits that
+  file in place. There are no numbered migrations and no data to migrate.
 
 ## Implementation discipline
 
