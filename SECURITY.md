@@ -83,9 +83,9 @@ anywhere untrusted:
   override a host that sets `REEVE_AUTO_UPDATE=false`. That veto is a
   deliberate trust boundary for a root process running on someone else's
   machine.
-- Bind to a specific interface (`REEVE_ADDR`, or `REEVE_BIND` for the compose
-  port mapping) rather than `0.0.0.0`. Compose publishes on loopback by
-  default, so reaching a new instance from the LAN is a deliberate step.
+- Bind to a specific interface (`REEVE_ADDR`, or `REEVE_BIND` under compose)
+  rather than `0.0.0.0`. Compose listens on every interface by default, so an
+  instance is reachable from the LAN the moment it starts.
 
 The agent runs as root, because reading systemd, Docker, cron, and journald
 requires it. It only ever makes outbound connections to the server URL it was

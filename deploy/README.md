@@ -43,8 +43,8 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up
 
 The container runs on the host network, so that the server can reach machines
 by their `.local` name: mDNS is multicast, and multicast out of a bridge network
-stops at the bridge. It listens on `127.0.0.1:8080` by default; `REEVE_BIND` and
-`REEVE_PORT` move that (`REEVE_BIND=192.168.1.10`, `REEVE_PORT=9000`). Docker
+stops at the bridge. It listens on `0.0.0.0:8080` by default; `REEVE_BIND` and
+`REEVE_PORT` narrow that (`REEVE_BIND=192.168.1.10`, `REEVE_PORT=9000`). Docker
 Desktop is the exception — its "host" is a VM, not your machine, so `.local`
 names will not resolve there. The image carries its own `HEALTHCHECK` — the
 binary probes its own `/healthz`, so `docker ps` shows `healthy` without curl in
@@ -92,10 +92,11 @@ database and stages an uploaded one (applied on the next restart). Credential
 ciphertext travels inside it; the master key does not, so store the key
 separately or the backup is unreadable.
 
-**LAN binding.** The compose file binds `127.0.0.1:8080` by default, so a
-fresh instance is not reachable from the network until you say so. Set
-`REEVE_BIND` to the LAN interface the team reaches it on (`REEVE_BIND=192.168.1.10`)
-and put it behind your firewall / reverse proxy as usual. Behind a proxy, also
+**LAN binding.** The compose file binds `0.0.0.0:8080` by default, so a fresh
+instance is reachable from the network immediately — keep it behind your
+firewall. Set `REEVE_BIND` to narrow it to one interface
+(`REEVE_BIND=192.168.1.10`, or `127.0.0.1` when a reverse proxy on the same box
+is the only thing that should reach it). Behind a proxy, also
 set `REEVE_TRUST_PROXY=true` so the login throttle and the credential-reveal
 audit see the real client address instead of the proxy's — and only then, since
 the header is forgeable by anyone who can reach the server directly.

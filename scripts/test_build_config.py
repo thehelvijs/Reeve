@@ -92,13 +92,12 @@ def test_workflows_grant_no_blanket_permissions(path):
 COMPOSE = ROOT / "deploy" / "docker-compose.yml"
 
 
-# A fresh `up -d` must not put a credential store on every interface; reaching
-# it from the LAN is a deliberate REEVE_BIND, not the default. On the host
-# network there is no port mapping to bind, so REEVE_ADDR carries it.
-def test_compose_binds_loopback_by_default():
+# On the host network there is no port mapping, so REEVE_ADDR is the only thing
+# deciding what the server is reachable on, and REEVE_BIND has to still narrow it.
+def test_compose_bind_is_overridable():
     server = yaml.safe_load(COMPOSE.read_text())["services"]["server"]
     assert "ports" not in server
-    assert server["environment"]["REEVE_ADDR"] == "${REEVE_BIND:-127.0.0.1}:${REEVE_PORT:-8080}"
+    assert server["environment"]["REEVE_ADDR"] == "${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-8080}"
 
 
 # mDNS is why the server is not behind a bridge: multicast never leaves it.

@@ -1,6 +1,6 @@
 # Reeve server, built from this checkout. Nothing is pulled from a registry.
-# LAN-only: in production bind to a LAN interface, e.g. REEVE_BIND=192.168.1.10,
-# not 0.0.0.0.
+# LAN-only: this listens on every interface, so keep it behind your firewall, or
+# narrow it with REEVE_BIND=192.168.1.10.
 #
 # To run a published image instead of building, use the pull override:
 #   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
@@ -15,11 +15,12 @@ services:
     # "Install over SSH" work with the names the machines answer to.
     network_mode: host
     environment:
-      # Bound to loopback by default so a fresh `up -d` is never reachable from
-      # the network by accident. Set REEVE_BIND to the LAN address the team
-      # reaches this on, e.g. REEVE_BIND=192.168.1.10. The port is overridable
-      # so a second instance can run alongside one that already holds 8080.
-      REEVE_ADDR: ${REEVE_BIND:-127.0.0.1}:${REEVE_PORT:-8080}
+      # Every interface by default: the team reaches this over the LAN, and on
+      # the host network a loopback bind would need REEVE_BIND set before the
+      # first `up -d` is useful at all. Narrow it with REEVE_BIND=192.168.1.10.
+      # The port is overridable so a second instance can run alongside one that
+      # already holds 8080.
+      REEVE_ADDR: ${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-8080}
       # Required. Generate once: openssl rand -base64 32
       REEVE_MASTER_KEY: ${REEVE_MASTER_KEY:?set REEVE_MASTER_KEY in .env}
       # The URL people reach this server on. Required for Google sign-in and
