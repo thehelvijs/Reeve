@@ -122,11 +122,16 @@ func TestParseNvidiaSMI(t *testing.T) {
 }
 
 func TestScanLogErrors(t *testing.T) {
+	// The blank and whitespace-only lines matter: callers split command output on
+	// "\n", which yields an empty trailing element for every log that ends in a
+	// newline. Those must never become events.
 	lines := []string{
 		"INFO all good",
 		"2026-01-01 ERROR connection refused",
 		"a warning only",
+		"   ",
 		"FATAL out of memory",
+		"",
 	}
 	events := ScanLogErrors("app", lines, time.Unix(0, 0).UTC(), nil)
 	if len(events) != 2 {

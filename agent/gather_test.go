@@ -4,33 +4,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
 )
-
-func TestSplitLines(t *testing.T) {
-	cases := []struct {
-		in   string
-		want []string
-	}{
-		{"", []string{}},
-		{"one", []string{"one"}},
-		{"one\n", []string{"one"}},
-		{"one\ntwo", []string{"one", "two"}},
-		{"one\ntwo\n", []string{"one", "two"}},
-		{"\n", []string{""}},
-		{"a\n\nb", []string{"a", "", "b"}},
-	}
-	for _, tc := range cases {
-		if got := splitLines(tc.in); !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("splitLines(%q) = %#v, want %#v", tc.in, got, tc.want)
-		}
-	}
-}
 
 // Stopped containers have no recent logs to scan, so no docker call is made for
 // them; a list with none running must not shell out at all.

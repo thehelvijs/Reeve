@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,7 +145,7 @@ func gatherLogErrors() []contracts.LogEvent {
 	if err != nil {
 		return nil
 	}
-	return collect.ScanLogErrors("journald", splitLines(out), time.Now().UTC(), nil)
+	return collect.ScanLogErrors("journald", strings.Split(out, "\n"), time.Now().UTC(), nil)
 }
 
 // gatherDockerLogErrors scans the recent logs of every running container,
@@ -166,7 +167,7 @@ func gatherDockerLogErrors(containers []contracts.ContainerState) []contracts.Lo
 			if err != nil {
 				return
 			}
-			perContainer[i] = collect.ScanLogErrors("docker:"+id, splitLines(logs), time.Now().UTC(), nil)
+			perContainer[i] = collect.ScanLogErrors("docker:"+id, strings.Split(logs, "\n"), time.Now().UTC(), nil)
 		}(i, c.ID)
 	}
 	wg.Wait()
@@ -190,27 +191,4 @@ func runCmdCombined(name string, args ...string) (string, error) {
 	defer cancel()
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	return string(out), err
-}
-
-// splitLines splits on newlines without allocating per line beyond the slice
-// itself; the trailing fragment after the last newline is kept.
-func splitLines(s string) []string {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			n++
-		}
-	}
-	out := make([]string, 0, n+1)
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			out = append(out, s[start:i])
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		out = append(out, s[start:])
-	}
-	return out
 }
