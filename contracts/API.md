@@ -157,3 +157,9 @@ are omitted.
 `POST /api/v1/ingest` with `Authorization: Bearer rva_…`. Body is the
 `contracts.Push` type (see `contracts.go`). Rejects unauthenticated, malformed,
 or wrong-protocol pushes with the standard error envelope.
+
+**Protocol v2:** The agent reports `auto_update_vetoed` (`true` when the host set
+`REEVE_AUTO_UPDATE=false` and will refuse any update). The endpoint replies
+`200` with `{"check_now": bool}` (a `contracts.PushAck`), where `check_now` is
+the server's instruction to run a self-update immediately; earlier versions
+reply `204 No Content`.

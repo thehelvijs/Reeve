@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -43,5 +44,38 @@ func TestPushRoundTrip(t *testing.T) {
 	}
 	if len(out.LogEvents) != 1 || out.LogEvents[0].Message != "boom" {
 		t.Errorf("log events did not round-trip: %+v", out.LogEvents)
+	}
+}
+
+func TestPushProtocolVersionIsTwo(t *testing.T) {
+	if PushProtocolVersion != 2 {
+		t.Errorf("protocol version = %d, want 2", PushProtocolVersion)
+	}
+}
+
+func TestPushCarriesAutoUpdateVeto(t *testing.T) {
+	body, err := json.Marshal(Push{AutoUpdateVetoed: true})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(body), `"auto_update_vetoed":true`) {
+		t.Errorf("push json = %s, want an auto_update_vetoed field", body)
+	}
+}
+
+func TestPushAckRoundTrip(t *testing.T) {
+	body, err := json.Marshal(PushAck{CheckNow: true})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(body) != `{"check_now":true}` {
+		t.Errorf("ack json = %s, want {\"check_now\":true}", body)
+	}
+	var back PushAck
+	if err := json.Unmarshal(body, &back); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !back.CheckNow {
+		t.Error("check_now did not survive the round trip")
 	}
 }

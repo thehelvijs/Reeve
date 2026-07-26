@@ -7,19 +7,26 @@ import (
 )
 
 // PushProtocolVersion is bumped when the agent->server payload shape changes.
-const PushProtocolVersion = 1
+const PushProtocolVersion = 2
 
 // Push is one telemetry batch an agent sends to the server on its interval.
 type Push struct {
-	ProtocolVersion int               `json:"protocol_version"`
-	AgentVersion    string            `json:"agent_version"`
-	SentAt          time.Time         `json:"sent_at"`
-	Services        []ServiceState    `json:"services"`
-	Containers      []ContainerState  `json:"containers"`
-	CronJobs        []CronState       `json:"cron_jobs"`
-	Metrics         HostMetrics       `json:"metrics"`
-	ContainerStats  []ContainerSample `json:"container_stats"`
-	LogEvents       []LogEvent        `json:"log_events"`
+	ProtocolVersion  int               `json:"protocol_version"`
+	AgentVersion     string            `json:"agent_version"`
+	AutoUpdateVetoed bool              `json:"auto_update_vetoed"`
+	SentAt           time.Time         `json:"sent_at"`
+	Services         []ServiceState    `json:"services"`
+	Containers       []ContainerState  `json:"containers"`
+	CronJobs         []CronState       `json:"cron_jobs"`
+	Metrics          HostMetrics       `json:"metrics"`
+	ContainerStats   []ContainerSample `json:"container_stats"`
+	LogEvents        []LogEvent        `json:"log_events"`
+}
+
+// PushAck is the server's reply to a push. CheckNow asks the agent to run its
+// self-update now; the server withholds it to pace a fleet-wide rollout.
+type PushAck struct {
+	CheckNow bool `json:"check_now"`
 }
 
 // ServiceState is a systemd unit's current state.
