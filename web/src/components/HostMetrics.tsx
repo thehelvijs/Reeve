@@ -3,6 +3,7 @@ import { api } from '../api';
 import { Card } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
+import { sortProcesses, type ProcessSample, type ProcessSort } from '../lib/processes';
 
 interface HostPoint {
   ts: string;
@@ -52,14 +53,20 @@ export default function HostMetrics({ path }: { path: string }) {
   const [range, setRange] = useState('24h');
   const [points, setPoints] = useState<HostPoint[]>([]);
   const [containers, setContainers] = useState<ContainerPoint[]>([]);
+  const [procs, setProcs] = useState<ProcessSample[]>([]);
 
   useEffect(() => {
     const load = () => {
       api
-        .get<{ host: HostPoint[]; containers: ContainerPoint[] }>(`${path}?range=${range}`)
+        .get<{
+          host: HostPoint[];
+          containers: ContainerPoint[];
+          processes?: { procs: ProcessSample[] };
+        }>(`${path}?range=${range}`)
         .then((d) => {
           setPoints(d.host ?? []);
           setContainers(d.containers ?? []);
+          setProcs(d.processes?.procs ?? []);
         });
     };
     load();
@@ -184,7 +191,67 @@ export default function HostMetrics({ path }: { path: string }) {
           )}
         </div>
       )}
+
+      <ProcessTable procs={procs} />
     </div>
+  );
+}
+
+// ProcessTable shows the latest snapshot, so it carries no range control: the
+// numbers are as of the host's last push, whatever window the charts show.
+function ProcessTable({ procs }: { procs: ProcessSample[] }) {
+  const [by, setBy] = useState<ProcessSort>('cpu');
+  if (procs.length === 0) {
+    return null;
+  }
+  const rows = sortProcesses(procs, by);
+
+  const heading = (label: string, key: ProcessSort) => {
+    let className = 'text-right font-medium hover:text-content';
+    if (by === key) {
+      className = 'text-right font-medium text-content';
+    }
+    return (
+      <th scope="col" className="py-2 pl-3">
+        <button type="button" onClick={() => setBy(key)} className={className}>
+          {label}
+        </button>
+      </th>
+    );
+  };
+
+  return (
+    <Card className="mt-4 p-4">
+      <p className="mb-2 text-xs font-medium text-muted">
+        Top processes <span className="text-muted">(at the last push)</span>
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-xs text-muted">
+            <tr className="border-b border-hairline">
+              <th scope="col" className="py-2 pr-3 text-left font-medium">PID</th>
+              <th scope="col" className="py-2 pr-3 text-left font-medium">User</th>
+              <th scope="col" className="py-2 pr-3 text-left font-medium">Command</th>
+              {heading('CPU', 'cpu')}
+              {heading('Memory', 'mem')}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr key={p.pid} className="border-b border-hairline last:border-0">
+                <td className="py-1.5 pr-3 font-mono text-xs text-muted">{p.pid}</td>
+                <td className="py-1.5 pr-3 text-xs text-muted">{p.user}</td>
+                <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={p.command}>
+                  {p.command}
+                </td>
+                <td className="py-1.5 pl-3 text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</td>
+                <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 

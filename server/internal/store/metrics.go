@@ -160,7 +160,10 @@ func (db *DB) DeleteHostMetrics(hostID string) error {
 	if _, err := db.sql.Exec(`DELETE FROM metric_samples WHERE host_id = ?`, hostID); err != nil {
 		return err
 	}
-	_, err := db.sql.Exec(`DELETE FROM container_stats WHERE host_id = ?`, hostID)
+	if _, err := db.sql.Exec(`DELETE FROM container_stats WHERE host_id = ?`, hostID); err != nil {
+		return err
+	}
+	_, err := db.sql.Exec(`DELETE FROM host_processes WHERE host_id = ?`, hostID)
 	return err
 }
 

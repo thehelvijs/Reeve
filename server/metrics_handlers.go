@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/thehelvijs/Reeve/contracts"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
@@ -64,10 +65,17 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read container metrics")
 		return
 	}
+	// Processes are the latest snapshot, not a series, so the range does not
+	// apply to them; a host that has never reported any sends an empty list.
+	procs, _ := a.db.LatestHostProcesses(id)
+	if procs.Procs == nil {
+		procs.Procs = []contracts.ProcessSample{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"resolution": spec.resolution,
 		"host":       host,
 		"containers": containers,
+		"processes":  procs,
 	})
 }
 

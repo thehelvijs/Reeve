@@ -267,6 +267,13 @@ CREATE TABLE IF NOT EXISTS metric_samples (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_metric_samples_lookup ON metric_samples(host_id, resolution, ts);
 
+-- One replaceable row per host: the latest process snapshot, not a time series.
+CREATE TABLE IF NOT EXISTS host_processes (
+    host_id TEXT PRIMARY KEY REFERENCES hosts(id) ON DELETE CASCADE,
+    ts      TEXT NOT NULL,
+    procs   TEXT NOT NULL DEFAULT '[]'
+);
+
 CREATE TABLE IF NOT EXISTS container_stats (
     host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     container_id TEXT NOT NULL,

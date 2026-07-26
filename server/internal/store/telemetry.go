@@ -35,6 +35,9 @@ func (db *DB) ApplyPush(hostID string, p contracts.Push, now time.Time) error {
 		if err := insertContainerStats(tx, hostID, p.ContainerStats, now); err != nil {
 			return err
 		}
+		if err := replaceHostProcesses(tx, hostID, p.Processes, now); err != nil {
+			return err
+		}
 		if err := insertLogEvents(tx, hostID, p.LogEvents); err != nil {
 			return err
 		}

@@ -15,6 +15,7 @@ const (
 	MaxPushContainers = 2000
 	MaxPushCronJobs   = 2000
 	MaxPushLogEvents  = 1000
+	MaxPushProcesses  = 100
 )
 
 // Push is one telemetry batch an agent sends to the server on its interval.
@@ -31,6 +32,7 @@ type Push struct {
 	CronJobs       []CronState       `json:"cron_jobs"`
 	Metrics        HostMetrics       `json:"metrics"`
 	ContainerStats []ContainerSample `json:"container_stats"`
+	Processes      []ProcessSample   `json:"processes"`
 	LogEvents      []LogEvent        `json:"log_events"`
 }
 
@@ -46,6 +48,7 @@ func (p Push) TooLarge() string {
 		{"containers", len(p.Containers), MaxPushContainers},
 		{"container_stats", len(p.ContainerStats), MaxPushContainers},
 		{"cron_jobs", len(p.CronJobs), MaxPushCronJobs},
+		{"processes", len(p.Processes), MaxPushProcesses},
 		{"log_events", len(p.LogEvents), MaxPushLogEvents},
 	} {
 		if section.count > section.max {
@@ -104,6 +107,16 @@ type HostMetrics struct {
 	GPUUtil     float64            `json:"gpu_util"`
 	GPUMemUsed  uint64             `json:"gpu_mem_used"`
 	GPUMemTotal uint64             `json:"gpu_mem_total"`
+}
+
+// ProcessSample is one process's resource use at push time. CPUPct is percent
+// of a single core, as top reports it, so a process saturating two reads 200.
+type ProcessSample struct {
+	PID     int     `json:"pid"`
+	User    string  `json:"user"`
+	Command string  `json:"command"`
+	CPUPct  float64 `json:"cpu_pct"`
+	MemRSS  uint64  `json:"mem_rss"`
 }
 
 // ContainerSample is a per-container resource sample.

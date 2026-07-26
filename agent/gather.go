@@ -24,6 +24,15 @@ var commandTimeout = 20 * time.Second
 // containers should not fork one process per container at once.
 const maxLogReaders = 4
 
+// topProcsPerDimension is how many processes each of the CPU and memory
+// rankings contributes to a push.
+const topProcsPerDimension = 25
+
+// procs carries the previous tick's CPU counters, which is what makes a
+// per-process percentage a real average over the interval rather than over the
+// process's whole lifetime. Ticks are serial, so it needs no lock.
+var procs = collect.NewProcSampler("/proc")
+
 // gather collects a full telemetry snapshot from the host. Every collector is
 // best-effort: a missing command or file yields an empty section rather than a
 // failure, so one broken source never blocks the push. The collectors run
@@ -43,6 +52,7 @@ func gather(version string, cfg config) contracts.Push {
 	var stats []contracts.ContainerSample
 	var crons []contracts.CronState
 	var metrics contracts.HostMetrics
+	var processes []contracts.ProcessSample
 	var journalErrors, dockerErrors []contracts.LogEvent
 
 	var wg sync.WaitGroup
@@ -66,6 +76,9 @@ func gather(version string, cfg config) contracts.Push {
 	})
 	run(func() { crons = gatherCron() })
 	run(func() { metrics = collect.SampleHostMetrics() })
+	run(func() {
+		processes = collect.TopProcs(procs.Sample(time.Now()), topProcsPerDimension)
+	})
 	run(func() { journalErrors = gatherLogErrors() })
 	// The container list feeds both the inventory and the per-container log
 	// scan, so one `docker ps` serves both.
@@ -84,6 +97,7 @@ func gather(version string, cfg config) contracts.Push {
 	push.ContainerStats = stats
 	push.CronJobs = crons
 	push.Metrics = metrics
+	push.Processes = processes
 	push.LogEvents = append(journalErrors, dockerErrors...)
 	return push
 }
