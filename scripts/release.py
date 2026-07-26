@@ -39,8 +39,17 @@ def output_name(arch):
     return "agent-linux-" + arch["name"]
 
 
-def ldflags(version):
-    return "-s -w -X main.version=" + version
+def ldflags(version, arch_name=None):
+    """Build flags for one binary.
+
+    The agent gets its published arch stamped in: GOARM is not readable at
+    runtime, so an armv6 build cannot otherwise tell itself apart from an
+    armv7 one and would self-update onto a binary its CPU cannot run.
+    """
+    flags = "-s -w -X main.version=" + version
+    if arch_name:
+        flags += " -X main.buildArch=" + arch_name
+    return flags
 
 
 def go_env(arch, base_env):
@@ -96,7 +105,7 @@ def sign_files(paths, comment, key_file=None):
 
 def build_one(arch, version, out_dir):
     out = Path(out_dir) / output_name(arch)
-    cmd = ["go", "build", "-ldflags", ldflags(version), "-o", str(out), "./agent"]
+    cmd = ["go", "build", "-ldflags", ldflags(version, arch["name"]), "-o", str(out), "./agent"]
     subprocess.run(cmd, cwd=str(REPO), env=go_env(arch, os.environ), check=True)
     return out
 

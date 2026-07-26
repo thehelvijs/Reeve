@@ -27,12 +27,20 @@ type pusher struct {
 	client    *http.Client
 }
 
+// defaultBufferDir is where unsent pushes wait. Not /tmp: this process runs as
+// root, and a predictable path there is one an unprivileged local user can
+// pre-create as a symlink, redirecting root's writes and choosing what the
+// replay later sends to the server.
+const defaultBufferDir = "/var/lib/reeve-agent/buffer"
+
 func newPusher(cfg config) *pusher {
 	dir := os.Getenv("REEVE_BUFFER_DIR")
 	if dir == "" {
-		dir = filepath.Join(os.TempDir(), "reeve-agent-buffer")
+		dir = defaultBufferDir
 	}
-	os.MkdirAll(dir, 0o700)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		log.Printf("push buffer: %v; pushes will not survive an outage", err)
+	}
 	return &pusher{
 		serverURL: cfg.ServerURL,
 		token:     cfg.Token,

@@ -21,6 +21,9 @@ UNINSTALL_PATH="/usr/local/bin/reeve-agent-uninstall"
 ENV_DIR="/etc/reeve-agent"
 ENV_FILE="$ENV_DIR/agent.env"
 UNIT_FILE="/etc/systemd/system/reeve-agent.service"
+# Unsent pushes wait here rather than in /tmp, which any local user can
+# pre-create as a symlink pointing somewhere this root process should not write.
+BUFFER_DIR="/var/lib/reeve-agent/buffer"
 
 uname_to_arch() {
   case "$1" in
@@ -63,13 +66,31 @@ fetch() {
   fi
 }
 
-# verify_signature FILE SIGFILE — check a minisign signature when the tool is
-# available. Returns 2 when it cannot check, so the caller decides.
+# verify_signature FILE SIGFILE — check a minisign signature. Returns 2 when
+# minisign is not installed, so the caller decides.
 verify_signature() {
   if ! command -v minisign >/dev/null 2>&1; then
     return 2
   fi
   minisign -V -P "$RELEASE_PUBKEY" -x "$2" -m "$1" >/dev/null 2>&1
+}
+
+# install_minisign — try the host's package manager, quietly. The download path
+# refuses to install an unverified binary, so this is the difference between a
+# working install and a stop.
+install_minisign() {
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq minisign >/dev/null 2>&1
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y -q minisign >/dev/null 2>&1
+  elif command -v apk >/dev/null 2>&1; then
+    apk add --quiet minisign >/dev/null 2>&1
+  elif command -v pacman >/dev/null 2>&1; then
+    pacman -Sy --noconfirm --quiet minisign >/dev/null 2>&1
+  else
+    return 1
+  fi
+  command -v minisign >/dev/null 2>&1
 }
 
 # Library mode: let tests source helpers without executing the installer.
@@ -152,15 +173,35 @@ else
     echo "checksum mismatch (expected $EXPECTED, got $ACTUAL)" >&2
     exit 1
   fi
-  if fetch "$DL.minisig" "$TMP/agent.minisig" 2>/dev/null; then
+  # The binary and its checksum come from the same place over the same
+  # connection, so the checksum only proves the download was not corrupted.
+  # The signature is what proves who built these bytes, and this script runs
+  # them as root: it does not proceed without one.
+  if ! fetch "$DL.minisig" "$TMP/agent.minisig" 2>/dev/null; then
+    echo "no signature published for $DL; refusing to install an unverifiable binary as root." >&2
+    echo "Rebuild the server with a release signing key, or set REEVE_ALLOW_UNVERIFIED=1 to override." >&2
+    [ "${REEVE_ALLOW_UNVERIFIED:-}" = "1" ] || exit 1
+    echo "REEVE_ALLOW_UNVERIFIED=1: installing on checksum alone" >&2
+  else
     verify_signature "$TMP/agent" "$TMP/agent.minisig"
     case "$?" in
       0) echo "signature verified" ;;
-      2) echo "warning: minisign not installed; signature not checked (apt install minisign)" >&2 ;;
+      2)
+        echo "minisign not installed; installing it to verify the download" >&2
+        if install_minisign && verify_signature "$TMP/agent" "$TMP/agent.minisig"; then
+          echo "signature verified"
+        elif command -v minisign >/dev/null 2>&1; then
+          echo "signature verification FAILED; refusing to install" >&2
+          exit 1
+        else
+          echo "could not install minisign, so this download cannot be verified." >&2
+          echo "Install minisign and re-run, or set REEVE_ALLOW_UNVERIFIED=1 to override." >&2
+          [ "${REEVE_ALLOW_UNVERIFIED:-}" = "1" ] || exit 1
+          echo "REEVE_ALLOW_UNVERIFIED=1: installing on checksum alone" >&2
+        fi
+        ;;
       *) echo "signature verification FAILED; refusing to install" >&2; exit 1 ;;
     esac
-  else
-    echo "warning: no signature published for this build; installing on checksum alone" >&2
   fi
   chmod 0755 "$TMP/agent"
 fi
@@ -176,6 +217,9 @@ REEVE_PUSH_INTERVAL=${REEVE_PUSH_INTERVAL:-15s}
 EOF
 chmod 0600 "$ENV_FILE"
 
+mkdir -p "$BUFFER_DIR"
+chmod 0700 "$BUFFER_DIR"
+
 cat > "$UNIT_FILE" <<EOF
 [Unit]
 Description=Reeve agent
@@ -184,6 +228,9 @@ Wants=network-online.target
 
 [Service]
 User=root
+# Pinned so a writable directory earlier on an inherited PATH cannot decide
+# which systemctl, docker or journalctl this root process runs.
+Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=$ENV_FILE
 ExecStart=$BIN_PATH
 Restart=always

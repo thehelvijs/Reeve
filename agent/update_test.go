@@ -34,6 +34,69 @@ func TestSelfArch(t *testing.T) {
 	}
 }
 
+// A release build stamps its published arch, which is the only way an armv6
+// binary can know not to fetch the armv7 one and brick itself.
+func TestSelfArchPrefersTheBuildStamp(t *testing.T) {
+	t.Cleanup(func() { buildArch = "" })
+	buildArch = "armv6"
+	if got := selfArch("arm"); got != "armv6" {
+		t.Errorf("selfArch(arm) with an armv6 stamp = %q, want armv6", got)
+	}
+}
+
+func TestUnstampedArmBuildRefusesToUpdate(t *testing.T) {
+	if runtime.GOARCH != "arm" {
+		t.Skip("only an arm build can guess wrong about its variant")
+	}
+	err := config{ServerURL: "http://127.0.0.1:1"}.checkAndUpdate()
+	if err == nil || !strings.Contains(err.Error(), "cannot tell armv6 from armv7") {
+		t.Errorf("error = %v, want the arch-stamp refusal", err)
+	}
+}
+
+func TestSignedVersion(t *testing.T) {
+	cases := map[string]string{
+		"version:1.2.3":       "1.2.3",
+		" version:1.2.3+abc ": "1.2.3+abc",
+		"built by hand":       "",
+		"":                    "",
+	}
+	for comment, want := range cases {
+		if got := signedVersion(comment); got != want {
+			t.Errorf("signedVersion(%q) = %q, want %q", comment, got, want)
+		}
+	}
+}
+
+// A signature proves authorship, not freshness: replaying a genuine old
+// release must not walk a host backwards onto known-public bugs.
+func TestOlderThan(t *testing.T) {
+	cases := []struct {
+		candidate, current string
+		want               bool
+	}{
+		{"0.1.0", "0.2.0", true},
+		{"0.1.9", "0.2.0", true},
+		{"1.0.0", "10.0.0", true},
+		{"0.2.0", "0.2.0", false},
+		{"0.3.0", "0.2.0", false},
+		{"0.2.1", "0.2.0", false},
+		{"0.2", "0.2.0", false},
+		{"0.2", "0.2.1", true},
+		// A rebuild of the same version is a legitimate re-push.
+		{"0.2.0+def456", "0.2.0+abc123", false},
+		// Nothing to compare: allow, or a dev agent could never update.
+		{"1.0.0", "dev", false},
+		{"dev", "1.0.0", false},
+		{"", "1.0.0", false},
+	}
+	for _, tc := range cases {
+		if got := olderThan(tc.candidate, tc.current); got != tc.want {
+			t.Errorf("olderThan(%q, %q) = %v, want %v", tc.candidate, tc.current, got, tc.want)
+		}
+	}
+}
+
 func TestNeedsUpdate(t *testing.T) {
 	sumA := strings.Repeat("a", 64)
 	sumB := strings.Repeat("b", 64)
