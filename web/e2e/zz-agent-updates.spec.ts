@@ -105,6 +105,34 @@ test('a current agent reads as up to date and an old one as outdated', async ({ 
   await push(req, behind.token, current_sum);
 });
 
+// The Agent card used to offer Update on every host, including one already on
+// the published build, where the only answer the server can give is a 409. The
+// button now asks hostRowActions, the same predicate the host rows use.
+test('the host page offers Update only when there is something to update to', async ({ page }) => {
+  await login(page);
+  const req = page.request;
+  await setFleetPolicy(req, { enabled: true, concurrency: 10, stall_secs: 900 });
+  const updateButton = page.getByRole('button', { name: 'Update now' });
+
+  const current = await createHost(req, 'e2e-card-current');
+  await push(req, current.token, await publishedChecksum(req));
+  await page.goto(`/hosts/${current.id}`);
+  await expect(page.getByText('up to date', { exact: true })).toBeVisible();
+  await expect(updateButton).toHaveCount(0);
+
+  const behind = await createHost(req, 'e2e-card-behind');
+  await push(req, behind.token, OLD_BUILD);
+  await page.goto(`/hosts/${behind.id}`);
+  await expect(updateButton).toBeVisible();
+
+  // Both hosts go again: the pixel baselines later in the run photograph the
+  // host list, so a spec that leaves rows behind rewrites someone else's frame.
+  await push(req, behind.token, await publishedChecksum(req));
+  for (const h of [current, behind]) {
+    expect((await req.delete(`/api/admin/hosts/${h.id}`)).status()).toBe(204);
+  }
+});
+
 test('a host that vetoes locally is never told to update', async ({ page }) => {
   await login(page);
   const req = page.request;

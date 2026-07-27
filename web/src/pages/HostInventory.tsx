@@ -15,6 +15,7 @@ import { useAuth } from '../auth';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import Modal from '../components/Modal';
 import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
+import { hostRowActions } from '../lib/hostActions';
 import BackLink from '../components/BackLink';
 import EntityIcon from '../components/EntityIcon';
 import IconUploader from '../components/IconUploader';
@@ -276,9 +277,11 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
             ))}
           </select>
         </Field>
-        <Button variant="secondary" onClick={updateNow} disabled={busy}>
-          Update now
-        </Button>
+        {hostRowActions(host).update && (
+          <Button variant="secondary" onClick={updateNow} disabled={busy}>
+            Update now
+          </Button>
+        )}
       </div>
       <ErrorText>{error}</ErrorText>
     </Card>
