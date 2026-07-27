@@ -1,6 +1,9 @@
 package collect
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestRedactSecretsMasksCredentialsInArgv(t *testing.T) {
 	cases := []struct {
@@ -65,5 +68,26 @@ func TestParseCrontabRedacts(t *testing.T) {
 	}
 	if want := "/usr/bin/backup --api-token=REDACTED /srv"; jobs[0].Name != want {
 		t.Errorf("cron command = %q, want %q", jobs[0].Name, want)
+	}
+}
+
+func TestScanLogErrorsRedacts(t *testing.T) {
+	events := ScanLogErrors("app", []string{
+		"error: connect failed for postgres://app:hunter2@db.local/app",
+		"FATAL upload rejected: --api-token=abc123",
+		"error: disk full on /srv",
+	}, time.Unix(0, 0).UTC(), nil)
+	want := []string{
+		"error: connect failed for postgres://app:REDACTED@db.local/app",
+		"FATAL upload rejected: --api-token=REDACTED",
+		"error: disk full on /srv",
+	}
+	if len(events) != len(want) {
+		t.Fatalf("events = %d, want %d", len(events), len(want))
+	}
+	for i := range want {
+		if events[i].Message != want[i] {
+			t.Errorf("message %d:\n got  %q\n want %q", i, events[i].Message, want[i])
+		}
 	}
 }

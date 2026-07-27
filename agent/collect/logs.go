@@ -15,6 +15,8 @@ var DefaultErrorPattern = regexp.MustCompile(`(?i)\b(error|fatal|panic|critical|
 
 // ScanLogErrors returns a LogEvent for each line matching the error pattern.
 // The timestamp is supplied by the caller so the parser stays pure/testable.
+// Credentials are masked here for the same reason as in a command line: an
+// error is exactly where a program echoes the invocation that failed.
 func ScanLogErrors(source string, lines []string, at time.Time, pattern *regexp.Regexp) []contracts.LogEvent {
 	if pattern == nil {
 		pattern = DefaultErrorPattern
@@ -28,7 +30,7 @@ func ScanLogErrors(source string, lines []string, at time.Time, pattern *regexp.
 		out = append(out, contracts.LogEvent{
 			Source:  source,
 			Level:   "error",
-			Message: line,
+			Message: redactSecrets(line),
 			At:      at,
 		})
 	}
