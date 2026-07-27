@@ -52,6 +52,11 @@ func postWebhook(ch notifyChannel, payload string) error {
 	return nil
 }
 
+// webhookConfigAAD keeps a channel config from being opened as a credential or a
+// setting. The channel id is not known when the config is sealed, so this binds
+// the kind of secret, not the row.
+var webhookConfigAAD = []byte("reeve/webhook-config")
+
 // sealConfig encrypts a channel config map for storage. An empty config stores
 // as the plaintext sentinel '{}' (no secrets, matches the column default).
 func (a *app) sealConfig(cfg map[string]string) (string, error) {
@@ -62,7 +67,7 @@ func (a *app) sealConfig(cfg map[string]string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ct, nonce, err := a.cipher.Seal(plain)
+	ct, nonce, err := a.cipher.Seal(plain, webhookConfigAAD)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +95,7 @@ func (a *app) openConfig(blob string) (map[string]string, error) {
 	if err != nil {
 		return nil, errors.New("channel config unreadable")
 	}
-	plain, err := a.cipher.Open(ct, nonce)
+	plain, err := a.cipher.Open(ct, nonce, webhookConfigAAD)
 	if err != nil {
 		return nil, errors.New("channel config unreadable")
 	}

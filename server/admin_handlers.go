@@ -149,6 +149,23 @@ func (a *app) handleRevealAudit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, events)
 }
 
+// handleVerifyAudit recomputes both audit chains on demand. It is a read-only
+// check an admin can run before trusting what the audit says.
+func (a *app) handleVerifyAudit(w http.ResponseWriter, _ *http.Request) {
+	results, err := a.db.VerifyAuditChain()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not verify audit")
+		return
+	}
+	ok := true
+	for _, r := range results {
+		if !r.OK {
+			ok = false
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": ok, "tables": results})
+}
+
 func (a *app) handleGrantAudit(w http.ResponseWriter, r *http.Request) {
 	events, err := a.db.ListGrantAudit(a.auditFilter(r))
 	if err != nil {

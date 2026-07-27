@@ -80,13 +80,19 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 	if disks.Disks == nil {
 		disks.Disks = []contracts.DiskUsage{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	out := map[string]any{
 		"resolution": spec.resolution,
 		"host":       host,
-		"containers": containers,
-		"processes":  procs,
 		"disks":      disks,
-	})
+	}
+	// The whole-machine series is for everyone; naming the containers and
+	// processes behind it is the same inventory the dedicated endpoints gate, so
+	// it travels with them rather than leaking around the side.
+	if p, _ := rbac.FromContext(r.Context()); p.IsAdmin() {
+		out["containers"] = containers
+		out["processes"] = procs
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // topProcessUsage is how many commands one window reports, per dimension.

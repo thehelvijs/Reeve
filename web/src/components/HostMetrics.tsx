@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { cssVar, useTheme } from '../lib/theme';
 import { Card } from './ui';
 import Chart, { type Series } from './Chart';
@@ -81,6 +82,9 @@ export default function HostMetrics({ path }: { path: string }) {
   const [points, setPoints] = useState<HostPoint[]>([]);
   const [containers, setContainers] = useState<ContainerPoint[]>([]);
   const [procs, setProcs] = useState<ProcessSample[]>([]);
+  // The server omits processes and container series for a basic account, so the
+  // card would render as an empty table rather than simply not being there.
+  const admin = useAuth().user?.role === 'admin';
   const [disks, setDisks] = useState<DiskUsage[]>([]);
   // Subscribed for the re-render, not for the value: a theme switch re-runs
   // palette(), which reads the slots the new theme set.
@@ -231,7 +235,7 @@ export default function HostMetrics({ path }: { path: string }) {
 
       <DiskList disks={disks} />
 
-      <ProcessTable procs={procs} path={path} />
+      {admin && <ProcessTable procs={procs} path={path} />}
     </div>
   );
 }

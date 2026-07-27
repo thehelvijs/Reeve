@@ -22,9 +22,15 @@ const (
 // "sealed:" + base64(nonce) + "." + base64(ciphertext).
 const sealedPrefix = "sealed:"
 
+// settingAAD binds a sealed setting to its key, so one secret setting cannot be
+// swapped for another.
+func settingAAD(key string) []byte {
+	return []byte("reeve/setting/" + key)
+}
+
 // setSealedSetting encrypts a secret setting before it touches disk.
 func (a *app) setSealedSetting(key, plain string) error {
-	ct, nonce, err := a.cipher.Seal([]byte(plain))
+	ct, nonce, err := a.cipher.Seal([]byte(plain), settingAAD(key))
 	if err != nil {
 		return err
 	}
@@ -54,7 +60,7 @@ func (a *app) sealedSetting(key string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	plain, err := a.cipher.Open(ct, nonce)
+	plain, err := a.cipher.Open(ct, nonce, settingAAD(key))
 	if err != nil {
 		return "", false
 	}

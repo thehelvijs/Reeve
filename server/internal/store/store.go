@@ -18,6 +18,9 @@ import (
 // DB wraps the SQL handle. It is safe for concurrent use.
 type DB struct {
 	sql *sql.DB
+	// auditMAC keys the audit hash chain. Injected rather than derived here so
+	// the store keeps holding no key material of its own.
+	auditMAC func([]byte) string
 }
 
 // Open opens the SQLite DB at path (WAL, FKs, busy timeout) and applies the schema.

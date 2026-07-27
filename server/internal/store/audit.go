@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"strings"
 	"time"
 )
@@ -34,22 +35,138 @@ type AuditFilter struct {
 	To     string
 }
 
+// SetAuditMAC installs the keyed MAC that chains audit rows. Without one the
+// tables still record events, they just cannot prove they were not edited, so a
+// server started with no cipher (tests, tooling) keeps working.
+func (db *DB) SetAuditMAC(mac func([]byte) string) {
+	db.auditMAC = mac
+}
+
+// auditLink is the canonical bytes of one row, joined with a separator that
+// cannot appear in any field, so no two different rows serialize alike.
+func auditLink(prevHash string, fields ...string) []byte {
+	return []byte(prevHash + "\x00" + strings.Join(fields, "\x00"))
+}
+
+// appendAudit writes one chained row. The previous hash is read and the new row
+// written in a single transaction so two concurrent events cannot fork the chain
+// by reading the same predecessor.
+func (db *DB) appendAudit(table, insert string, fields ...string) error {
+	tx, err := db.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var prev string
+	err = tx.QueryRow(`SELECT hash FROM ` + table + ` ORDER BY rowid DESC LIMIT 1`).Scan(&prev)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	hash := ""
+	if db.auditMAC != nil {
+		hash = db.auditMAC(auditLink(prev, fields...))
+	}
+	args := make([]any, 0, len(fields)+2)
+	for _, f := range fields {
+		args = append(args, f)
+	}
+	if _, err := tx.Exec(insert, append(args, prev, hash)...); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // RecordReveal appends a reveal event to the append-only reveal_audit table.
 func (db *DB) RecordReveal(credentialID, hostID, userID, sourceIP string) error {
-	_, err := db.sql.Exec(
-		`INSERT INTO reveal_audit(id, credential_id, host_id, user_id, source_ip, revealed_at)
-		 VALUES (?,?,?,?,?,?)`,
+	return db.appendAudit("reveal_audit",
+		`INSERT INTO reveal_audit(id, credential_id, host_id, user_id, source_ip, revealed_at, prev_hash, hash)
+		 VALUES (?,?,?,?,?,?,?,?)`,
 		NewID(), credentialID, hostID, userID, sourceIP, time.Now().UTC().Format(time.RFC3339Nano))
-	return err
 }
 
 // RecordGrant appends a grant/revoke event to the append-only grant_audit table.
 func (db *DB) RecordGrant(hostID, ptype, pid, action, actorID string) error {
-	_, err := db.sql.Exec(
-		`INSERT INTO grant_audit(id, host_id, principal_type, principal_id, action, actor_id, at)
-		 VALUES (?,?,?,?,?,?,?)`,
+	return db.appendAudit("grant_audit",
+		`INSERT INTO grant_audit(id, host_id, principal_type, principal_id, action, actor_id, at, prev_hash, hash)
+		 VALUES (?,?,?,?,?,?,?,?,?)`,
 		NewID(), hostID, ptype, pid, action, actorID, time.Now().UTC().Format(time.RFC3339Nano))
-	return err
+}
+
+// AuditChainResult reports what verifying one audit table found.
+type AuditChainResult struct {
+	Table     string `json:"table"`
+	Rows      int    `json:"rows"`
+	Unchained int    `json:"unchained"`
+	OK        bool   `json:"ok"`
+	BrokenAt  string `json:"broken_at,omitempty"`
+	Detail    string `json:"detail,omitempty"`
+}
+
+// VerifyAuditChain recomputes both audit chains and reports the first row that
+// does not match. A row whose hash is empty predates the chain and is counted,
+// not failed: it cannot be proven either way.
+func (db *DB) VerifyAuditChain() ([]AuditChainResult, error) {
+	reveal, err := db.verifyChain("reveal_audit",
+		`SELECT id, credential_id, host_id, user_id, source_ip, revealed_at, prev_hash, hash
+		   FROM reveal_audit ORDER BY rowid`, 6)
+	if err != nil {
+		return nil, err
+	}
+	grant, err := db.verifyChain("grant_audit",
+		`SELECT id, host_id, principal_type, principal_id, action, actor_id, at, prev_hash, hash
+		   FROM grant_audit ORDER BY rowid`, 7)
+	if err != nil {
+		return nil, err
+	}
+	return []AuditChainResult{reveal, grant}, nil
+}
+
+func (db *DB) verifyChain(table, query string, nFields int) (AuditChainResult, error) {
+	res := AuditChainResult{Table: table, OK: true}
+	if db.auditMAC == nil {
+		res.OK = false
+		res.Detail = "no master key: the chain cannot be checked"
+		return res, nil
+	}
+	rows, err := db.sql.Query(query)
+	if err != nil {
+		return res, err
+	}
+	defer rows.Close()
+
+	cells := make([]string, nFields+2)
+	scan := make([]any, len(cells))
+	for i := range cells {
+		scan[i] = &cells[i]
+	}
+	expectedPrev := ""
+	for rows.Next() {
+		if err := rows.Scan(scan...); err != nil {
+			return res, err
+		}
+		res.Rows++
+		fields, prev, hash := cells[:nFields], cells[nFields], cells[nFields+1]
+		if hash == "" {
+			res.Unchained++
+			continue
+		}
+		if !res.OK {
+			continue
+		}
+		if prev != expectedPrev {
+			res.OK, res.BrokenAt = false, fields[0]
+			res.Detail = "a row is missing or reordered ahead of this one"
+			continue
+		}
+		if db.auditMAC(auditLink(prev, fields...)) != hash {
+			res.OK, res.BrokenAt = false, fields[0]
+			res.Detail = "this row was edited after it was written"
+			continue
+		}
+		expectedPrev = hash
+	}
+	return res, rows.Err()
 }
 
 // ListRevealAudit returns reveal events matching the filter, newest first.

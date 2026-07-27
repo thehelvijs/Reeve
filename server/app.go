@@ -184,9 +184,13 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/hosts", authed(http.HandlerFunc(a.handleListHosts)))
 	mux.HandleFunc("GET /api/hosts/{id}/icon", a.serveImage(hostIcon))
 	mux.HandleFunc("GET /api/hosts/{id}/thumbnail", a.serveImage(hostThumbnail))
-	mux.Handle("GET /api/hosts/{id}/inventory", authed(http.HandlerFunc(a.handleHostInventory)))
+	// What a machine runs is admin-only. Status, location and metrics stay open
+	// to every account because the dashboard is built on them, but the unit,
+	// container, cron and process lists name attack surface and sometimes carry
+	// an argument nobody meant to publish.
+	mux.Handle("GET /api/hosts/{id}/inventory", admin(http.HandlerFunc(a.handleHostInventory)))
 	mux.Handle("GET /api/hosts/{id}/metrics", authed(http.HandlerFunc(a.handleHostMetrics)))
-	mux.Handle("GET /api/hosts/{id}/process-usage", authed(http.HandlerFunc(a.handleHostProcessUsage)))
+	mux.Handle("GET /api/hosts/{id}/process-usage", admin(http.HandlerFunc(a.handleHostProcessUsage)))
 	mux.Handle("GET /api/hosts/{id}/events", authed(http.HandlerFunc(a.handleHostEvents)))
 	mux.Handle("GET /api/hosts/{id}/uptime", authed(http.HandlerFunc(a.handleHostUptime)))
 	mux.Handle("GET /api/tools/{id}/events", authed(http.HandlerFunc(a.handleToolEvents)))
@@ -205,6 +209,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("DELETE /api/admin/groups/{id}/members/{userId}", admin(http.HandlerFunc(a.handleRemoveGroupMember)))
 	mux.Handle("GET /api/admin/audit/reveals", admin(http.HandlerFunc(a.handleRevealAudit)))
 	mux.Handle("GET /api/admin/audit/grants", admin(http.HandlerFunc(a.handleGrantAudit)))
+	mux.Handle("GET /api/admin/audit/verify", admin(http.HandlerFunc(a.handleVerifyAudit)))
 	mux.Handle("GET /api/admin/settings", admin(http.HandlerFunc(a.handleGetSettings)))
 	mux.Handle("PUT /api/admin/settings", admin(http.HandlerFunc(a.handlePutSettings)))
 	mux.Handle("POST /api/admin/settings/test-email", admin(http.HandlerFunc(a.handleTestEmail)))

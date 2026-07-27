@@ -174,7 +174,7 @@ func (a *app) saveInstallCredential(hostID string, in sshTargetInput, p auth.Pri
 		secret["sudo_password"] = in.SudoPassword
 	}
 
-	ct, nonce, err := a.sealSecret(secret)
+	ct, nonce, err := a.sealSecret(hostID, secret)
 	if err != nil {
 		return err
 	}

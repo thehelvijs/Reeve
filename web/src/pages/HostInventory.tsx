@@ -38,6 +38,8 @@ import ThresholdFields, {
 
 const REFRESH_MS = 15000;
 
+const EMPTY_INV: Inv = { services: [], containers: [], cron_jobs: [] };
+
 // The host page is five pages: what it is doing now, what it has been doing,
 // what it runs, what it costs to log in to, and how it is configured. The tab
 // lives in the URL so a link to a machine's metrics stays a link to its metrics.
@@ -49,15 +51,23 @@ export default function HostInventory() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
+  const admin = user?.role === 'admin';
   const [inv, setInv] = useState<Inv | null>(null);
   const [host, setHost] = useState<Host | null>(null);
   const [metricsKey, setMetricsKey] = useState(0);
   const [clearing, setClearing] = useState(false);
 
+  // What a host runs is admin-only, so a basic account gets an empty inventory
+  // rather than a rejected request. Nothing here may block the page: this used
+  // to hold every tab behind a fetch that a non-admin can no longer make.
   const load = useCallback(() => {
-    api.get<Inv>(`/api/hosts/${id}/inventory`).then(setInv);
+    if (admin) {
+      api.get<Inv>(`/api/hosts/${id}/inventory`).then(setInv).catch(() => setInv(EMPTY_INV));
+    } else {
+      setInv(EMPTY_INV);
+    }
     api.get<Host[]>('/api/hosts').then((hs) => setHost((hs ?? []).find((h) => h.id === id) ?? null));
-  }, [id]);
+  }, [id, admin]);
 
   useEffect(() => {
     load();
@@ -98,10 +108,10 @@ export default function HostInventory() {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
-  const admin = user?.role === 'admin';
   const requested = params.get('tab') as HostTab | null;
   let tab: HostTab = 'overview';
-  if (requested && HOST_TABS.includes(requested) && (requested !== 'settings' || admin)) {
+  const adminOnlyTab = requested === 'settings' || requested === 'inventory';
+  if (requested && HOST_TABS.includes(requested) && (!adminOnlyTab || admin)) {
     tab = requested;
   }
   const setTab = (next: HostTab) => setParams({ tab: next }, { replace: true });
@@ -110,9 +120,11 @@ export default function HostInventory() {
   const tabs: { key: HostTab; label: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'metrics', label: 'Metrics' },
-    { key: 'inventory', label: 'Inventory', count: inventoryCount },
-    { key: 'credentials', label: 'Credentials' },
   ];
+  if (admin) {
+    tabs.push({ key: 'inventory', label: 'Inventory', count: inventoryCount });
+  }
+  tabs.push({ key: 'credentials', label: 'Credentials' });
   if (admin) {
     tabs.push({ key: 'settings', label: 'Settings' });
   }

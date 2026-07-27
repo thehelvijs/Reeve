@@ -255,3 +255,62 @@ func TestClearHostMetricsAdminOnly(t *testing.T) {
 		t.Errorf("clear unknown host = %d, want 404", resp3.StatusCode)
 	}
 }
+
+// TestNonAdminCannotSeeWhatAHostRuns pins the split agreed for infrastructure
+// visibility: status stays open to every account, the unit/container/cron and
+// process lists do not.
+func TestNonAdminCannotSeeWhatAHostRuns(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	host := newHost(t, ts, admin, "box")
+	user := ts.client(t)
+	signup(t, ts, user, "basic@example.com", "password123")
+
+	for _, path := range []string{"/api/hosts/" + host + "/inventory", "/api/hosts/" + host + "/process-usage"} {
+		if resp, _ := ts.do(t, user, http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusForbidden {
+			t.Errorf("basic user GET %s = %d, want 403", path, resp.StatusCode)
+		}
+		if resp, _ := ts.do(t, admin, http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusOK {
+			t.Errorf("admin GET %s = %d, want 200", path, resp.StatusCode)
+		}
+	}
+
+	// The dashboard still works: the host list and its metrics stay readable.
+	for _, path := range []string{"/api/hosts", "/api/hosts/" + host + "/metrics"} {
+		if resp, _ := ts.do(t, user, http.MethodGet, path, nil, nil); resp.StatusCode != http.StatusOK {
+			t.Errorf("basic user GET %s = %d, want 200", path, resp.StatusCode)
+		}
+	}
+}
+
+func TestNonAdminDoesNotSeeOtherPeoplesEmails(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	user := ts.client(t)
+	signup(t, ts, user, "basic@example.com", "password123")
+
+	_, data := ts.do(t, user, http.MethodGet, "/api/principals", nil, nil)
+	var view principalsView
+	if err := json.Unmarshal(data, &view); err != nil {
+		t.Fatalf("decode principals: %v", err)
+	}
+	if len(view.Users) < 2 {
+		t.Fatalf("users = %d, want at least 2", len(view.Users))
+	}
+	for _, u := range view.Users {
+		if u.Email != "" && u.Email != "basic@example.com" {
+			t.Errorf("basic user sees %q, want only their own address", u.Email)
+		}
+		if u.DisplayName == "" {
+			t.Errorf("user %s has no label left for the picker", u.ID)
+		}
+	}
+
+	_, data = ts.do(t, admin, http.MethodGet, "/api/principals", nil, nil)
+	json.Unmarshal(data, &view)
+	for _, u := range view.Users {
+		if u.Email == "" {
+			t.Errorf("admin sees an empty address for %s", u.ID)
+		}
+	}
+}

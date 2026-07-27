@@ -86,6 +86,7 @@ func run() error {
 	}
 	defer db.Close()
 
+	db.SetAuditMAC(cipher.MAC)
 	a := &app{db: db, cipher: cipher, cfg: cfg, startedAt: time.Now().UTC(), agentFS: agentDistFS(), scriptFS: installScripts}
 	if err := db.EnsureServerHost(runtime.GOOS); err != nil {
 		return fmt.Errorf("startup: could not register self host: %w", err)

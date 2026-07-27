@@ -23,7 +23,7 @@ func revealStored(t *testing.T, ts *testServer, hostID string) (ctype string, se
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain, err := ts.app.cipher.Open(ct, nonce)
+	plain, err := ts.app.cipher.Open(ct, nonce, credentialAAD(creds[0].HostID))
 	if err != nil {
 		t.Fatal(err)
 	}

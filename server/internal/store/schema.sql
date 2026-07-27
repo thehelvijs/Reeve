@@ -194,13 +194,19 @@ CREATE TABLE IF NOT EXISTS access_requests (
 CREATE INDEX IF NOT EXISTS idx_access_requests_host ON access_requests(host_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_requester ON access_requests(requester_id);
 
+-- hash chains each row to the one before it, keyed by the master secret, so a
+-- reveal cannot be edited or quietly deleted by anyone holding only the database.
+-- Rows written before the chain existed carry empty hashes and verify as
+-- unchained rather than as tampered.
 CREATE TABLE IF NOT EXISTS reveal_audit (
     id            TEXT PRIMARY KEY,
     credential_id TEXT NOT NULL,
     host_id       TEXT NOT NULL,
     user_id       TEXT NOT NULL,
     source_ip     TEXT NOT NULL DEFAULT '',
-    revealed_at   TEXT NOT NULL
+    revealed_at   TEXT NOT NULL,
+    prev_hash     TEXT NOT NULL DEFAULT '',
+    hash          TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_reveal_audit_user ON reveal_audit(user_id);
 CREATE INDEX IF NOT EXISTS idx_reveal_audit_host ON reveal_audit(host_id);
@@ -212,7 +218,9 @@ CREATE TABLE IF NOT EXISTS grant_audit (
     principal_id   TEXT NOT NULL,
     action         TEXT NOT NULL CHECK (action IN ('grant', 'revoke')),
     actor_id       TEXT NOT NULL,
-    at             TEXT NOT NULL
+    at             TEXT NOT NULL,
+    prev_hash      TEXT NOT NULL DEFAULT '',
+    hash           TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_grant_audit_host ON grant_audit(host_id);
 

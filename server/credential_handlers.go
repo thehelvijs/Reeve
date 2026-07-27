@@ -78,7 +78,7 @@ func (a *app) handleCreateCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "empty_secret", "secret fields are required")
 		return
 	}
-	ct, nonce, err := a.sealSecret(in.Secret)
+	ct, nonce, err := a.sealSecret(h.ID, in.Secret)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt secret")
 		return
@@ -105,7 +105,7 @@ func (a *app) handleUpdateCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "empty_secret", "secret fields are required")
 		return
 	}
-	ct, nonce, err := a.sealSecret(in.Secret)
+	ct, nonce, err := a.sealSecret(c.HostID, in.Secret)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt secret")
 		return
@@ -146,7 +146,7 @@ func (a *app) handleRevealCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read credential")
 		return
 	}
-	plain, err := a.cipher.Open(ct, nonce)
+	plain, err := a.cipher.Open(ct, nonce, credentialAAD(c.HostID))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not decrypt credential")
 		return
@@ -192,10 +192,18 @@ func (a *app) loadCredential(w http.ResponseWriter, r *http.Request) (store.Cred
 	return c, true
 }
 
-func (a *app) sealSecret(secret map[string]string) (ct, nonce []byte, err error) {
+// credentialAAD binds a sealed secret to the host it opens, so a row's
+// ciphertext cannot be moved to a machine it was never meant for. Two
+// credentials on the same host remain interchangeable to a database writer,
+// which changes a label and nothing about who may reveal what.
+func credentialAAD(hostID string) []byte {
+	return []byte("reeve/credential/" + hostID)
+}
+
+func (a *app) sealSecret(hostID string, secret map[string]string) (ct, nonce []byte, err error) {
 	plain, err := json.Marshal(secret)
 	if err != nil {
 		return nil, nil, err
 	}
-	return a.cipher.Seal(plain)
+	return a.cipher.Seal(plain, credentialAAD(hostID))
 }

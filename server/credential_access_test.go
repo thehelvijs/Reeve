@@ -490,3 +490,44 @@ func TestAuditAdminOnly(t *testing.T) {
 		t.Errorf("basic audit access = %d, want 403", resp.StatusCode)
 	}
 }
+
+// TestCiphertextCannotBeMovedBetweenHosts pins the AAD binding: a database
+// writer who copies one host's sealed secret into another host's credential row
+// gets an undecryptable row, not a working secret under the wrong identity and
+// the wrong audit trail.
+func TestCiphertextCannotBeMovedBetweenHosts(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	hostA := newHost(t, ts, admin, "box-a")
+	hostB := newHost(t, ts, admin, "box-b")
+
+	credA := createCred(t, ts, admin, hostA, credentialInput{
+		Type: "ssh_password", Label: "a", Secret: map[string]string{"password": "secret-a"},
+	})
+	credB := createCred(t, ts, admin, hostB, credentialInput{
+		Type: "ssh_password", Label: "b", Secret: map[string]string{"password": "secret-b"},
+	})
+
+	ct, nonce, err := ts.app.db.GetCredentialSecret(credA.ID)
+	if err != nil {
+		t.Fatalf("read host A secret: %v", err)
+	}
+	if _, err := ts.app.db.SQL().Exec(
+		`UPDATE credentials SET ciphertext = ?, nonce = ? WHERE id = ?`, ct, nonce, credB.ID); err != nil {
+		t.Fatalf("plant host A ciphertext on host B: %v", err)
+	}
+
+	status, secret := revealSecret(t, ts, admin, credB.ID)
+	if status == http.StatusOK {
+		t.Fatalf("host A's secret revealed through host B's credential: %v", secret)
+	}
+	if secret["password"] == "secret-a" {
+		t.Fatal("host A's password leaked through host B's row")
+	}
+
+	// The untouched credential still opens, so the binding did not simply break
+	// decryption for everyone.
+	if status, secret := revealSecret(t, ts, admin, credA.ID); status != http.StatusOK || secret["password"] != "secret-a" {
+		t.Fatalf("host A's own credential no longer reveals: %d %v", status, secret)
+	}
+}

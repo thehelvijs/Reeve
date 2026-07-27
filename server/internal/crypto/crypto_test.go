@@ -16,14 +16,15 @@ func TestSealOpenRoundTrip(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	plain := []byte("ssh: root / hunter2")
-	ct, nonce, err := c.Seal(plain)
+	aad := []byte("reeve/credential/host-1")
+	ct, nonce, err := c.Seal(plain, aad)
 	if err != nil {
 		t.Fatalf("Seal: %v", err)
 	}
 	if bytes.Contains(ct, plain) {
 		t.Fatal("ciphertext contains plaintext")
 	}
-	got, err := c.Open(ct, nonce)
+	got, err := c.Open(ct, nonce, aad)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -34,8 +35,8 @@ func TestSealOpenRoundTrip(t *testing.T) {
 
 func TestUniqueNoncePerSeal(t *testing.T) {
 	c, _ := New(mustKey(t, testKey()))
-	_, n1, _ := c.Seal([]byte("x"))
-	_, n2, _ := c.Seal([]byte("x"))
+	_, n1, _ := c.Seal([]byte("x"), nil)
+	_, n2, _ := c.Seal([]byte("x"), nil)
 	if bytes.Equal(n1, n2) {
 		t.Fatal("nonce reused across seals")
 	}
@@ -43,20 +44,20 @@ func TestUniqueNoncePerSeal(t *testing.T) {
 
 func TestTamperFails(t *testing.T) {
 	c, _ := New(mustKey(t, testKey()))
-	ct, nonce, _ := c.Seal([]byte("secret"))
+	ct, nonce, _ := c.Seal([]byte("secret"), nil)
 	ct[0] ^= 0xFF
-	if _, err := c.Open(ct, nonce); err == nil {
+	if _, err := c.Open(ct, nonce, nil); err == nil {
 		t.Fatal("Open accepted tampered ciphertext")
 	}
 }
 
 func TestWrongKeyFails(t *testing.T) {
 	c1, _ := New(mustKey(t, testKey()))
-	ct, nonce, _ := c1.Seal([]byte("secret"))
+	ct, nonce, _ := c1.Seal([]byte("secret"), nil)
 
 	otherKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32))
 	c2, _ := New(mustKey(t, otherKey))
-	if _, err := c2.Open(ct, nonce); err == nil {
+	if _, err := c2.Open(ct, nonce, nil); err == nil {
 		t.Fatal("Open accepted ciphertext under wrong key")
 	}
 }
@@ -89,4 +90,22 @@ func mustKey(t *testing.T, b64 string) []byte {
 		t.Fatalf("decode key: %v", err)
 	}
 	return k
+}
+
+func TestOpenRejectsAnotherRowsAAD(t *testing.T) {
+	c, _ := New(mustKey(t, testKey()))
+	ct, nonce, _ := c.Seal([]byte("root / hunter2"), []byte("reeve/credential/host-1"))
+	if _, err := c.Open(ct, nonce, []byte("reeve/credential/host-2")); err == nil {
+		t.Fatal("a credential sealed for host-1 opened as host-2")
+	}
+	if _, err := c.Open(ct, nonce, nil); err == nil {
+		t.Fatal("a bound credential opened with no aad at all")
+	}
+	got, err := c.Open(ct, nonce, []byte("reeve/credential/host-1"))
+	if err != nil {
+		t.Fatalf("Open with the right aad: %v", err)
+	}
+	if string(got) != "root / hunter2" {
+		t.Fatalf("round-trip mismatch: %q", got)
+	}
 }
