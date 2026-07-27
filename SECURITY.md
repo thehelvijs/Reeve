@@ -18,6 +18,13 @@ the server refuses to start without it. A stolen database alone reveals no
 secret. A stolen database plus the key reveals all of them, so keep backups of
 the two apart.
 
+Each sealed value is bound to where it is stored: a credential to its host, a
+setting to its key, a channel config to its kind. Moving one row's ciphertext
+into another row therefore makes it unreadable rather than making it decrypt
+under the wrong identity. Two credentials on the same host stay
+interchangeable to a database writer, which changes a label and nothing about
+who may reveal what.
+
 Sealed with the same key: the SMTP relay password and the OAuth client secret.
 Everything else in the database is plaintext — tool names, descriptions,
 endpoints, physical locations, host inventories, metric values and service
@@ -111,12 +118,13 @@ pre-create the path and steer what a root process writes and later replays.
 - No master-key rotation yet. Changing the key makes existing ciphertext
   unreadable.
 - Single-tenant. Any admin can see every host, service, and audit record.
-- Any signed-in user, at any role, can list every host and its full
-  systemd/Docker/cron inventory and running processes, see that a host holds
-  credentials (labels and types, never the secret), read every account's email
-  address, and mark a tool public on the anonymous portal. Visibility rules
-  cover which *tools* someone sees and which *secrets* they can reveal, not the
-  infrastructure those run on.
+- Any signed-in user, at any role, can list every host with its status,
+  location and metrics, see that a host holds credentials (labels and types,
+  never the secret), and mark a tool public on the anonymous portal. What a
+  machine *runs* is admin-only: the systemd, Docker and cron inventory, the
+  process list, and the per-container series inside the metrics response.
+  Addresses of other accounts are admin-only too, so a picker shows a label
+  instead.
 - **The agent can be told to act, not just report.** An admin can queue reboot,
   poweroff, and systemd or Docker start/stop/restart; the agent runs them as
   root. The action list is a fixed map in code, resolved to an argv with no
@@ -137,6 +145,9 @@ pre-create the path and steer what a root process writes and later replays.
   it cannot be held shut indefinitely, but it can be re-triggered.
 - Restoring a backup replaces the whole database, password hashes included.
   It is admin-only and validated for shape, not for provenance.
-- The audit tables are append-only by convention, not cryptographically chained.
+- Audit rows are chained with a MAC keyed by the master secret, so an edited or
+  deleted row is detectable. `GET /api/admin/audit/verify` recomputes both
+  chains. Whoever holds the key as well as the database can still rewrite a
+  chain end to end, and rows written before the chain existed read as unchained.
 - Anyone with filesystem access to the database and the key material has
   everything. Protect the host accordingly.
