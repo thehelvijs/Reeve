@@ -5,50 +5,41 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background: var(--canvas);
-  color: var(--text);
-  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
-  font-feature-settings: 'cv01', 'ss03', 'zero';
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-/* Leaflet, themed dark to match the surface ladder. */
+/* Leaflet, themed to match the surface ladder. */
 .leaflet-container {
-  background: var(--canvas);
+  background: var(--surface-2);
   font-family: inherit;
 }
 .leaflet-control-attribution {
-  background: rgba(15, 16, 17, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   color: var(--text-muted) !important;
 }
 .leaflet-control-attribution a {
   color: var(--text-muted) !important;
 }
 .leaflet-bar a {
-  background: var(--surface-2);
+  background: var(--canvas);
   color: var(--text);
   border-bottom-color: var(--border) !important;
 }
 .leaflet-bar a:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 .reeve-pin {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 9999px;
-  background: var(--accent);
-  border: 2px solid var(--canvas);
-  box-shadow: 0 0 0 1px var(--border-strong);
+  background: var(--link);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(31, 30, 36, 0.25);
 }
 .reeve-tip {
-  background: var(--surface-3) !important;
+  background: var(--canvas) !important;
   color: var(--text) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 6px !important;
-  box-shadow: none !important;
+  border-radius: var(--radius-button) !important;
+  box-shadow: var(--shadow-pop) !important;
   font-size: 11px !important;
   font-weight: 600;
 }

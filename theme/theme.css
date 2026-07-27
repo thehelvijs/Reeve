@@ -1,6 +1,9 @@
-/* Linear-inspired theme — generated from DESIGN.md.
+/* Reeve theme — generated from DESIGN.md.
    Framework-agnostic CSS custom properties (the source of truth).
-   Dark is the default; light mode is a mapped equivalent.
+
+   Light is the only theme: the palette follows GitLab's Pajamas grays and
+   semantic colors, because an operator reads this dashboard next to a
+   terminal all day and needs the numbers legible, not atmospheric.
 
    Font: install Inter Variable, e.g.
      npm i @fontsource-variable/inter   ->   import '@fontsource-variable/inter';
@@ -9,28 +12,57 @@
 
 :root {
   /* Surfaces */
-  --canvas: #08090a;
-  --surface-1: #0f1011;
-  --surface-2: #141516;
-  --surface-3: #18191a;
+  --canvas: #ffffff;
+  --surface-1: #fbfafd;
+  --surface-2: #f0f0f2;
+  --surface-3: #ffffff;
 
   /* Borders (hairline) */
-  --border: #23252a;
-  --border-strong: #34343a;
+  --border: #dcdcde;
+  --border-strong: #bfbfc3;
 
   /* Text */
-  --text: #f7f8f8;
-  --text-muted: #8a8f98;
+  --text: #1f1e24;
+  --text-muted: #626168;
 
-  /* Accent (acid-lime) */
+  /* Brand accent (acid-lime) — the wordmark and one primary action per view.
+     It clears no text-contrast bar on white, so it is only ever a fill with
+     --on-accent text on top; --link carries every other interactive color. */
   --accent: #e4f222;
-  --accent-hover: #eef658;
-  --on-accent: #08090a;
+  --accent-hover: #d5e300;
+  --on-accent: #1f1e24;
+
+  /* Interaction */
+  --link: #1068bf;
+  --link-hover: #0b5cad;
+  --focus: #1068bf;
+
+  /* Status. Each has a text-safe tone, a solid fill for dots and bars, and a
+     soft/line pair for badges. */
+  --up: #24663b;
+  --up-solid: #108548;
+  --up-soft: #ecf4ee;
+  --up-line: #c3e6cd;
+
+  --down: #ae1800;
+  --down-solid: #dd2b0e;
+  --down-soft: #fcf1ef;
+  --down-line: #fdd4cd;
+
+  --warn: #8f4700;
+  --warn-solid: #ab6100;
+  --warn-soft: #fdf1dd;
+  --warn-line: #f5d9a8;
+
+  --idle: #626168;
+  --idle-solid: #a4a3a8;
+  --idle-soft: #f0f0f2;
+  --idle-line: #dcdcde;
 
   /* Radius vocabulary */
-  --radius-button: 6px;
-  --radius-card: 12px;
-  --radius-tile: 16px;
+  --radius-button: 4px;
+  --radius-card: 8px;
+  --radius-tile: 12px;
   --radius-pill: 9999px;
 
   /* Spacing (8px base) */
@@ -46,52 +78,48 @@
   --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
   --font-mono: 'Berkeley Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Elevation. Only ever on something that floats over the page. */
+  --shadow-pop: 0 1px 4px rgba(31, 30, 36, 0.12), 0 4px 12px rgba(31, 30, 36, 0.08);
+
   /* Motion */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --dur: 160ms;
 }
 
-/* Light mode — dark stays the default; set data-theme="light" on <html> */
-[data-theme='light'] {
-  --canvas: #ffffff;
-  --surface-1: #f7f8f8;
-  --surface-2: #f1f2f3;
-  --surface-3: #eaebec;
-  --border: #e6e7e9;
-  --border-strong: #d0d2d6;
-  --text: #08090a;
-  --text-muted: #6b7079;
-  /* accent and on-accent stay the same */
-}
-
 /* Base */
-html { color-scheme: dark; }
+html {
+  color-scheme: light;
+}
 
 body {
   margin: 0;
   background: var(--canvas);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
-  /* the alternates that define the look */
-  font-feature-settings: 'cv01' on, 'ss03' on, 'zero' on;
+  font-feature-settings: 'zero' on;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Display type: tight tracking at large sizes */
-h1, h2, .display {
+h1,
+h2,
+.display {
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: normal;
 }
 
-code, pre, kbd { font-family: var(--font-mono); }
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+}
 
-/* Focus: always visible, always the accent ring */
+/* Focus: always visible, always the blue ring */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -100,39 +128,43 @@ code, pre, kbd { font-family: var(--font-mono); }
 .btn-primary {
   background: var(--accent);
   color: var(--on-accent);
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-button);
   padding: var(--space-2) var(--space-3);
   font: inherit;
-  font-weight: 510;
+  font-weight: 600;
   cursor: pointer;
   transition: background var(--dur) var(--ease);
 }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
 
 .btn-secondary {
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  background: var(--canvas);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-button);
   padding: var(--space-2) var(--space-3);
   font: inherit;
   cursor: pointer;
-  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.btn-secondary:hover { color: var(--text); border-color: var(--border-strong); }
+.btn-secondary:hover {
+  background: var(--surface-2);
+}
 
 .card {
-  background: var(--surface-1);
+  background: var(--canvas);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: var(--space-4);
 }
 
 .input {
-  background: var(--surface-1);
+  background: var(--canvas);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-button);
   padding: var(--space-2) var(--space-3);
   font: inherit;

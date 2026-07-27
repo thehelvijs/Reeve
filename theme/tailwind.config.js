@@ -1,6 +1,5 @@
-/** Linear-inspired Tailwind theme — generated from DESIGN.md.
- *  Pairs with theme.css; the CSS variables there are the source of truth,
- *  so light/dark switching works automatically via [data-theme].
+/** Reeve Tailwind theme — generated from DESIGN.md.
+ *  Pairs with theme.css; the CSS variables there are the source of truth.
  *
  *  This is Tailwind v3 (tailwind.config.js). On Tailwind v4, skip this file
  *  and put an `@theme` block in your CSS referencing the same variables.
@@ -25,6 +24,36 @@ module.exports = {
           hover: 'var(--accent-hover)',
           fg: 'var(--on-accent)',
         },
+        link: {
+          DEFAULT: 'var(--link)',
+          hover: 'var(--link-hover)',
+        },
+        // Status tones: bare name for text, -solid for a dot or bar fill,
+        // -soft/-line for a badge.
+        up: {
+          DEFAULT: 'var(--up)',
+          solid: 'var(--up-solid)',
+          soft: 'var(--up-soft)',
+          line: 'var(--up-line)',
+        },
+        down: {
+          DEFAULT: 'var(--down)',
+          solid: 'var(--down-solid)',
+          soft: 'var(--down-soft)',
+          line: 'var(--down-line)',
+        },
+        warn: {
+          DEFAULT: 'var(--warn)',
+          solid: 'var(--warn-solid)',
+          soft: 'var(--warn-soft)',
+          line: 'var(--warn-line)',
+        },
+        idle: {
+          DEFAULT: 'var(--idle)',
+          solid: 'var(--idle-solid)',
+          soft: 'var(--idle-soft)',
+          line: 'var(--idle-line)',
+        },
       },
       borderRadius: {
         button: 'var(--radius-button)',
@@ -32,12 +61,16 @@ module.exports = {
         tile: 'var(--radius-tile)',
         pill: 'var(--radius-pill)',
       },
+      boxShadow: {
+        pop: 'var(--shadow-pop)',
+      },
       fontFamily: {
         sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['Berkeley Mono', 'ui-monospace', 'monospace'],
       },
-      letterSpacing: {
-        display: '-0.022em',
+      fontSize: {
+        // The table/eyebrow label size, small caps by convention.
+        eyebrow: ['11px', { lineHeight: '16px', letterSpacing: '0.05em' }],
       },
       transitionTimingFunction: {
         linear2: 'cubic-bezier(0.16, 1, 0.3, 1)',
