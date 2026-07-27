@@ -36,9 +36,9 @@ export default function VisibilityToggle({
     }
   };
 
-  let styles = 'bg-green-500/10 text-green-400 border-green-500/20';
+  let styles = 'bg-up-soft text-up border-up-line';
   if (!isPublic) {
-    styles = 'bg-surface-2 text-muted border-hairline';
+    styles = 'bg-idle-soft text-idle border-idle-line';
   }
   return (
     <button
@@ -47,7 +47,7 @@ export default function VisibilityToggle({
       disabled={busy}
       aria-pressed={isPublic}
       title={isPublic ? 'Shown to everyone. Click to hide it from the public dashboard.' : 'Hidden from the public dashboard. Click to show it to everyone.'}
-      className={`inline-flex shrink-0 items-center rounded-pill border px-2 py-0.5 text-xs transition-colors hover:brightness-125 disabled:opacity-50 ${styles}`}
+      className={`inline-flex shrink-0 items-center rounded-pill border px-2 py-0.5 text-xs font-medium transition-colors hover:brightness-95 disabled:opacity-50 ${styles}`}
     >
       {isPublic ? 'public' : 'restricted'}
     </button>

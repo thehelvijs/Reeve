@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, endpointString, type Collection, type Tool } from '../api';
-import { Button, Input, Pill } from '../components/ui';
+import { api, endpointString, type Collection, type Tool, type ToolStatus } from '../api';
+import { Button, Input, Pill, Table, Tabs, Td, Th, Tr } from '../components/ui';
 import StatusPill from '../components/StatusPill';
 import EntityIcon from '../components/EntityIcon';
-import Chevron from '../components/Chevron';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton } from '../components/Skeleton';
@@ -12,10 +11,20 @@ import VisibilityToggle from '../components/VisibilityToggle';
 import AddServiceModal from '../components/AddServiceModal';
 import { useResource } from '../lib/cache';
 
+// Tab labels say what each state means to an operator, matching the pills.
+const STATUS_FILTERS: { key: ToolStatus | 'all'; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'up', label: 'Up' },
+  { key: 'down', label: 'Down' },
+  { key: 'agent_offline', label: 'Unreachable' },
+  { key: 'unknown', label: 'Not monitored' },
+];
+
 export default function Catalog() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [search, setSearch] = useState(params.get('q') ?? '');
+  const [status, setStatus] = useState<ToolStatus | 'all'>('all');
   const [collectionID, setCollectionID] = useState('');
   const [collections, setCollections] = useState<Collection[]>([]);
   const [adding, setAdding] = useState(false);
@@ -56,6 +65,14 @@ export default function Catalog() {
     });
   }, [tools, search, collectionID]);
 
+  // Counts come after the search, so a tab counts results rather than everything.
+  const shown = filtered.filter((t) => status === 'all' || t.status === status);
+  const tabs = STATUS_FILTERS.map((f) => ({
+    key: f.key,
+    label: f.label,
+    count: f.key === 'all' ? filtered.length : filtered.filter((t) => t.status === f.key).length,
+  }));
+
   return (
     <div>
       <PageHeader
@@ -82,7 +99,7 @@ export default function Catalog() {
           aria-label="Filter by collection"
           value={collectionID}
           onChange={(e) => setCollectionID(e.target.value)}
-          className="rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
         >
           <option value="">All collections</option>
           {collections.map((c) => (
@@ -93,51 +110,77 @@ export default function Catalog() {
         </select>
       </div>
 
+      <div className="mt-4">
+        <Tabs tabs={tabs} active={status} onChange={setStatus} label="Filter services by state" />
+      </div>
+
       {loading ? (
         <div className="mt-6">
           <ListSkeleton />
         </div>
       ) : (
         <>
-          <div className="mt-6 divide-y divide-hairline overflow-hidden rounded-card border border-hairline">
-            {filtered.map((t) => (
-              <Link
-                key={t.id}
-                to={`/services/${t.id}`}
-                className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
-              >
-                <EntityIcon url={t.icon_url} name={t.name} size={36} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-content">{t.name}</p>
-                  <p className="truncate font-mono text-xs text-muted">{endpointString(t) || '—'}</p>
-                  {t.collections.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {t.collections.map((c) => (
-                        <Pill key={c.id}>{c.name}</Pill>
-                      ))}
+          {shown.length > 0 && (
+            <Table
+              className="mt-4"
+              head={
+                <>
+                  <Th>Service</Th>
+                  <Th>Endpoint</Th>
+                  <Th>Collections</Th>
+                  <Th>Who can see it</Th>
+                  <Th>State</Th>
+                  <Th className="text-right">Actions</Th>
+                </>
+              }
+            >
+              {shown.map((t) => (
+                <Tr key={t.id}>
+                  <Td>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <EntityIcon url={t.icon_url} name={t.name} size={28} />
+                      <Link
+                        to={`/services/${t.id}`}
+                        className="truncate font-medium text-link hover:text-link-hover hover:underline"
+                      >
+                        {t.name}
+                      </Link>
                     </div>
-                  )}
-                </div>
-                <VisibilityToggle tool={t} onChanged={refresh} />
-                <StatusPill status={t.status} />
-                {t.can_edit && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      navigate(`/services/${t.id}/edit`);
-                    }}
-                    className="inline-flex shrink-0 items-center rounded-button border border-hairline px-2 py-0.5 text-xs text-content opacity-0 transition-opacity group-hover:opacity-100"
-                  >
-                    Edit
-                  </button>
-                )}
-                <Chevron />
-              </Link>
-            ))}
-          </div>
-          {filtered.length === 0 && (
+                  </Td>
+                  <Td className="font-mono text-xs text-muted">{endpointString(t) || '—'}</Td>
+                  <Td>
+                    {t.collections.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {t.collections.map((c) => (
+                          <Pill key={c.id}>{c.name}</Pill>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </Td>
+                  <Td>
+                    <VisibilityToggle tool={t} onChanged={refresh} />
+                  </Td>
+                  <Td>
+                    <StatusPill status={t.status} />
+                  </Td>
+                  <Td className="text-right">
+                    {t.can_edit && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/services/${t.id}/edit`)}
+                        className="inline-flex shrink-0 items-center rounded-button border border-hairline-strong bg-canvas px-2 py-0.5 text-xs text-content transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          )}
+          {shown.length === 0 && (
             <div className="mt-6">
               {tools.length === 0 ? (
                 <EmptyState
@@ -153,7 +196,10 @@ export default function Catalog() {
         }
                 />
               ) : (
-                <EmptyState title="No matches" description="No services match your search or collection." />
+                <EmptyState
+                  title="No matches"
+                  description="No service matches this search, collection and state."
+                />
               )}
             </div>
           )}

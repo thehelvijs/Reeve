@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { api, type AccessRequest, type AlertEvent, type Host, type Tool, type ToolStatus } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, Pill } from '../components/ui';
+import { Button, Card, Eyebrow, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import MetricBar from '../components/MetricBar';
 import ServiceDots from '../components/ServiceDots';
@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
 import { fmtBytes } from '../lib/format';
 import { useResource } from '../lib/cache';
+import { dotClass, hostTone } from '../lib/statusTone';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const loading = toolsRes.loading || hostsRes.loading;
 
   const count = (s: ToolStatus) => tools.filter((t) => t.status === s).length;
+  const total = tools.length;
   const hostsOnline = hosts.filter((h) => h.status === 'online').length;
   const toolsFor = (id: string) => tools.filter((t) => t.host_id === id);
   const unassigned = tools.filter((t) => !t.host_id);
@@ -44,9 +46,14 @@ export default function Dashboard() {
 
       {loading && (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[76px]" />
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[92px]" />
+            ))}
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[92px]" />
             ))}
           </div>
           <Skeleton className="mt-8 h-4 w-16" />
@@ -59,22 +66,63 @@ export default function Dashboard() {
 
       {!loading && (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Up" value={count('up')} tone="up" />
-            <Stat label="Down" value={count('down') + count('agent_offline')} tone="down" />
-            <Stat label="Unknown" value={count('unknown')} tone="muted" />
-            <Stat label="Hosts online" value={`${hostsOnline}/${hosts.length}`} tone="muted" />
-            <Link to="/requests">
-              <Stat label="To review" value={reviewCount} tone={reviewCount > 0 ? 'accent' : 'muted'} />
-            </Link>
+          <Eyebrow>Services</Eyebrow>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Tile
+              label="Up"
+              value={total > 0 ? `${count('up')} of ${total}` : '0'}
+              meaning="Running as expected."
+              tone="up"
+            />
+            <Tile
+              label="Down"
+              value={count('down')}
+              meaning="The agent reports it stopped."
+              tone="down"
+            />
+            <Tile
+              label="Unreachable"
+              value={count('agent_offline')}
+              meaning="Host offline, so its last state is unknown."
+              tone="warn"
+            />
+            <Tile
+              label="Not monitored"
+              value={count('unknown')}
+              meaning="No agent source to check."
+              tone="muted"
+            />
+          </div>
+
+          <div className="mt-6">
+            <Eyebrow>Needs attention</Eyebrow>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Tile
+              label="Hosts online"
+              value={hosts.length > 0 ? `${hostsOnline} of ${hosts.length}` : '0'}
+              meaning="Sending telemetry right now."
+              tone="muted"
+            />
+            <Tile
+              label="To review"
+              value={reviewCount}
+              meaning="Access requests waiting on you."
+              tone={reviewCount > 0 ? 'link' : 'muted'}
+              to="/requests"
+            />
             {isAdmin && (
-              <Link to="/admin/alerts">
-                <Stat label="Alerts firing" value={alertCount} tone={alertCount > 0 ? 'down' : 'muted'} />
-              </Link>
+              <Tile
+                label="Alerts firing"
+                value={alertCount}
+                meaning="Unresolved since they fired."
+                tone={alertCount > 0 ? 'down' : 'muted'}
+                to="/admin/alerts"
+              />
             )}
           </div>
 
-          <h2 className="mt-8 text-sm font-medium text-content">Hosts</h2>
+          <h2 className="mt-8 text-sm font-semibold text-content">Hosts</h2>
           {hosts.length === 0 ? (
             <div className="mt-2">
               <EmptyState
@@ -99,7 +147,7 @@ export default function Dashboard() {
 
       {!loading && unassigned.length > 0 && (
         <>
-          <h2 className="mt-8 text-sm font-medium text-content">Unassigned services</h2>
+          <h2 className="mt-8 text-sm font-semibold text-content">Unassigned services</h2>
           <Card className="mt-2 p-4">
             <ServiceDots tools={unassigned} />
           </Card>
@@ -117,15 +165,9 @@ function HostCard({ host, tools }: { host: Host; tools: Tool[] }) {
     }
     return 0;
   };
-  let tone: 'up' | 'down' | 'muted' = 'muted';
-  if (host.status === 'online') {
-    tone = 'up';
-  } else if (host.status === 'offline') {
-    tone = 'down';
-  }
   return (
     <Link to={`/hosts/${host.id}`}>
-      <Card className="p-4 transition-colors hover:bg-surface-2">
+      <Card className="p-4 transition-colors hover:bg-surface-1">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <EntityIcon url={host.icon_url} name={host.name} size={28} />
@@ -133,7 +175,7 @@ function HostCard({ host, tools }: { host: Host; tools: Tool[] }) {
             <span className="truncate text-sm font-medium text-content">{host.name}</span>
             <span className="truncate text-xs text-muted">{host.os}</span>
           </div>
-          <Pill tone={tone}>{host.status}</Pill>
+          <Pill tone={hostTone(host.status)}>{host.status}</Pill>
         </div>
 
         {m ? (
@@ -163,35 +205,46 @@ function HostCard({ host, tools }: { host: Host; tools: Tool[] }) {
 }
 
 function HostDot({ status }: { status: Host['status'] }) {
-  let color = 'bg-muted';
-  if (status === 'online') {
-    color = 'bg-green-400';
-  } else if (status === 'offline') {
-    color = 'bg-red-400';
-  }
-  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${color}`} />;
+  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${dotClass(hostTone(status))}`} />;
 }
 
-function Stat({
+// Every tile carries the number, what it is out of, and what the state means.
+function Tile({
   label,
   value,
+  meaning,
   tone,
+  to,
 }: {
   label: string;
   value: number | string;
-  tone: 'up' | 'down' | 'muted' | 'accent';
+  meaning: string;
+  tone: 'up' | 'down' | 'warn' | 'muted' | 'link';
+  to?: string;
 }) {
   const colors = {
-    up: 'text-green-400',
-    down: 'text-red-400',
-    accent: 'text-accent',
+    up: 'text-up',
+    down: 'text-down',
+    warn: 'text-warn',
+    link: 'text-link',
     muted: 'text-content',
   };
-  const color = colors[tone];
-  return (
-    <Card className="p-4 transition-colors hover:bg-surface-2">
-      <p className="text-xs text-muted">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold tracking-tight ${color}`}>{value}</p>
-    </Card>
+  const body = (
+    <>
+      <p className="text-eyebrow font-semibold uppercase text-muted">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${colors[tone]}`}>{value}</p>
+      <p className="mt-1 text-xs text-muted">{meaning}</p>
+    </>
   );
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="rounded-card border border-hairline bg-canvas p-4 transition-colors hover:border-hairline-strong hover:bg-surface-1"
+      >
+        {body}
+      </Link>
+    );
+  }
+  return <Card className="p-4">{body}</Card>;
 }

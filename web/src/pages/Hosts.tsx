@@ -2,22 +2,24 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type AgentUpdateRollup, type Host } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Input, Pill, Table, Tabs, Td, Th, Tr } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
-import Chevron from '../components/Chevron';
 import { ListSkeleton } from '../components/Skeleton';
 import SSHDeployModal from '../components/SSHDeployModal';
 import { useResource } from '../lib/cache';
 import { UPDATE_LABEL, UPDATE_TONE, showsVersionPill } from '../lib/agentUpdate';
 import { hostRowActions } from '../lib/hostActions';
+import { HOST_FILTERS, hostMatchesFilter, type HostFilter } from '../lib/hostFilter';
+import { hostTone } from '../lib/statusTone';
 
 export default function Hosts() {
   const { user } = useAuth();
   const [adding, setAdding] = useState(false);
   const [tutorial, setTutorial] = useState(false);
+  const [filter, setFilter] = useState<HostFilter>('all');
   const [deploy, setDeploy] = useState<{ host: Host; mode: 'install' | 'uninstall' } | null>(null);
   const { data, loading, refresh } = useResource<Host[]>(
     '/api/hosts',
@@ -26,7 +28,12 @@ export default function Hosts() {
   );
   const hosts = data ?? [];
 
-  const tone = (s: Host['status']) => (s === 'online' ? 'up' : s === 'offline' ? 'down' : 'muted');
+  const shown = hosts.filter((h) => hostMatchesFilter(h, filter));
+  const tabs = HOST_FILTERS.map((f) => ({
+    key: f.key,
+    label: f.label,
+    count: hosts.filter((h) => hostMatchesFilter(h, f.key)).length,
+  }));
 
   return (
     <div>
@@ -62,35 +69,72 @@ export default function Hosts() {
           />
         </div>
       ) : (
-        <div
-          id="host-list"
-          className="mt-6 divide-y divide-hairline overflow-hidden rounded-card border border-hairline"
-        >
-          {hosts.map((h) => (
-            <div key={h.id} className="flex items-center transition-colors hover:bg-surface-2">
-              <Link to={`/hosts/${h.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
-                <EntityIcon url={h.icon_url} name={h.name} size={36} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-content">{h.name}</p>
-                  <p className="truncate text-xs text-muted">
-                    {h.os}
-                    {h.agent_version ? ` · agent ${h.agent_version}` : ''}
-                    {h.last_seen_at ? ` · seen ${new Date(h.last_seen_at).toLocaleString()}` : ''}
-                  </p>
-                </div>
-                {showsVersionPill(h.update_state) && (
-                  <Pill tone={UPDATE_TONE[h.update_state]}>{UPDATE_LABEL[h.update_state]}</Pill>
-                )}
-                <Pill tone={tone(h.status)}>{h.status}</Pill>
-              </Link>
-              {user?.role === 'admin' && <RowActions host={h} onInstall={() => setDeploy({ host: h, mode: 'install' })} onUpdated={refresh} />}
-              {/* Same destination as the row link, so it is a mouse affordance only. */}
-              <Link to={`/hosts/${h.id}`} className="pr-4" aria-hidden="true" tabIndex={-1}>
-                <Chevron />
-              </Link>
+        <>
+          <div className="mt-6">
+            <Tabs tabs={tabs} active={filter} onChange={setFilter} label="Filter hosts by state" />
+          </div>
+          {shown.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState title="No hosts here" description="No host is in this state right now." />
             </div>
-          ))}
-        </div>
+          ) : (
+            <Table
+              id="host-list"
+              className="mt-4"
+              head={
+                <>
+                  <Th>Host</Th>
+                  <Th>OS</Th>
+                  <Th>Agent</Th>
+                  <Th>Last seen</Th>
+                  <Th>Agent build</Th>
+                  <Th>State</Th>
+                  {user?.role === 'admin' && <Th className="text-right">Actions</Th>}
+                </>
+              }
+            >
+              {shown.map((h) => (
+                <Tr key={h.id}>
+                  <Td>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <EntityIcon url={h.icon_url} name={h.name} size={28} />
+                      <Link
+                        to={`/hosts/${h.id}`}
+                        className="truncate font-medium text-link hover:text-link-hover hover:underline"
+                      >
+                        {h.name}
+                      </Link>
+                    </div>
+                  </Td>
+                  <Td className="whitespace-nowrap text-muted">{h.os || '—'}</Td>
+                  <Td className="whitespace-nowrap tabular-nums text-muted">{h.agent_version || '—'}</Td>
+                  <Td className="whitespace-nowrap text-muted">
+                    {h.last_seen_at ? new Date(h.last_seen_at).toLocaleString() : 'never'}
+                  </Td>
+                  <Td>
+                    {showsVersionPill(h.update_state) ? (
+                      <Pill tone={UPDATE_TONE[h.update_state]}>{UPDATE_LABEL[h.update_state]}</Pill>
+                    ) : (
+                      <span className="text-muted">up to date</span>
+                    )}
+                  </Td>
+                  <Td>
+                    <Pill tone={hostTone(h.status)}>{h.status}</Pill>
+                  </Td>
+                  {user?.role === 'admin' && (
+                    <Td className="text-right">
+                      <RowActions
+                        host={h}
+                        onInstall={() => setDeploy({ host: h, mode: 'install' })}
+                        onUpdated={refresh}
+                      />
+                    </Td>
+                  )}
+                </Tr>
+              ))}
+            </Table>
+          )}
+        </>
       )}
 
       {tutorial && <TutorialModal onClose={() => setTutorial(false)} onAdd={() => { setTutorial(false); setAdding(true); }} />}
@@ -142,8 +186,8 @@ function RowActions({ host, onInstall, onUpdated }: { host: Host; onInstall: () 
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-2 pr-2">
-      {failed && <span className="max-w-48 truncate text-xs text-red-400" title={failed}>{failed}</span>}
+    <div className="flex shrink-0 items-center justify-end gap-2">
+      {failed && <span className="max-w-48 truncate text-xs text-down" title={failed}>{failed}</span>}
       {actions.update && (
         <Button variant="secondary" disabled={busy} onClick={update}>
           Update
@@ -203,7 +247,7 @@ function AgentRollup() {
           {data.stalled.map((h, i) => (
             <span key={h.id}>
               {i > 0 && ', '}
-              <Link to={`/hosts/${h.id}`} className="text-content underline underline-offset-2">
+              <Link to={`/hosts/${h.id}`} className="text-link underline underline-offset-2">
                 {h.name}
               </Link>
             </span>

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api, type Host, type Tool } from '../api';
 import { useAuth } from '../auth';
 import { Button } from './ui';
 import Avatar from './Avatar';
 import SearchBar from './SearchBar';
 import NavIcon, { type IconName } from './NavIcon';
+import Wordmark from './Wordmark';
 import { prefetch } from '../lib/cache';
-import { SOURCE_URL, UI_VERSION } from '../version';
+import { SOURCE_URL } from '../version';
 
 const primaryNav: { to: string; label: string; icon: IconName; end: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', end: true },
@@ -42,10 +43,9 @@ export default function Layout() {
   return (
     <div className="flex h-screen">
       <aside className="flex w-60 shrink-0 flex-col border-r border-hairline bg-surface-1">
-        <Link to="/" className="flex items-baseline gap-1.5 px-4 py-4">
-          <span className="text-sm font-medium tracking-tight text-accent">Reeve</span>
-          <span className="text-[10px] font-medium text-muted">{UI_VERSION}</span>
-        </Link>
+        <div className="px-4 py-4">
+          <Wordmark />
+        </div>
 
         <div className="px-3">
           <SearchBar value={search} onChange={setSearch} onSubmit={submitSearch} />
@@ -57,7 +57,7 @@ export default function Layout() {
           ))}
           {user?.role === 'admin' && (
             <>
-              <p className="px-2 pb-1 pt-5 text-[10px] font-medium uppercase tracking-wide text-muted">Admin</p>
+              <p className="px-2 pb-1 pt-5 text-eyebrow font-semibold uppercase text-muted">Admin</p>
               {adminNav.map((item) => (
                 <NavItem key={item.to} {...item} end={false} />
               ))}
@@ -92,7 +92,7 @@ export default function Layout() {
       </aside>
 
       <main className="min-w-0 flex-1 overflow-auto bg-canvas">
-        <div className="mx-auto max-w-6xl px-8 py-8">
+        <div className="mx-auto max-w-7xl px-8 py-6">
           <Outlet />
         </div>
       </main>
@@ -106,8 +106,10 @@ function NavItem({ to, label, icon, end }: { to: string; label: string; icon: Ic
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-2.5 rounded-button px-2 py-1.5 text-sm transition-colors ${
-          isActive ? 'bg-surface-2 font-medium text-content' : 'text-muted hover:bg-surface-2 hover:text-content'
+        `flex items-center gap-2.5 rounded-button border-l-2 px-2 py-1.5 text-sm transition-colors ${
+          isActive
+            ? 'border-accent bg-surface-2 font-semibold text-content'
+            : 'border-transparent text-content hover:bg-surface-2'
         }`
       }
     >

@@ -65,14 +65,14 @@ export default function Modal({
       <div
         ref={dialog}
         tabIndex={-1}
-        className={`w-full ${width} rounded-card border border-hairline bg-surface-1 p-6 focus:outline-none`}
+        className={`w-full ${width} rounded-card border border-hairline bg-canvas p-6 shadow-pop focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight text-content">{title}</h2>
+          <h2 className="text-base font-semibold text-content">{title}</h2>
           {headerRight}
         </div>
         {children}

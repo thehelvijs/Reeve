@@ -9,7 +9,7 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2" aria-hidden>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="rounded-card border border-hairline bg-surface-1 px-4 py-3">
+        <div key={i} className="rounded-card border border-hairline bg-canvas px-4 py-3">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="mt-2 h-3 w-64" />
         </div>

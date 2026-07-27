@@ -1,11 +1,11 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TdHTMLAttributes } from 'react';
 
 // buttonBox is the geometry every button-shaped control shares: padding, radius,
 // type scale and a border. Exported so a control that cannot be a <button> — a
 // download link, say — occupies the same box instead of an approximation that
 // ends up a few pixels short of the button beside it.
 export const buttonBox =
-  'inline-flex items-center justify-center whitespace-nowrap rounded-button border border-hairline px-3 py-2 text-sm font-medium text-content transition-colors duration-150 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'inline-flex items-center justify-center whitespace-nowrap rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm font-medium text-content transition-colors duration-150 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 
 // Primary: the single accent action per view. Dark label on acid-lime.
 export function Button({
@@ -18,12 +18,12 @@ export function Button({
   // accent button is 2px shorter than the outlined ones and any row mixing them
   // sits crooked.
   const styles = {
-    primary: 'border-transparent bg-accent text-accent-fg hover:bg-accent-hover',
-    secondary: 'border-hairline text-muted hover:text-content hover:border-hairline-strong',
-    danger: 'border-hairline text-muted hover:text-red-400 hover:border-red-400/40',
+    primary: 'border-transparent bg-accent font-semibold text-accent-fg hover:bg-accent-hover',
+    secondary: 'border-hairline-strong bg-canvas text-content hover:bg-surface-2',
+    danger: 'border-down-line bg-canvas text-down hover:border-down hover:bg-down-soft',
   }[variant];
   const base =
-    'inline-flex items-center justify-center whitespace-nowrap rounded-button border px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:pointer-events-none';
+    'inline-flex items-center justify-center whitespace-nowrap rounded-button border px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-link disabled:opacity-50 disabled:pointer-events-none';
   return <button type={type} className={`${base} ${styles} ${className}`} {...props} />;
 }
 
@@ -55,7 +55,7 @@ export function Form({
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`w-full rounded-button bg-surface-1 border border-hairline px-3 py-2 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
+      className={`w-full rounded-button bg-canvas border border-hairline-strong px-3 py-2 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-link ${className}`}
       {...props}
     />
   );
@@ -64,16 +64,16 @@ export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInpu
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-medium text-muted">{label}</span>
+      <span className="text-xs font-semibold text-content">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-muted/70">{hint}</span>}
+      {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
   );
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-card border border-hairline bg-surface-1 ${className}`}>{children}</div>
+    <div className={`rounded-card border border-hairline bg-canvas ${className}`}>{children}</div>
   );
 }
 
@@ -85,15 +85,118 @@ export function Pill({
   tone?: 'muted' | 'up' | 'down' | 'warn';
 }) {
   const styles = {
-    muted: 'bg-surface-2 text-muted border-hairline',
-    up: 'bg-green-500/10 text-green-400 border-green-500/20',
-    down: 'bg-red-500/10 text-red-400 border-red-500/20',
-    warn: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    muted: 'bg-idle-soft text-idle border-idle-line',
+    up: 'bg-up-soft text-up border-up-line',
+    down: 'bg-down-soft text-down border-down-line',
+    warn: 'bg-warn-soft text-warn border-warn-line',
   }[tone];
   return (
-    <span className={`inline-flex items-center rounded-pill border px-2 py-0.5 text-xs ${styles}`}>
+    <span
+      className={`inline-flex items-center rounded-pill border px-2 py-0.5 text-xs font-medium ${styles}`}
+    >
       {children}
     </span>
+  );
+}
+
+// Eyebrow labels a group of tiles or a section of a page. Small caps, muted,
+// so a heading never competes with the page title.
+export function Eyebrow({ children }: { children: ReactNode }) {
+  return <h2 className="text-eyebrow font-semibold uppercase text-muted">{children}</h2>;
+}
+
+// Table is the default shape for a list of records: every column is named, so a
+// bar or a pill in a row can be read without guessing what it measures.
+export function Table({
+  head,
+  children,
+  id,
+  className = '',
+}: {
+  head: ReactNode;
+  children: ReactNode;
+  id?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`overflow-x-auto rounded-card border border-hairline ${className}`}>
+      <table id={id} className="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr className="border-b border-hairline bg-surface-1">{head}</tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+export function Th({ children, className = '' }: { children?: ReactNode; className?: string }) {
+  return (
+    <th
+      scope="col"
+      className={`whitespace-nowrap px-4 py-2 text-eyebrow font-semibold uppercase text-muted ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+export function Tr({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <tr className={`border-b border-hairline last:border-0 hover:bg-surface-1 ${className}`}>
+      {children}
+    </tr>
+  );
+}
+
+export function Td({ children, className = '', ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
+  return (
+    <td className={`px-4 py-2.5 align-middle ${className}`} {...props}>
+      {children}
+    </td>
+  );
+}
+
+// Tabs filter a list in place. The count is part of the label: it says how much
+// is behind a tab before it is opened, and reads as zero rather than empty.
+export function Tabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+  label,
+}: {
+  tabs: { key: T; label: string; count: number }[];
+  active: T;
+  onChange: (key: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="border-b border-hairline" role="tablist" aria-label={label}>
+      <div className="-mb-px flex gap-4 overflow-x-auto">
+        {tabs.map((t) => {
+          const selected = t.key === active;
+          let tone = 'border-transparent text-muted hover:border-hairline-strong hover:text-content';
+          if (selected) {
+            tone = 'border-link font-semibold text-content';
+          }
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(t.key)}
+              className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-1 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-link ${tone}`}
+            >
+              {t.label}
+              <span className="rounded-pill bg-surface-2 px-1.5 text-xs font-medium tabular-nums text-muted">
+                {t.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -101,5 +204,5 @@ export function ErrorText({ children }: { children: ReactNode }) {
   if (!children) {
     return null;
   }
-  return <p className="text-sm text-red-400">{children}</p>;
+  return <p className="text-sm text-down">{children}</p>;
 }

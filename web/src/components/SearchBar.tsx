@@ -55,9 +55,9 @@ export default function SearchBar({
             ref.current?.blur();
           }
         }}
-        className="w-full rounded-button border border-hairline bg-surface-1 py-2 pl-9 pr-14 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-search-cancel-button]:hidden"
+        className="w-full rounded-button border border-hairline-strong bg-canvas py-2 pl-9 pr-14 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-link [&::-webkit-search-cancel-button]:hidden"
       />
-      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-[5px] border border-hairline bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-button border border-hairline bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted">
         {isMac ? '⌘K' : 'Ctrl K'}
       </kbd>
     </div>
