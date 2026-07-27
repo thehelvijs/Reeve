@@ -382,6 +382,9 @@ export interface InventoryItem {
   source_type: string;
   source_ref: string;
   name: string;
+  // What the machine says this is doing now — a systemd active state or a
+  // container state. Empty for a cron job, which has no running state.
+  state: string;
   detail: string;
   linked: boolean;
 }
@@ -404,6 +407,16 @@ export const CREDENTIAL_FIELDS: Record<CredentialType, string[]> = {
   api_token: ['token'],
   db: ['host', 'port', 'username', 'password', 'database'],
   kv: [],
+};
+
+// What each type is called on screen. `ssh_password` and `kv` are storage keys;
+// both the picker and the stored list used to print them raw.
+export const CREDENTIAL_LABEL: Record<CredentialType, string> = {
+  ssh_password: 'SSH password',
+  ssh_key: 'SSH key',
+  api_token: 'API token',
+  db: 'Database login',
+  kv: 'Key/value pairs',
 };
 
 // endpointString renders a tool's address as a copyable URL/host:port. A tool

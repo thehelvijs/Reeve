@@ -33,6 +33,50 @@ export function hostTone(status: Host['status']): Tone {
   return 'muted';
 }
 
+// A unit or container reports its own state word, and there are more of them
+// than either daemon documents in one place. Anything unrecognised reads as
+// muted rather than as a guess: "dead" is systemd's word for a unit that exited
+// cleanly, so painting an unknown word red would cry wolf on a healthy machine.
+const UNIT_TONE: Record<string, Tone> = {
+  active: 'up',
+  running: 'up',
+  activating: 'warn',
+  deactivating: 'warn',
+  restarting: 'warn',
+  paused: 'warn',
+  reloading: 'warn',
+  failed: 'down',
+  error: 'down',
+  inactive: 'muted',
+  exited: 'muted',
+  created: 'muted',
+  dead: 'muted',
+  removing: 'muted',
+};
+
+export function unitStateTone(state: string): Tone {
+  return UNIT_TONE[state.toLowerCase()] ?? 'muted';
+}
+
+// ALERT_LABEL is the operator-facing name of every alert an event can carry.
+// The raw type is a server key: `mem_high` is not a phrase, and the UI used to
+// print it with one underscore swapped for a space, which left the rest in.
+const ALERT_LABEL: Record<string, string> = {
+  agent_offline: 'host unreachable',
+  down: 'service down',
+  log_error: 'error in logs',
+  cpu_high: 'CPU high',
+  mem_high: 'memory high',
+  disk_high: 'disk high',
+  temp_high: 'temperature high',
+  load_high: 'load high',
+  net_high: 'network high',
+};
+
+export function alertLabel(type: string): string {
+  return ALERT_LABEL[type] ?? type.replaceAll('_', ' ');
+}
+
 const DOT: Record<Tone, string> = {
   up: 'bg-up-solid',
   down: 'bg-down-solid',

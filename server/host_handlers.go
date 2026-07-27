@@ -243,8 +243,12 @@ type inventoryItem struct {
 	SourceType string `json:"source_type"`
 	SourceRef  string `json:"source_ref"`
 	Name       string `json:"name"`
-	Detail     string `json:"detail"`
-	Linked     bool   `json:"linked"`
+	// State is what the machine says this thing is doing right now, on its own
+	// so the UI can give it a named column and a tone instead of burying it in
+	// Detail. Empty for a cron job, which has no running state to report.
+	State  string `json:"state"`
+	Detail string `json:"detail"`
+	Linked bool   `json:"linked"`
 }
 
 func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
@@ -262,13 +266,13 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 	for _, s := range services {
 		resp.Services = append(resp.Services, inventoryItem{
 			SourceType: "systemd", SourceRef: s.Unit, Name: s.Unit,
-			Detail: s.ActiveState + "/" + s.SubState, Linked: linked["systemd:"+s.Unit],
+			State: s.ActiveState, Detail: s.SubState, Linked: linked["systemd:"+s.Unit],
 		})
 	}
 	for _, c := range containers {
 		resp.Containers = append(resp.Containers, inventoryItem{
 			SourceType: "docker", SourceRef: c.ContainerID, Name: c.Name,
-			Detail: c.Image + " · " + c.State, Linked: linked["docker:"+c.ContainerID],
+			State: c.State, Detail: c.Image, Linked: linked["docker:"+c.ContainerID],
 		})
 	}
 	for _, c := range crons {
