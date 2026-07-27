@@ -34,6 +34,8 @@ type Host struct {
 	AutoUpdate       string
 	AutoUpdateVetoed bool
 	UpdateStartedAt  *time.Time
+	// UpdateForced reports that an operator granted the slot by hand.
+	UpdateForced     bool
 	LastSeenAt       *time.Time
 	OfflineAfterSecs int
 	// ControlEnabled is what the agent last reported: whether it will run
@@ -184,7 +186,7 @@ func (db *DB) DeleteHost(id string) error {
 	return db.exec1(`DELETE FROM hosts WHERE id = ?`, id)
 }
 
-const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
+const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, update_forced, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
 
 func (db *DB) scanHost(row scanner) (Host, error) {
 	var h Host
@@ -192,7 +194,7 @@ func (db *DB) scanHost(row scanner) (Host, error) {
 	var lastSeen, updateStarted *string
 	var lat, lng sql.NullFloat64
 	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.IPAddress, &h.AgentVersion,
-		&h.AgentChecksum, &h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &lastSeen,
+		&h.AgentChecksum, &h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &h.UpdateForced, &lastSeen,
 		&h.OfflineAfterSecs, &h.ControlEnabled, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng); err != nil {
 		return Host{}, err
 	}

@@ -105,7 +105,19 @@ func effectiveAutoUpdate(policy string, fleetDefault bool) bool {
 }
 
 func updateStateFor(h store.Host, uc updateContext, now time.Time) string {
-	if h.AutoUpdateVetoed || !effectiveAutoUpdate(h.AutoUpdate, uc.FleetDefault) {
+	// The machine's own veto is absolute: the agent ignores the ack, so nothing
+	// the server does can move it.
+	if h.AutoUpdateVetoed {
+		return updateStateDisabled
+	}
+	// Auto-update off means "not on the paced rollout", not "never": an operator
+	// can still push one by hand, and while that slot exists this has to say so,
+	// or the next push would release the slot the button just granted.
+	//
+	// Only a *forced* slot counts. A paced slot on a host whose policy has since
+	// turned off is dangling, and reading it as live is what once halted a whole
+	// fleet behind a row the UI showed as "updates off".
+	if !effectiveAutoUpdate(h.AutoUpdate, uc.FleetDefault) && !(h.UpdateStartedAt != nil && h.UpdateForced) {
 		return updateStateDisabled
 	}
 	// A server with no builds has nothing to chase, whatever a host reports.

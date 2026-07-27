@@ -21,6 +21,18 @@ func publishAgent(t *testing.T, a *app) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// pacedSlot stamps the kind of slot the rollout grants, as opposed to the forced
+// one StartHostUpdate records for an operator pressing Update. Tests about a
+// dangling paced slot have to say which they mean.
+func pacedSlot(t *testing.T, ts *testServer, hostID string, at time.Time) {
+	t.Helper()
+	if _, err := ts.app.db.SQL().Exec(
+		`UPDATE hosts SET update_started_at = ?, update_forced = 0 WHERE id = ?`,
+		at.UTC().Format(time.RFC3339), hostID); err != nil {
+		t.Fatalf("paced slot: %v", err)
+	}
+}
+
 func TestEffectiveAutoUpdateResolvesOverride(t *testing.T) {
 	cases := []struct {
 		policy       string
@@ -55,7 +67,10 @@ func TestUpdateStateFor(t *testing.T) {
 		{"holding a live slot", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateDefault, UpdateStartedAt: &fresh}, updateStateUpdating},
 		{"slot past the stall window", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateDefault, UpdateStartedAt: &old}, updateStateStalled},
 		{"vetoed on the host", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateDefault, AutoUpdateVetoed: true}, updateStateDisabled},
-		{"policy off", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateOff}, updateStateDisabled},
+		{"policy off, no slot", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateOff}, updateStateDisabled},
+		{"policy off, operator forced a slot", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateOff, UpdateStartedAt: &fresh, UpdateForced: true}, updateStateUpdating},
+		{"policy off, dangling paced slot", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateOff, UpdateStartedAt: &old}, updateStateDisabled},
+		{"vetoed even with a forced slot", store.Host{AgentChecksum: "old", AutoUpdate: store.AutoUpdateOff, UpdateStartedAt: &fresh, UpdateForced: true, AutoUpdateVetoed: true}, updateStateDisabled},
 		{"never reported", store.Host{AgentChecksum: "", AutoUpdate: store.AutoUpdateDefault}, updateStateUnknown},
 	}
 	for _, c := range cases {

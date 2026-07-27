@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS hosts (
                          CHECK (auto_update IN ('default','on','off')),
     auto_update_vetoed INTEGER NOT NULL DEFAULT 0,
     update_started_at  TEXT,
+    -- Whether the slot above was granted by an operator pressing Update rather
+    -- than by the paced rollout. The two are treated differently: a paced slot
+    -- on a host whose policy has since turned off is dangling and must not
+    -- count, while a forced one is exactly what the operator asked for.
+    update_forced      INTEGER NOT NULL DEFAULT 0,
     last_seen_at       TEXT,
     offline_after_secs INTEGER NOT NULL DEFAULT 60,
     -- Whether the agent last said it will run commands. Never assumed: an

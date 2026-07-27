@@ -356,6 +356,9 @@ export interface Host {
   latitude?: number;
   longitude?: number;
   auto_update: AutoUpdatePolicy;
+  // The machine's own refusal (REEVE_AUTO_UPDATE=false). No server-side policy
+  // or operator override outranks it: the agent ignores the ack.
+  auto_update_vetoed: boolean;
   update_state: UpdateState;
   control_enabled: boolean;
 }

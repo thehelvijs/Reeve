@@ -63,7 +63,7 @@ func TestApplyPushRecordsVeto(t *testing.T) {
 func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	db.StartHostUpdate(h.ID, time.Now().UTC())
+	pacedSlot(t, db, h.ID, time.Now().UTC())
 
 	vetoed := contracts.Push{AgentVersion: "0.1.0", AutoUpdateVetoed: true}
 	if err := db.ApplyPush(h.ID, vetoed, time.Now().UTC()); err != nil {
@@ -76,7 +76,7 @@ func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
 
 	// A push without a veto must leave a live slot alone, or every heartbeat
 	// would cancel the update the host is in the middle of.
-	db.StartHostUpdate(h.ID, time.Now().UTC())
+	pacedSlot(t, db, h.ID, time.Now().UTC())
 	plain := contracts.Push{AgentVersion: "0.1.0"}
 	if err := db.ApplyPush(h.ID, plain, time.Now().UTC()); err != nil {
 		t.Fatalf("apply push: %v", err)
@@ -92,7 +92,7 @@ func TestApplyPushWithAVetoReleasesTheSlot(t *testing.T) {
 func TestSetHostAutoUpdateOffReleasesTheSlot(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
-	db.StartHostUpdate(h.ID, time.Now().UTC())
+	pacedSlot(t, db, h.ID, time.Now().UTC())
 
 	if err := db.SetHostAutoUpdate(h.ID, AutoUpdateOff); err != nil {
 		t.Fatalf("set policy: %v", err)
@@ -103,7 +103,7 @@ func TestSetHostAutoUpdateOffReleasesTheSlot(t *testing.T) {
 	}
 
 	// Switching back on must not resurrect or invent a slot.
-	db.StartHostUpdate(h.ID, time.Now().UTC())
+	pacedSlot(t, db, h.ID, time.Now().UTC())
 	if err := db.SetHostAutoUpdate(h.ID, AutoUpdateOn); err != nil {
 		t.Fatalf("set policy on: %v", err)
 	}
@@ -115,6 +115,18 @@ func TestSetHostAutoUpdateOffReleasesTheSlot(t *testing.T) {
 
 // A slot on a host that can no longer update is dangling. It must neither be
 // named as stalled nor block a grant, or one ineligible host halts the fleet.
+// pacedSlot stamps the kind of slot the paced rollout grants. StartHostUpdate is
+// the operator's forced grant, which deliberately sits outside the rollout, so a
+// test about the rollout's own bookkeeping has to say which it means.
+func pacedSlot(t *testing.T, db *DB, id string, at time.Time) {
+	t.Helper()
+	if _, err := db.SQL().Exec(
+		`UPDATE hosts SET update_started_at = ?, update_forced = 0 WHERE id = ?`,
+		at.UTC().Format(time.RFC3339), id); err != nil {
+		t.Fatalf("paced slot: %v", err)
+	}
+}
+
 func TestIneligibleHostsDoNotHoldTheRollout(t *testing.T) {
 	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	later := started.Add(time.Hour)
@@ -135,7 +147,7 @@ func TestIneligibleHostsDoNotHoldTheRollout(t *testing.T) {
 		db := openTemp(t)
 		dangling, _ := db.CreateHost("dangling", "linux", "", "hash-d", 60)
 		next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
-		db.StartHostUpdate(dangling.ID, started)
+		pacedSlot(t, db, dangling.ID, started)
 		c.spoil(db, dangling.ID)
 
 		stalled, err := db.ListStalledHosts(cutoff, true)
@@ -166,7 +178,7 @@ func TestFleetDefaultOffMakesADefaultPolicyHostIneligible(t *testing.T) {
 	db := openTemp(t)
 	dangling, _ := db.CreateHost("dangling", "linux", "", "hash-d", 60)
 	next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
-	db.StartHostUpdate(dangling.ID, started)
+	pacedSlot(t, db, dangling.ID, started)
 
 	stalled, err := db.ListStalledHosts(cutoff, false)
 	if err != nil {
@@ -186,7 +198,7 @@ func TestFleetDefaultOffMakesADefaultPolicyHostIneligible(t *testing.T) {
 	// A host pinned `on` overrides the fleet default and must still block.
 	pinned, _ := db.CreateHost("pinned", "linux", "", "hash-p", 60)
 	db.SetHostAutoUpdate(pinned.ID, AutoUpdateOn)
-	db.StartHostUpdate(pinned.ID, started)
+	pacedSlot(t, db, pinned.ID, started)
 	stalled, err = db.ListStalledHosts(cutoff, false)
 	if err != nil {
 		t.Fatalf("list stalled after pin: %v", err)
@@ -202,7 +214,7 @@ func TestClearStalledUpdatesSweepsIneligibleHostsToo(t *testing.T) {
 	db := openTemp(t)
 	h, _ := db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
-	db.StartHostUpdate(h.ID, started)
+	pacedSlot(t, db, h.ID, started)
 	db.exec1(`UPDATE hosts SET auto_update_vetoed = 1 WHERE id = ?`, h.ID)
 
 	if err := db.ClearStalledUpdates(started.Add(time.Hour)); err != nil {
@@ -221,9 +233,7 @@ func TestUpdateSlotLifecycle(t *testing.T) {
 	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	cutoff := now.Add(-15 * time.Minute)
 
-	if err := db.StartHostUpdate(h.ID, now); err != nil {
-		t.Fatalf("start update: %v", err)
-	}
+	pacedSlot(t, db, h.ID, now)
 	stalled, err := db.ListStalledHosts(cutoff, true)
 	if err != nil {
 		t.Fatalf("list stalled: %v", err)
@@ -255,7 +265,7 @@ func TestStalledSlotsAreCountedNamedAndCleared(t *testing.T) {
 	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	cutoff := started.Add(15 * time.Minute)
 
-	db.StartHostUpdate(h.ID, started)
+	pacedSlot(t, db, h.ID, started)
 
 	stalled, err := db.ListStalledHosts(cutoff, true)
 	if err != nil {
@@ -282,8 +292,8 @@ func TestSlotStampsCompareCorrectlyAcrossFractions(t *testing.T) {
 	late, _ := db.CreateHost("late", "linux", "", "hash-late", 60)
 	base := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 
-	db.StartHostUpdate(early.ID, base.Add(500*time.Millisecond))
-	db.StartHostUpdate(late.ID, base.Add(2*time.Second))
+	pacedSlot(t, db, early.ID, base.Add(500*time.Millisecond))
+	pacedSlot(t, db, late.ID, base.Add(2*time.Second))
 
 	stalled, err := db.ListStalledHosts(base.Add(time.Second), true)
 	if err != nil {
@@ -320,7 +330,7 @@ func TestTryStartHostUpdateRefusesAtCap(t *testing.T) {
 	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
 	cutoff := now.Add(-15 * time.Minute)
 
-	db.StartHostUpdate(a.ID, now)
+	pacedSlot(t, db, a.ID, now)
 	ok, err := db.TryStartHostUpdate(b.ID, now, cutoff, 1, true)
 	if err != nil {
 		t.Fatalf("try start: %v", err)
@@ -335,7 +345,7 @@ func TestTryStartHostUpdateRefusesWhileAnyHostIsStalled(t *testing.T) {
 	stalled, _ := db.CreateHost("stalled", "linux", "", "hash-s", 60)
 	next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
 	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
-	db.StartHostUpdate(stalled.ID, started)
+	pacedSlot(t, db, stalled.ID, started)
 	later := started.Add(time.Hour)
 	cutoff := later.Add(-15 * time.Minute)
 
@@ -414,5 +424,62 @@ func TestGetIntSettingDefaultsAndParses(t *testing.T) {
 	db.SetSetting("agent_update.concurrency", "not-a-number")
 	if got := db.GetIntSetting("agent_update.concurrency", 3); got != 3 {
 		t.Errorf("unparseable = %d, want the default 3", got)
+	}
+}
+
+// An operator's forced slot sits outside the paced rollout: update-now already
+// bypasses the concurrency cap and a pause, so its slot must not count against
+// either. Otherwise pressing Update on a host that never comes back halts the
+// whole fleet, and the documented escape — set that host's policy to off — is no
+// escape at all when the operator forced it because the policy was already off.
+func TestForcedSlotDoesNotBlockThePacedRollout(t *testing.T) {
+	db := openTemp(t)
+	forced, _ := db.CreateHost("forced", "linux", "", "hash-f", 60)
+	next, _ := db.CreateHost("next", "linux", "", "hash-n", 60)
+	started := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	later := started.Add(time.Hour)
+	cutoff := later.Add(-15 * time.Minute)
+
+	if err := db.StartHostUpdate(forced.ID, started); err != nil {
+		t.Fatalf("start update: %v", err)
+	}
+	got, _ := db.GetHost(forced.ID)
+	if !got.UpdateForced {
+		t.Fatal("StartHostUpdate did not record the slot as operator-forced")
+	}
+
+	// Long past the stall window, and it still names nobody and blocks nobody.
+	stalled, err := db.ListStalledHosts(cutoff, true)
+	if err != nil {
+		t.Fatalf("list stalled: %v", err)
+	}
+	if len(stalled) != 0 {
+		t.Errorf("stalled = %+v, want none: a forced slot is not the rollout's business", stalled)
+	}
+	ok, err := db.TryStartHostUpdate(next.ID, later, cutoff, 1, true)
+	if err != nil {
+		t.Fatalf("try start: %v", err)
+	}
+	if !ok {
+		t.Error("a forced slot blocked the paced rollout at a cap of 1")
+	}
+}
+
+// The paced path must not inherit the flag from whatever held the slot before.
+func TestTryStartHostUpdateRecordsAPacedSlot(t *testing.T) {
+	db := openTemp(t)
+	h, _ := db.CreateHost("h", "linux", "", "hash-h", 60)
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+
+	db.StartHostUpdate(h.ID, now)
+	db.ClearHostUpdateSlot(h.ID)
+	if got, _ := db.GetHost(h.ID); got.UpdateForced {
+		t.Error("clearing a slot left it marked forced")
+	}
+	if ok, err := db.TryStartHostUpdate(h.ID, now, now.Add(-time.Hour), 1, true); err != nil || !ok {
+		t.Fatalf("try start = %v, %v", ok, err)
+	}
+	if got, _ := db.GetHost(h.ID); got.UpdateForced {
+		t.Error("a paced grant was recorded as operator-forced")
 	}
 }

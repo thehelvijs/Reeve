@@ -100,10 +100,6 @@ func (a *app) handleHostUpdateNow(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "update_vetoed", "auto-update is disabled on the host itself")
 		return
 	}
-	if !effectiveAutoUpdate(h.AutoUpdate, a.agentUpdateConfig().Enabled) {
-		writeError(w, http.StatusConflict, "update_disabled", "auto-update is off for this host")
-		return
-	}
 	uc := a.updateContext()
 	// Only the server having nothing to serve is a real refusal. A host that has
 	// not reported a checksum is precisely the host this button exists for: the

@@ -204,7 +204,9 @@ never does:
     new version.
   - `disabled` — auto-update is off, either by the host's own veto
     (`REEVE_AUTO_UPDATE=false`) or by policy (fleet default off with no
-    per-host override, or an explicit `off` override).
+    per-host override, or an explicit `off` override). A host whose policy is off
+    reads `updating` while it holds a slot an operator forced; a *paced* slot on
+    such a host is dangling and still reads `disabled`.
   - `unknown` — the host has never reported a checksum, or the server ships no
     agent builds, so there is nothing to compare. Such a host is never chased by
     the rollout on its own; `update-now` still grants it a slot, and while it
@@ -247,9 +249,13 @@ Body `{"policy": "default" | "on" | "off"}`. `200` with the updated `hostView`;
 
 Grants the host a rollout slot immediately, bypassing both the concurrency cap
 and a paused rollout — this is an explicit operator override, not a paced grant.
-`204 No Content`. `409 update_vetoed` if the host itself refuses updates
-(`REEVE_AUTO_UPDATE=false`); `409 update_disabled` if auto-update is off for
-the host by policy; `409 already_up_to_date` if the host already
+`204 No Content`. A policy of `off` is **not** a refusal here: it means "not on
+the paced rollout", and this is the operator asking for one host now. Such a slot
+is recorded as forced and sits outside the rollout entirely — it neither counts
+against the concurrency cap nor pauses anyone if it goes stale, so pressing this
+on a host that never comes back cannot halt the fleet. `409 update_vetoed` if the
+host itself refuses updates (`REEVE_AUTO_UPDATE=false`), the one case nothing can
+override because the agent ignores the ack; `409 already_up_to_date` if the host already
 reported the published build's checksum — stamping a slot for a host with
 nothing to do would occupy a concurrency slot indefinitely if that host is
 offline, silently pausing the rest of the fleet;

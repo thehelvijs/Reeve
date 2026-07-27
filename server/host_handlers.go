@@ -18,6 +18,11 @@ type hostView struct {
 	IPAddress        string `json:"ip_address"`
 	AgentVersion     string `json:"agent_version"`
 	AutoUpdate       string `json:"auto_update"`
+	// AutoUpdateVetoed is the machine's own refusal (REEVE_AUTO_UPDATE=false),
+	// which no server-side policy or operator override can outrank: the agent
+	// ignores the ack. Exposed so the UI hides an Update button that would lie
+	// rather than showing one that cannot work.
+	AutoUpdateVetoed bool   `json:"auto_update_vetoed"`
 	UpdateState      string `json:"update_state"`
 	Status           string `json:"status"` // online | offline | never
 	// ControlEnabled is what the agent last said about running commands. The
@@ -49,7 +54,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 	}
 	return hostView{
 		ID: h.ID, Name: h.Name, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
-		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate,
+		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate, AutoUpdateVetoed: h.AutoUpdateVetoed,
 		IPAddress:   h.IPAddress,
 		UpdateState: updateStateFor(h, uc, now), ControlEnabled: h.ControlEnabled,
 		Status: hostStatus(h, now), LastSeenAt: last,

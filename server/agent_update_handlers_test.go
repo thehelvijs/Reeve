@@ -175,14 +175,48 @@ func TestSetHostAutoUpdatePolicy(t *testing.T) {
 	}
 }
 
-func TestUpdateNowRefusesDisabledHost(t *testing.T) {
+// "Never update" is a rollout policy, not a prohibition: an operator standing at
+// the page and pressing Update is asking for this one host, now, and update-now
+// already bypasses the concurrency cap and a paused rollout for the same reason.
+func TestUpdateNowReachesAPolicyOffHost(t *testing.T) {
 	ts := newTestServer(t)
+	publishAgent(t, ts.app)
 	c := ts.client(t)
 	signup(t, ts, c, "admin@example.com", "password123")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
+	reportBuild(t, ts, h.ID, "old-sum")
 	ts.app.db.SetHostAutoUpdate(h.ID, store.AutoUpdateOff)
 
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	resp, body := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+h.ID+"/update-now", nil, nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204: %s", resp.StatusCode, body)
+	}
+	got, _ := ts.app.db.GetHost(h.ID)
+	if got.UpdateStartedAt == nil {
+		t.Fatal("no slot stamped for a host the operator explicitly asked to update")
+	}
+	if !got.UpdateForced {
+		t.Error("the slot was not marked forced, so the next push would release it as dangling")
+	}
+	// And the grant has to survive that next push, which is what carries it.
+	if !ts.app.decideCheckNow(got, "old-sum", false, time.Now().UTC()) {
+		t.Error("the host was not told to check on the push after the operator's grant")
+	}
+}
+
+// The machine's own veto is the one refusal that stands: the agent ignores the
+// ack, so granting a slot would strand it holding one it will never clear.
+func TestUpdateNowRefusesAVetoedHost(t *testing.T) {
+	ts := newTestServer(t)
+	publishAgent(t, ts.app)
+	c := ts.client(t)
+	signup(t, ts, c, "admin@example.com", "password123")
+	hostID, token := enrollHost(t, ts, c, "vetoed-host")
+	push := samplePush()
+	push.AutoUpdateVetoed = true
+	ts.do(t, nil, http.MethodPost, "/api/ingest", push, map[string]string{"Authorization": "Bearer " + token})
+
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/hosts/"+hostID+"/update-now", nil, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("status = %d, want 409", resp.StatusCode)
 	}
@@ -273,7 +307,7 @@ func TestResumeClearsStalledHosts(t *testing.T) {
 	ts.app.db.SetSetting(settingAgentUpdateStallSecs, "1")
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	reportBuild(t, ts, h.ID, "old-sum")
-	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
+	pacedSlot(t, ts, h.ID, timeMinus(t, 10))
 
 	out := fetchRollup(t, ts, c)
 	if !out.Paused {
@@ -397,7 +431,9 @@ func TestFleetToggleOffDoesNotStallOnADefaultPolicyHost(t *testing.T) {
 
 	h, _ := ts.app.db.CreateHost("web-1", "linux", "", "hash-1", 60)
 	reportBuild(t, ts, h.ID, "old-sum")
-	ts.app.db.StartHostUpdate(h.ID, timeMinus(t, 10))
+	// A slot the paced rollout granted, not one an operator forced: the two are
+	// treated differently, and this scenario is about the paced one going stale.
+	pacedSlot(t, ts, h.ID, timeMinus(t, 10))
 
 	ts.app.db.SetSetting(settingAgentUpdateEnabled, "false")
 

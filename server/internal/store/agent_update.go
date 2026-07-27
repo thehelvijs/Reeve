@@ -18,8 +18,8 @@ func ValidAutoUpdatePolicy(p string) bool {
 	return p == AutoUpdateDefault || p == AutoUpdateOn || p == AutoUpdateOff
 }
 
-// blockingSlot matches, for the given table alias, a host whose rollout slot
-// still counts toward the fleet. A host that can no longer update is excluded:
+// blockingSlot matches, for the given table alias, a host whose *paced* rollout
+// slot still counts toward the fleet. A host that can no longer update is excluded:
 // its slot is dangling, and letting it read as stalled would halt every other
 // host behind a row the UI shows as "updates off". A policy of `default`
 // blocks only when fleetDefault is on, mirroring effectiveAutoUpdate, or a
@@ -33,6 +33,12 @@ func blockingSlot(alias string, fleetDefault bool) string {
 	return alias + `.id != '` + ServerHostID + `'` +
 		` AND ` + alias + `.update_started_at IS NOT NULL` +
 		` AND ` + alias + `.auto_update != '` + AutoUpdateOff + `'` +
+		// A forced slot is outside the paced rollout: update-now already bypasses
+		// the cap and a pause, so its slot must not count against either. Without
+		// this, pressing Update on a host that never comes back halts the whole
+		// fleet, and the documented escape — set its policy to off — is no escape
+		// when the operator forced it precisely because the policy was already off.
+		` AND ` + alias + `.update_forced = 0` +
 		` AND ` + alias + `.auto_update_vetoed = 0` +
 		` AND (` + alias + `.auto_update = '` + AutoUpdateOn + `' OR ` + def + ` = 1)`
 }
@@ -49,13 +55,13 @@ func (db *DB) SetHostAutoUpdate(id, policy string) error {
 
 // StartHostUpdate stamps a host as holding a rollout slot.
 func (db *DB) StartHostUpdate(id string, at time.Time) error {
-	return db.exec1(`UPDATE hosts SET update_started_at = ? WHERE id = ?`,
+	return db.exec1(`UPDATE hosts SET update_started_at = ?, update_forced = 1 WHERE id = ?`,
 		at.UTC().Format(slotStamp), id)
 }
 
 // ClearHostUpdateSlot releases a host's rollout slot.
 func (db *DB) ClearHostUpdateSlot(id string) error {
-	return db.exec1(`UPDATE hosts SET update_started_at = NULL WHERE id = ?`, id)
+	return db.exec1(`UPDATE hosts SET update_started_at = NULL, update_forced = 0 WHERE id = ?`, id)
 }
 
 // TryStartHostUpdate grants a rollout slot in a single conditional write, so
@@ -63,7 +69,7 @@ func (db *DB) ClearHostUpdateSlot(id string) error {
 // It refuses if any host is stalled or the live count is already at cap.
 func (db *DB) TryStartHostUpdate(id string, at, cutoff time.Time, concurrency int, fleetDefault bool) (bool, error) {
 	res, err := db.sql.Exec(`
-		UPDATE hosts SET update_started_at = ?
+		UPDATE hosts SET update_started_at = ?, update_forced = 0
 		WHERE id = ?
 		  AND NOT EXISTS (
 		    SELECT 1 FROM hosts s
@@ -120,7 +126,7 @@ func (db *DB) ListStalledHosts(cutoff time.Time, fleetDefault bool) ([]StalledHo
 // host that can no longer update is exactly what resume should also sweep away.
 func (db *DB) ClearStalledUpdates(cutoff time.Time) error {
 	_, err := db.sql.Exec(
-		`UPDATE hosts SET update_started_at = NULL
+		`UPDATE hosts SET update_started_at = NULL, update_forced = 0
 		 WHERE id != ? AND update_started_at IS NOT NULL AND update_started_at < ?`,
 		ServerHostID, cutoff.UTC().Format(slotStamp))
 	return err

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { hostRowActions } from './hostActions';
 import type { Host, UpdateState } from '../api';
 
-const host = (status: Host['status'], update_state: UpdateState): Host =>
-  ({ id: 'h', name: 'h', status, update_state } as Host);
+const host = (status: Host['status'], update_state: UpdateState, vetoed = false): Host =>
+  ({ id: 'h', name: 'h', status, update_state, auto_update_vetoed: vetoed } as Host);
 
 describe('hostRowActions', () => {
   // The whole point: a machine that is fine offers nothing to click.
@@ -15,9 +15,17 @@ describe('hostRowActions', () => {
     expect(hostRowActions(host('online', 'outdated'))).toEqual({ install: true, update: true });
   });
 
-  // update-now refuses a host whose policy is off, so a button would 409.
-  it('offers no update when auto-update is off', () => {
-    expect(hostRowActions(host('online', 'disabled')).update).toBe(false);
+  // Auto-update off means "not on the paced rollout", not "never" — a manual
+  // push is exactly what the button is for on a host nothing else will reach.
+  it('offers update when auto-update is off', () => {
+    expect(hostRowActions(host('online', 'disabled')).update).toBe(true);
+  });
+
+  // The machine's own veto is the one case the server cannot act on, because
+  // the agent ignores the ack. A button there would lie.
+  it('offers no update when the machine itself vetoed', () => {
+    expect(hostRowActions(host('online', 'disabled', true)).update).toBe(false);
+    expect(hostRowActions(host('online', 'outdated', true)).update).toBe(false);
   });
 
   it('offers update for a host the server cannot place', () => {

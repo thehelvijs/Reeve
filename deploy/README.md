@@ -177,9 +177,12 @@ unreachable): append `--github` or set `REEVE_INSTALL_SOURCE=github`.
 
 **Auto-update.** By default the server paces the fleet's self-update rollout
 and tells each agent when to check (Hosts page, admin-only: pause, resume,
-force a single host — **Update** appears on a row whose host is online and not
-on the published build, unless its auto-update is off, where the policy on its
-page is the thing to change). Current means "running the binary this server publishes":
+force a single host — **Update** appears on any online row that is not on the
+published build, including one whose auto-update is off, since "off" means "not
+on the paced rollout" rather than "never". A forced update sits outside the
+rollout: it ignores the cap and cannot pause anyone. The one exception is a host
+that vetoes locally with `REEVE_AUTO_UPDATE=false`, which no override reaches
+because the agent ignores the ack). Current means "running the binary this server publishes":
 the agent reports the sha256 of its own binary and the server compares it to
 the build it serves, the same comparison the agent's self-update makes. Version
 strings decide nothing, so a rebuild at the same version still rolls out. A host
