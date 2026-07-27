@@ -13,6 +13,7 @@ import { useResource } from '../lib/cache';
 import { UPDATE_LABEL, UPDATE_TONE, showsVersionPill } from '../lib/agentUpdate';
 import { hostRowActions } from '../lib/hostActions';
 import { HOST_FILTERS, hostMatchesFilter, type HostFilter } from '../lib/hostFilter';
+import { matchesQuery } from '../lib/search';
 import { hostTone } from '../lib/statusTone';
 
 export default function Hosts() {
@@ -20,6 +21,7 @@ export default function Hosts() {
   const [adding, setAdding] = useState(false);
   const [tutorial, setTutorial] = useState(false);
   const [filter, setFilter] = useState<HostFilter>('all');
+  const [search, setSearch] = useState('');
   const [deploy, setDeploy] = useState<{ host: Host; mode: 'install' | 'uninstall' } | null>(null);
   const { data, loading, refresh } = useResource<Host[]>(
     '/api/hosts',
@@ -28,11 +30,17 @@ export default function Hosts() {
   );
   const hosts = data ?? [];
 
-  const shown = hosts.filter((h) => hostMatchesFilter(h, filter));
+  // Counts come after the search, so a tab counts results rather than everything.
+  const found = hosts.filter((h) => matchesQuery(search, h.name, h.os, h.agent_version, h.status));
+  const shown = found.filter((h) => hostMatchesFilter(h, filter));
+  let emptyTabDescription = 'No host is in this state right now.';
+  if (search.trim()) {
+    emptyTabDescription = 'No host in this state matches the search.';
+  }
   const tabs = HOST_FILTERS.map((f) => ({
     key: f.key,
     label: f.label,
-    count: hosts.filter((h) => hostMatchesFilter(h, f.key)).length,
+    count: found.filter((h) => hostMatchesFilter(h, f.key)).length,
   }));
 
   return (
@@ -40,6 +48,7 @@ export default function Hosts() {
       <PageHeader
         title="Hosts"
         subtitle="Machines running the agent."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search hosts…' }}
         action={
           user?.role === 'admin' && (
             <div className="flex gap-2">
@@ -75,7 +84,7 @@ export default function Hosts() {
           </div>
           {shown.length === 0 ? (
             <div className="mt-6">
-              <EmptyState title="No hosts here" description="No host is in this state right now." />
+              <EmptyState title="No hosts here" description={emptyTabDescription} />
             </div>
           ) : (
             <Table

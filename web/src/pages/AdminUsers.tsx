@@ -6,11 +6,13 @@ import { Button, Card, ErrorText, Field, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import Avatar from '../components/Avatar';
 import Modal from '../components/Modal';
+import { matchesQuery } from '../lib/search';
 
 export default function AdminUsers() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [resetting, setResetting] = useState<AdminUser | null>(null);
+  const [search, setSearch] = useState('');
 
   const load = () => api.get<AdminUser[]>('/api/admin/users').then((u) => setUsers(u ?? []));
   useEffect(() => {
@@ -29,13 +31,22 @@ export default function AdminUsers() {
     load();
   };
 
+  const shown = users.filter((u) => matchesQuery(search, u.email, u.display_name, u.role));
+
   return (
     <div>
-      <PageHeader title="Users" subtitle="Manage roles and access." />
+      <PageHeader
+        title="Users"
+        subtitle="Manage roles and access."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search users…' }}
+      />
 
       <div className="mt-6 space-y-2">
         {users.length === 0 && <p className="text-sm text-muted">No users yet.</p>}
-        {users.map((u) => {
+        {users.length > 0 && shown.length === 0 && (
+          <p className="text-sm text-muted">No user matches the search.</p>
+        )}
+        {shown.map((u) => {
           const self = u.id === me?.id;
           return (
             <Card key={u.id} className="flex items-center justify-between px-4 py-3">

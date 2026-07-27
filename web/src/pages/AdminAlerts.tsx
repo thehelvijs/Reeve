@@ -7,6 +7,7 @@ import {
 } from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
+import { matchesQuery } from '../lib/search';
 import ThresholdFields, {
   EMPTY_ROW,
   METRIC_KEYS,
@@ -66,6 +67,7 @@ export default function AdminAlerts() {
   const [rows, setRows] = useState<ThresholdRows>({});
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     api.get<AlertEvent[]>('/api/admin/alerts').then((e) => setEvents(e ?? []));
@@ -98,9 +100,22 @@ export default function AdminAlerts() {
     }
   };
 
+  const shownEvents = events.filter((e) => matchesQuery(search, e.type, e.message));
+  const shownDeliveries = deliveries.filter((d) => matchesQuery(search, d.status, d.last_error));
+  let noEvents = 'No alerts fired.';
+  let noDeliveries = 'No deliveries yet.';
+  if (search.trim()) {
+    noEvents = 'No alert matches the search.';
+    noDeliveries = 'No delivery matches the search.';
+  }
+
   return (
     <div>
-      <PageHeader title="Alerts" subtitle="Fired alerts and webhook delivery status." />
+      <PageHeader
+        title="Alerts"
+        subtitle="Fired alerts and webhook delivery status."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search alerts…' }}
+      />
 
       <h2 className="mt-8 text-sm font-medium text-content">Thresholds</h2>
       <Card className="mt-2 p-5">
@@ -134,8 +149,8 @@ export default function AdminAlerts() {
 
       <h2 className="mt-6 text-sm font-medium text-content">Recent alerts</h2>
       <Card className="mt-2 divide-y divide-hairline">
-        {events.length === 0 && <p className="px-4 py-3 text-sm text-muted">No alerts fired.</p>}
-        {events.map((e) => (
+        {shownEvents.length === 0 && <p className="px-4 py-3 text-sm text-muted">{noEvents}</p>}
+        {shownEvents.map((e) => (
           <div key={e.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
             <div className="flex items-center gap-2">
               <Pill tone={eventTone(Boolean(e.resolved_at))}>{e.type.replace('_', ' ')}</Pill>
@@ -150,8 +165,8 @@ export default function AdminAlerts() {
 
       <h2 className="mt-6 text-sm font-medium text-content">Webhook deliveries</h2>
       <Card className="mt-2 divide-y divide-hairline">
-        {deliveries.length === 0 && <p className="px-4 py-3 text-sm text-muted">No deliveries yet.</p>}
-        {deliveries.map((d) => (
+        {shownDeliveries.length === 0 && <p className="px-4 py-3 text-sm text-muted">{noDeliveries}</p>}
+        {shownDeliveries.map((d) => (
           <div key={d.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
             <div className="flex items-center gap-2">
               <Pill tone={deliveryTone(d.status)}>{d.status}</Pill>

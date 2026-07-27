@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { api, type Severity, type Webhook } from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
+import PageHeader from '../components/PageHeader';
+import { matchesQuery } from '../lib/search';
 
 const selectClass =
   'rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
@@ -14,6 +16,7 @@ export default function AdminWebhooks() {
   const [token, setToken] = useState('');
   const [minSeverity, setMinSeverity] = useState<Severity>('info');
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   const load = () => api.get<Webhook[]>('/api/admin/webhooks').then((h) => setHooks(h ?? []));
   useEffect(() => {
@@ -51,12 +54,15 @@ export default function AdminWebhooks() {
     load();
   };
 
+  const shown = hooks.filter((h) => matchesQuery(search, h.url, h.owner_type, h.owner_id, h.min_severity));
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-content">Webhooks</h1>
-      <p className="mt-1 text-sm text-muted">
-        Alerts POST a JSON payload to these URLs. Point them at any HTTP endpoint on your network.
-      </p>
+      <PageHeader
+        title="Webhooks"
+        subtitle="Alerts POST a JSON payload to these URLs. Point them at any HTTP endpoint on your network."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search webhooks…' }}
+      />
 
       <Card className="mt-6 p-5">
         <Form onSubmit={create}>
@@ -105,7 +111,10 @@ export default function AdminWebhooks() {
 
       <div className="mt-6 space-y-2">
         {hooks.length === 0 && <p className="text-sm text-muted">No webhooks configured.</p>}
-        {hooks.map((h) => (
+        {hooks.length > 0 && shown.length === 0 && (
+          <p className="text-sm text-muted">No webhook matches the search.</p>
+        )}
+        {shown.map((h) => (
           <Card key={h.id} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">

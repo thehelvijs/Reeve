@@ -7,11 +7,13 @@ import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
 import CollectionEditor from '../components/CollectionEditor';
 import { fmtCount } from '../lib/format';
+import { matchesQuery } from '../lib/search';
 
 export default function Collections() {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(() => {
     api
@@ -23,11 +25,14 @@ export default function Collections() {
     load();
   }, [load]);
 
+  const shown = collections.filter((c) => matchesQuery(search, c.name, c.description));
+
   return (
     <div>
       <PageHeader
         title="Collections"
         subtitle="Group services so the portal reads by team, not by machine."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search collections…' }}
         action={<Button onClick={() => setCreating(true)}>New collection</Button>}
       />
 
@@ -41,8 +46,12 @@ export default function Collections() {
         </div>
       )}
 
+      {collections.length > 0 && shown.length === 0 && (
+        <p className="mt-6 text-sm text-muted">No collection matches the search.</p>
+      )}
+
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {collections.map((c) => (
+        {shown.map((c) => (
           <button key={c.id} type="button" onClick={() => navigate(`/collections/${c.id}`)} className="text-left">
             <Card className="flex h-full flex-col px-4 py-3 transition-colors hover:bg-surface-2">
               <div className="flex items-start justify-between gap-2">

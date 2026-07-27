@@ -5,11 +5,13 @@ import { Button, Card, ErrorText, Field, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
+import { matchesQuery } from '../lib/search';
 
 export default function AdminGroups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
 
   const load = () => {
     api.get<Group[]>('/api/admin/groups').then((g) => setGroups(g ?? []));
@@ -39,11 +41,15 @@ export default function AdminGroups() {
     load();
   };
 
+  // A group is searchable by its members' emails: an admin looks for the person, not the label.
+  const shown = groups.filter((g) => matchesQuery(search, g.name, g.members.map(emailFor).join(' ')));
+
   return (
     <div>
       <PageHeader
         title="User groups"
         subtitle="Assign visibility and access to a set of users at once. For grouping services, use Collections."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search groups…' }}
         action={<Button onClick={() => setCreating(true)}>New group</Button>}
       />
 
@@ -55,7 +61,10 @@ export default function AdminGroups() {
             action={<Button onClick={() => setCreating(true)}>New group</Button>}
           />
         )}
-        {groups.map((g) => (
+        {groups.length > 0 && shown.length === 0 && (
+          <p className="text-sm text-muted">No group matches the search.</p>
+        )}
+        {shown.map((g) => (
           <Card key={g.id} className="p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium text-content">{g.name}</h2>

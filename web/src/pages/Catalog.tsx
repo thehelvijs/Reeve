@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, endpointString, type Collection, type Tool, type ToolStatus } from '../api';
-import { Button, Input, Pill, Table, Tabs, Td, Th, Tr } from '../components/ui';
+import { Button, Pill, Table, Tabs, Td, Th, Tr } from '../components/ui';
 import StatusPill from '../components/StatusPill';
 import EntityIcon from '../components/EntityIcon';
 import PageHeader from '../components/PageHeader';
@@ -10,6 +10,7 @@ import { ListSkeleton } from '../components/Skeleton';
 import VisibilityToggle from '../components/VisibilityToggle';
 import AddServiceModal from '../components/AddServiceModal';
 import { useResource } from '../lib/cache';
+import { matchesQuery } from '../lib/search';
 
 // Tab labels say what each state means to an operator, matching the pills.
 const STATUS_FILTERS: { key: ToolStatus | 'all'; label: string }[] = [
@@ -48,22 +49,16 @@ export default function Catalog() {
   const tools = useMemo(() => data ?? [], [data]);
 
   // Filtering is client-side so search is instant and never blanks the list.
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return tools.filter((t) => {
-      if (collectionID && !t.collections.some((c) => c.id === collectionID)) {
-        return false;
-      }
-      if (!q) {
-        return true;
-      }
-      return (
-        t.name.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q) ||
-        t.tags.some((tag) => tag.toLowerCase().includes(q))
-      );
-    });
-  }, [tools, search, collectionID]);
+  const filtered = useMemo(
+    () =>
+      tools.filter((t) => {
+        if (collectionID && !t.collections.some((c) => c.id === collectionID)) {
+          return false;
+        }
+        return matchesQuery(search, t.name, t.description, t.tags.join(' '));
+      }),
+    [tools, search, collectionID],
+  );
 
   // Counts come after the search, so a tab counts results rather than everything.
   const shown = filtered.filter((t) => status === 'all' || t.status === status);
@@ -78,6 +73,7 @@ export default function Catalog() {
       <PageHeader
         title="Services"
         subtitle="Every service, where it lives, and whether it's up."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search services…' }}
         action={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => navigate('/services/new')}>
@@ -89,12 +85,6 @@ export default function Catalog() {
       />
 
       <div className="mt-6 flex gap-3">
-        <Input
-          placeholder="Search tools…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
         <select
           aria-label="Filter by collection"
           value={collectionID}

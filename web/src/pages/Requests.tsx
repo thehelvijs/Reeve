@@ -4,10 +4,12 @@ import { api, type AccessRequest } from '../api';
 import { Button, Card, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
+import { matchesQuery } from '../lib/search';
 
 export default function Requests() {
   const [box, setBox] = useState<'inbox' | 'mine'>('inbox');
   const [reqs, setReqs] = useState<AccessRequest[]>([]);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(() => {
     api.get<AccessRequest[]>(`/api/access-requests?box=${box}`).then((r) => setReqs(r ?? []));
@@ -21,9 +23,26 @@ export default function Requests() {
     load();
   };
 
+  let emptyTitle = 'No requests yet';
+  if (box === 'inbox') {
+    emptyTitle = 'Nothing to review';
+  }
+  const shown = reqs.filter((r) => matchesQuery(search, r.host_name, r.host_id, r.note, r.status));
+  let emptyDescription = 'Credential access you request will show up here.';
+  if (box === 'inbox') {
+    emptyDescription = 'Requests to reveal host credentials will show up here.';
+  }
+  if (search.trim() && reqs.length > 0) {
+    emptyDescription = 'No request matches the search.';
+  }
+
   return (
     <div>
-      <PageHeader title="Access requests" subtitle="Approve or track requests to reveal host credentials." />
+      <PageHeader
+        title="Access requests"
+        subtitle="Approve or track requests to reveal host credentials."
+        search={{ value: search, onChange: setSearch, placeholder: 'Search requests…' }}
+      />
       <div className="mt-6 flex gap-2">
         <Tab active={box === 'inbox'} onClick={() => setBox('inbox')}>
           To review
@@ -34,17 +53,8 @@ export default function Requests() {
       </div>
 
       <div className="mt-6 space-y-2">
-        {reqs.length === 0 && (
-          <EmptyState
-            title={box === 'inbox' ? 'Nothing to review' : 'No requests yet'}
-            description={
-              box === 'inbox'
-                ? 'Requests to reveal host credentials will show up here.'
-                : 'Credential access you request will show up here.'
-            }
-          />
-        )}
-        {reqs.map((r) => (
+        {shown.length === 0 && <EmptyState title={emptyTitle} description={emptyDescription} />}
+        {shown.map((r) => (
           <Card key={r.id} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
               <Link to={`/hosts/${r.host_id}`} className="text-sm text-link underline underline-offset-2 hover:text-link-hover">
