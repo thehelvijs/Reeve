@@ -87,10 +87,11 @@ func ParsePasswd(content string) map[string]string {
 
 // ParseCmdline returns the command a process was started with, NUL-separated in
 // /proc/[pid]/cmdline. Empty for a kernel thread, whose caller falls back to the
-// name from stat.
+// name from stat. Credentials in argv are masked here, before the command
+// reaches a push payload or the on-disk buffer.
 func ParseCmdline(content string) string {
 	cleaned := strings.ReplaceAll(strings.TrimRight(content, "\x00"), "\x00", " ")
-	return truncate(strings.TrimSpace(cleaned), maxCommandLen)
+	return truncate(redactSecrets(strings.TrimSpace(cleaned)), maxCommandLen)
 }
 
 func truncate(s string, n int) string {

@@ -30,7 +30,7 @@ func ParseCrontab(content string, systemForm bool) []contracts.CronState {
 			continue
 		}
 		schedule := strings.Join(fields[:5], " ")
-		command := strings.Join(fields[cmdStart:], " ")
+		command := redactSecrets(strings.Join(fields[cmdStart:], " "))
 		out = append(out, contracts.CronState{
 			Name:     command,
 			Schedule: schedule,
