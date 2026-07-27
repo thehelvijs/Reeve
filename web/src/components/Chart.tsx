@@ -40,7 +40,11 @@ export default function Chart({
       width,
       height,
       cursor: { y: false, points: { show: true } },
-      legend: { show: true },
+      // uPlot's legend names each line and reads out the value under the cursor,
+      // which is worth a row of chrome only when there is more than one line. On
+      // a lone series it sat under every chart showing "Time: -- CPU %: —", and
+      // the card header carries that number now.
+      legend: { show: series.length > 1 },
       scales: { x: { time: true } },
       // Axis labels wear the muted text token; the grid stays recessive.
       axes: [

@@ -11,8 +11,8 @@ import {
   type VisibilityGrant,
 } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, Pill } from '../components/ui';
-import BackLink from '../components/BackLink';
+import { Button, Card, Facts, Pill, Section, Select } from '../components/ui';
+import PageHeader from '../components/PageHeader';
 import StatusPill from '../components/StatusPill';
 import EntityIcon from '../components/EntityIcon';
 import EventHistory from '../components/EventHistory';
@@ -64,32 +64,31 @@ export default function ToolDetail() {
 
   return (
     <div>
-      <BackLink to="/services">Services</BackLink>
-
-      <div className="mt-3 flex items-start justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <EntityIcon url={tool.icon_url} name={tool.name} size={40} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-content">{tool.name}</h1>
-              <StatusPill status={tool.status} />
-              {tool.visibility === 'restricted' && <Pill tone="down">restricted</Pill>}
-            </div>
-            {tool.description && <p className="mt-1 text-sm text-muted">{tool.description}</p>}
-            <UptimeSummary path={`/api/tools/${tool.id}/uptime`} />
-          </div>
-        </div>
-        {tool.can_edit && (
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => navigate(`/services/${tool.id}/edit`)}>
-              Edit
-            </Button>
-            <Button variant="danger" onClick={() => setConfirming(true)}>
-              Delete
-            </Button>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title={tool.name}
+        back={{ to: '/services', label: 'Services' }}
+        icon={<EntityIcon url={tool.icon_url} name={tool.name} size={36} />}
+        badges={
+          <>
+            <StatusPill status={tool.status} />
+            {tool.visibility === 'restricted' && <Pill tone="down">restricted</Pill>}
+          </>
+        }
+        subtitle={tool.description || undefined}
+        meta={<UptimeSummary path={`/api/tools/${tool.id}/uptime`} />}
+        action={
+          tool.can_edit && (
+            <>
+              <Button variant="secondary" onClick={() => navigate(`/services/${tool.id}/edit`)}>
+                Edit
+              </Button>
+              <Button variant="danger" onClick={() => setConfirming(true)}>
+                Delete
+              </Button>
+            </>
+          )
+        }
+      />
 
       {confirming && (
         <ConfirmModal
@@ -101,81 +100,91 @@ export default function ToolDetail() {
         />
       )}
 
-      {tool.thumbnail_url && (
-        <img
-          src={tool.thumbnail_url}
-          alt=""
-          className="mt-6 w-full max-w-lg rounded-card border border-hairline object-cover"
-        />
-      )}
+      <div className="mt-6 space-y-6">
+        {tool.thumbnail_url && (
+          <img
+            src={tool.thumbnail_url}
+            alt=""
+            className="w-full max-w-lg rounded-card border border-hairline object-cover"
+          />
+        )}
 
-      <Card className="mt-6 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs text-muted">Endpoint</p>
-            <code className="font-mono text-sm text-content">{endpointString(tool) || '—'}</code>
-            <p className="mt-2 text-xs text-muted">
-              Share this link instead — it resolves at click time, so it keeps working when the
-              host&rsquo;s address changes:
-            </p>
-            <code className="font-mono text-xs text-content">{goURL(tool)}</code>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button variant="secondary" onClick={copy}>
-              {copied ? 'Copied' : 'Copy link'}
-            </Button>
-            <a href={goURL(tool)} target="_blank" rel="noreferrer">
-              <Button>Open</Button>
-            </a>
-          </div>
-        </div>
-      </Card>
-
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs text-muted">Collections</p>
-          {tool.collections.length === 0 && <p className="text-sm text-content">—</p>}
-          {tool.collections.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {tool.collections.map((c) => (
-                <Link key={c.id} to={`/collections/${c.id}`}>
-                  <Pill>{c.name}</Pill>
-                </Link>
-              ))}
+        <Section title="Address" description="Where this service answers.">
+          <Card className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-eyebrow font-semibold uppercase text-muted">Endpoint</p>
+                <code className="font-mono text-sm text-content">{endpointString(tool) || '—'}</code>
+                <p className="mt-3 text-eyebrow font-semibold uppercase text-muted">Share this instead</p>
+                <code className="font-mono text-xs text-content">{goURL(tool)}</code>
+                <p className="mt-1 text-xs text-muted">
+                  It resolves at click time, so it keeps working when the host&rsquo;s address changes.
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="secondary" onClick={copy}>
+                  {copied ? 'Copied' : 'Copy link'}
+                </Button>
+                <a href={goURL(tool)} target="_blank" rel="noreferrer">
+                  <Button>Open</Button>
+                </a>
+              </div>
             </div>
-          )}
-        </div>
-        <Detail label="Source" value={`${tool.source_type}${tool.source_ref ? ` · ${tool.source_ref}` : ''}`} />
-        <Detail label="Tags" value={tool.tags.join(', ')} />
+          </Card>
+        </Section>
+
+        <Section title="Details">
+          <Card className="p-4">
+            <Facts
+              items={[
+                {
+                  label: 'Collections',
+                  value:
+                    tool.collections.length === 0 ? (
+                      '—'
+                    ) : (
+                      <span className="flex flex-wrap gap-1.5">
+                        {tool.collections.map((c) => (
+                          <Link key={c.id} to={`/collections/${c.id}`}>
+                            <Pill>{c.name}</Pill>
+                          </Link>
+                        ))}
+                      </span>
+                    ),
+                },
+                {
+                  label: 'Source',
+                  value: `${tool.source_type}${tool.source_ref ? ` · ${tool.source_ref}` : ''}`,
+                },
+                { label: 'Tags', value: tool.tags.join(', ') || '—' },
+              ]}
+            />
+          </Card>
+        </Section>
+
+        {tool.host_id && (
+          <Section title="Credentials">
+            <Card className="p-4">
+              <p className="text-xs text-muted">
+                Logins live on the machine, not the service.{' '}
+                <Link
+                  to={`/hosts/${tool.host_id}`}
+                  className="text-link underline underline-offset-2 hover:text-link-hover"
+                >
+                  View this host
+                </Link>{' '}
+                to see or request them.
+              </p>
+            </Card>
+          </Section>
+        )}
+
+        <EventHistory path={`/api/tools/${tool.id}/events`} />
+
+        {user?.role === 'admin' && tool.visibility === 'restricted' && (
+          <VisibilityManager toolId={tool.id} />
+        )}
       </div>
-
-      {tool.host_id && (
-        <Card className="mt-4 p-5">
-          <p className="text-sm font-medium text-content">Credentials</p>
-          <p className="mt-1 text-xs text-muted">
-            Logins live on the machine, not the service.{' '}
-            <Link to={`/hosts/${tool.host_id}`} className="text-accent hover:underline">
-              View this host
-            </Link>{' '}
-            to see or request them.
-          </p>
-        </Card>
-      )}
-
-      <EventHistory path={`/api/tools/${tool.id}/events`} />
-
-      {user?.role === 'admin' && tool.visibility === 'restricted' && (
-        <VisibilityManager toolId={tool.id} />
-      )}
-    </div>
-  );
-}
-
-function Detail({ label, value }: { label: string; value?: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted">{label}</p>
-      <p className="text-sm text-content">{value || '—'}</p>
     </div>
   );
 }
@@ -213,44 +222,47 @@ function VisibilityManager({ toolId }: { toolId: string }) {
   };
 
   return (
-    <Card className="mt-6 p-5">
-      <p className="text-sm font-medium text-content">Who can see this tool</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {grants.length === 0 && <span className="text-xs text-muted">Only the creator and admins.</span>}
-        {grants.map((g) => (
-          <span
-            key={`${g.principal_type}:${g.principal_id}`}
-            className="inline-flex items-center gap-1.5 rounded-pill border border-hairline bg-surface-2 px-2 py-0.5 text-xs text-content"
-          >
-            {label(g)}
-            <button className="text-muted hover:text-down" onClick={() => remove(g)} aria-label="Remove">
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <select className={selectCls} value="" onChange={(e) => add('user', e.target.value)}>
-          <option value="">Add user…</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.email}
-            </option>
+    <Section title="Who can see this service" description="Everyone else gets a 404, admins excepted.">
+      <Card className="p-4">
+        <div className="flex flex-wrap gap-2">
+          {grants.length === 0 && <span className="text-xs text-muted">Only the creator and admins.</span>}
+          {grants.map((g) => (
+            <span
+              key={`${g.principal_type}:${g.principal_id}`}
+              className="inline-flex items-center gap-1.5 rounded-pill border border-hairline bg-surface-2 px-2 py-0.5 text-xs text-content"
+            >
+              {label(g)}
+              <button
+                type="button"
+                onClick={() => remove(g)}
+                aria-label={`Remove ${label(g)}`}
+                className="rounded-pill text-muted transition-colors hover:text-down focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
+              >
+                ×
+              </button>
+            </span>
           ))}
-        </select>
-        <select className={selectCls} value="" onChange={(e) => add('group', e.target.value)}>
-          <option value="">Add group…</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-      </div>
-    </Card>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Select value="" aria-label="Grant a user access" onChange={(e) => add('user', e.target.value)}>
+            <option value="">Add user…</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.email}
+              </option>
+            ))}
+          </Select>
+          <Select value="" aria-label="Grant a group access" onChange={(e) => add('group', e.target.value)}>
+            <option value="">Add group…</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </Card>
+    </Section>
   );
 }
-
-const selectCls =
-  'rounded-button border border-hairline-strong bg-canvas px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 

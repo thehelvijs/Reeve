@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { api, CREDENTIAL_FIELDS, type Credential, type CredentialType } from '../api';
-import { Button, ErrorText, Field, Input } from './ui';
+import { api, CREDENTIAL_FIELDS, CREDENTIAL_LABEL, type Credential, type CredentialType } from '../api';
+import { Button, ErrorText, Field, Input, Select } from './ui';
 import Modal from './Modal';
 
 const TYPES: CredentialType[] = ['ssh_password', 'ssh_key', 'api_token', 'db', 'kv'];
@@ -56,20 +56,20 @@ export default function CredentialForm({
       <form onSubmit={submit} className="mt-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Type">
-              <select
+              <Select
+                className="w-full"
                 value={type}
                 onChange={(e) => {
                   setType(e.target.value as CredentialType);
                   setFields({});
                 }}
-                className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
               >
                 {TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {CREDENTIAL_LABEL[t]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Label">
               <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="prod root" />
@@ -78,7 +78,7 @@ export default function CredentialForm({
 
           {type !== 'kv' &&
             CREDENTIAL_FIELDS[type].map((f) => (
-              <Field key={f} label={f.replace('_', ' ')}>
+              <Field key={f} label={f.replaceAll('_', ' ')}>
                 {f === 'private_key' ? (
                   <textarea
                     value={fields[f] ?? ''}

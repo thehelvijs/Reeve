@@ -41,7 +41,7 @@ function SecretField({ name, value }: { name: string; value: string }) {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted">{name.replace('_', ' ')}</span>
+        <span className="text-xs font-medium text-muted">{name.replaceAll('_', ' ')}</span>
         <div className="flex items-center gap-3">
           {isSensitiveField(name) && (
             <button type="button" onClick={() => setShown(!shown)} className="text-xs text-muted hover:text-link">

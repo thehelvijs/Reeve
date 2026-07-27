@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Host, type HostCommand } from '../api';
-import { Button, Card, ErrorText, Form, Pill } from './ui';
+import { Button, Card, ErrorText, Form, Pill, Section, Table, Td, Th, Tr } from './ui';
 import Modal from './Modal';
 
 const REFRESH_MS = 5000;
@@ -67,50 +67,67 @@ export default function HostControls({ hostId, host }: { hostId: string; host: H
   const reason = unavailableReason(host);
 
   return (
-    <Card className="mt-4 p-5">
-      <p className="text-sm font-medium text-content">Controls</p>
-      <p className="mt-1 text-xs text-muted">
-        Run on the machine by its agent, collected on its next push (~15s). Every command records who asked.
-      </p>
+    <Section
+      title="Controls"
+      description="Run on the machine by its agent, collected on its next push (~15s). Every command records who asked."
+    >
+      <Card className="p-4">
+        {reason && <p className="mb-4 text-xs text-muted">{reason}</p>}
 
-      {reason && <p className="mt-3 text-xs text-muted">{reason}</p>}
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="secondary" disabled={reason !== ''} onClick={() => setConfirming('reboot')}>
-          Restart host
-        </Button>
-        <Button variant="danger" disabled={reason !== ''} onClick={() => setConfirming('poweroff')}>
-          Shut down host
-        </Button>
-      </div>
-      <ErrorText>{error}</ErrorText>
-
-      {commands.length > 0 && (
-        <div className="mt-5">
-          <p className="text-xs font-medium text-muted">Recent commands</p>
-          <div className="mt-2 divide-y divide-hairline">
-            {commands.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setShown(c)}
-                className="flex w-full items-center justify-between gap-3 py-2 text-left hover:bg-surface-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm text-content">
-                  {ACTION_LABEL[c.action] ?? c.action}
-                  {c.target && <span className="ml-1 font-mono text-xs text-muted">{c.target}</span>}
-                </span>
-                <span className="truncate text-xs text-muted">by {c.requested_by_name}</span>
-                <span className="text-xs text-muted">{new Date(c.requested_at).toLocaleString()}</span>
-                <Pill tone={STATUS_TONE[c.status]}>{c.status}</Pill>
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" disabled={reason !== ''} onClick={() => setConfirming('reboot')}>
+            Restart host
+          </Button>
+          <Button variant="danger" disabled={reason !== ''} onClick={() => setConfirming('poweroff')}>
+            Shut down host
+          </Button>
         </div>
-      )}
+        <ErrorText>{error}</ErrorText>
+
+        {commands.length > 0 && (
+          <div className="mt-5">
+            <p className="mb-2 text-eyebrow font-semibold uppercase text-muted">Recent commands</p>
+            <Table
+              head={
+                <>
+                  <Th>Command</Th>
+                  <Th>Asked by</Th>
+                  <Th>When</Th>
+                  <Th>Result</Th>
+                </>
+              }
+            >
+              {commands.map((c) => (
+                <Tr key={c.id}>
+                  <Td>
+                    {/* The name opens what the command printed. A table row
+                        cannot itself be a button without breaking its cells. */}
+                    <button
+                      type="button"
+                      onClick={() => setShown(c)}
+                      className="text-left font-medium text-link transition-colors hover:text-link-hover hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
+                    >
+                      {ACTION_LABEL[c.action] ?? c.action}
+                      {c.target && <span className="ml-1 font-mono text-xs text-muted">{c.target}</span>}
+                    </button>
+                  </Td>
+                  <Td className="truncate text-muted">{c.requested_by_name}</Td>
+                  <Td className="whitespace-nowrap text-muted">{new Date(c.requested_at).toLocaleString()}</Td>
+                  <Td>
+                    <Pill tone={STATUS_TONE[c.status]}>{c.status}</Pill>
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </div>
+        )}
+      </Card>
 
       {confirming && (
-        <Modal title={confirming === 'reboot' ? 'Restart this host?' : 'Shut down this host?'} onClose={() => setConfirming(null)}>
+        <Modal
+          title={confirming === 'reboot' ? 'Restart this host?' : 'Shut down this host?'}
+          onClose={() => setConfirming(null)}
+        >
           <Form onSubmit={() => send(confirming)}>
             <p className="text-sm text-muted">
               {confirming === 'reboot'
@@ -130,9 +147,13 @@ export default function HostControls({ hostId, host }: { hostId: string; host: H
       )}
 
       {shown && (
-        <Modal title={`${ACTION_LABEL[shown.action] ?? shown.action} ${shown.target}`.trim()} onClose={() => setShown(null)}>
+        <Modal
+          title={`${ACTION_LABEL[shown.action] ?? shown.action} ${shown.target}`.trim()}
+          onClose={() => setShown(null)}
+        >
           <p className="text-xs text-muted">
-            Requested by {shown.requested_by_name} · {new Date(shown.requested_at).toLocaleString()} · {shown.status}
+            Requested by {shown.requested_by_name} · {new Date(shown.requested_at).toLocaleString()} ·{' '}
+            {shown.status}
           </p>
           <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-button border border-hairline bg-surface-2 p-3 font-mono text-xs text-content">
             {shown.output || 'No output.'}
@@ -142,6 +163,6 @@ export default function HostControls({ hostId, host }: { hostId: string; host: H
           </div>
         </Modal>
       )}
-    </Card>
+    </Section>
   );
 }

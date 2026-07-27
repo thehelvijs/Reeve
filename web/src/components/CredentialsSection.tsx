@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import ConfirmModal from './ConfirmModal';
-import { api, type AccessRequest, type Credential, type RevealedCredential } from '../api';
-import { Button, Card } from './ui';
+import {
+  api,
+  CREDENTIAL_LABEL,
+  type AccessRequest,
+  type Credential,
+  type RevealedCredential,
+} from '../api';
+import { Button, ErrorText, Section, Table, Td, Th, Tr } from './ui';
+import EmptyState from './EmptyState';
 import CredentialForm from './CredentialForm';
 import RevealModal from './RevealModal';
 
@@ -58,50 +65,63 @@ export default function CredentialsSection({
   const canReveal = creds.length > 0 && creds[0].can_reveal;
   const needsAccess = creds.length > 0 && !canReveal && !canManage;
 
+  const addButton = <Button variant="secondary" onClick={() => setAdding(true)}>Add credential</Button>;
+  let action = null;
+  if (canManage) {
+    action = addButton;
+  } else if (needsAccess && !pending) {
+    action = <Button onClick={requestAccess}>Request access</Button>;
+  } else if (needsAccess && pending) {
+    action = <span className="text-xs text-muted">Access requested</span>;
+  }
+
+  let empty = 'Nobody has stored a login for this machine. An admin can add one.';
+  if (canManage) {
+    empty = 'Store the login for this machine here, and it is encrypted at rest.';
+  }
+
   return (
-    <Card className="mt-4 p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-content">Credentials</p>
-          <p className="mt-1 text-xs text-muted">How to connect to this machine.</p>
-        </div>
-        {canManage && (
-          <Button variant="secondary" onClick={() => setAdding(true)}>
-            Add credential
-          </Button>
-        )}
-        {needsAccess && !pending && <Button onClick={requestAccess}>Request access</Button>}
-        {needsAccess && pending && <span className="text-xs text-muted">Access requested</span>}
-      </div>
-
-      {creds.length === 0 && <p className="mt-3 text-sm text-muted">No credentials stored.</p>}
-
-      <div className="mt-3 space-y-2">
-        {creds.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between rounded-button border border-hairline bg-surface-2 px-3 py-2"
-          >
-            <div>
-              <span className="text-sm text-content">{c.label || c.type}</span>
-              <span className="ml-2 text-xs text-muted">{c.type}</span>
-            </div>
-            <div className="flex gap-2">
-              {c.can_reveal && (
-                <Button variant="secondary" onClick={() => reveal(c.id)}>
-                  Reveal
-                </Button>
-              )}
-              {canManage && (
-                <Button variant="danger" onClick={() => setConfirming(c)}>
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      {error && <p className="mt-2 text-sm text-down">{error}</p>}
+    <Section
+      title="Credentials"
+      count={creds.length}
+      description="How to connect to this machine. Every reveal is recorded against the host."
+      action={action}
+    >
+      {creds.length === 0 ? (
+        <EmptyState title="No credentials stored" description={empty} />
+      ) : (
+        <Table
+          head={
+            <>
+              <Th>Credential</Th>
+              <Th>Type</Th>
+              <Th className="text-right">Actions</Th>
+            </>
+          }
+        >
+          {creds.map((c) => (
+            <Tr key={c.id}>
+              <Td className="font-medium text-content">{c.label || CREDENTIAL_LABEL[c.type]}</Td>
+              <Td className="whitespace-nowrap text-muted">{CREDENTIAL_LABEL[c.type]}</Td>
+              <Td className="text-right">
+                <div className="flex items-center justify-end gap-2">
+                  {c.can_reveal && (
+                    <Button variant="secondary" onClick={() => reveal(c.id)}>
+                      Reveal
+                    </Button>
+                  )}
+                  {canManage && (
+                    <Button variant="danger" onClick={() => setConfirming(c)}>
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              </Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+      <ErrorText>{error}</ErrorText>
 
       {adding && (
         <CredentialForm
@@ -115,7 +135,7 @@ export default function CredentialsSection({
       )}
       {confirming && (
         <ConfirmModal
-          title={`Delete ${confirming.label || confirming.type}?`}
+          title={`Delete ${confirming.label || CREDENTIAL_LABEL[confirming.type]}?`}
           body="The stored secret is deleted and anyone holding a grant for it loses access. Whoever needs it again has to add it back by hand."
           confirmLabel="Delete"
           onConfirm={() => remove(confirming.id)}
@@ -123,6 +143,6 @@ export default function CredentialsSection({
         />
       )}
       {revealed && <RevealModal cred={revealed} onClose={() => setRevealed(null)} />}
-    </Card>
+    </Section>
   );
 }

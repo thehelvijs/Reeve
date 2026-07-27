@@ -1,4 +1,4 @@
-import { Card } from './ui';
+import { Card, Section } from './ui';
 import MetricBar from './MetricBar';
 import { fmtBytes } from '../lib/format';
 import { sortDisks, type DiskUsage } from '../lib/disks';
@@ -10,11 +10,8 @@ export default function DiskList({ disks }: { disks: DiskUsage[] }) {
     return null;
   }
   return (
-    <Card className="mt-4 p-4">
-      <p className="mb-3 text-xs font-medium text-muted">
-        Filesystems <span className="text-muted">({disks.length})</span>
-      </p>
-      <div className="max-h-80 space-y-3 overflow-y-auto">
+    <Section title="Filesystems" count={disks.length} description="Fullest first.">
+      <Card className="space-y-3 p-4">
         {sortDisks(disks).map((d) => (
           <MetricBar
             key={d.mount}
@@ -23,7 +20,7 @@ export default function DiskList({ disks }: { disks: DiskUsage[] }) {
             detail={`${fmtBytes(d.used)} / ${fmtBytes(d.total)}`}
           />
         ))}
-      </div>
-    </Card>
+      </Card>
+    </Section>
   );
 }

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { cssVar, useTheme } from '../lib/theme';
-import { Card } from './ui';
+import { Card, Section, Table, Td, Th, Tr } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
 import DiskList from './DiskList';
@@ -77,7 +77,19 @@ function palette(): string[] {
 
 const fmtPct = (v: number) => `${v.toFixed(0)}%`;
 
-export default function HostMetrics({ path }: { path: string }) {
+// segmented is the shared look of a small set of exclusive choices — a range, a
+// window. Every one of them was its own class string, and two of them had no
+// focus ring at all, so the set could not be reached from the keyboard.
+function segmented(selected: boolean): string {
+  const base =
+    'rounded-button px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
+  if (selected) {
+    return `${base} bg-surface-2 text-content`;
+  }
+  return `${base} text-muted hover:text-content`;
+}
+
+export default function HostMetrics({ path, action }: { path: string; action?: ReactNode }) {
   const [range, setRange] = useState('24h');
   const [points, setPoints] = useState<HostPoint[]>([]);
   const [containers, setContainers] = useState<ContainerPoint[]>([]);
@@ -172,72 +184,117 @@ export default function HostMetrics({ path }: { path: string }) {
     };
   });
 
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-content">Metrics</h2>
-        <div className="flex gap-1">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`rounded-button px-2 py-1 text-xs transition-colors ${
-                range === r ? 'bg-surface-2 text-content' : 'text-muted hover:text-content'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
+  const ranges = (
+    <div className="flex gap-1">
+      {RANGES.map((r) => (
+        <button
+          key={r}
+          type="button"
+          aria-pressed={range === r}
+          onClick={() => setRange(r)}
+          className={segmented(range === r)}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
+  );
 
-      {points.length === 0 ? (
-        <Card className="mt-2 p-5">
-          <p className="text-sm text-muted">No samples in this range yet.</p>
-        </Card>
-      ) : (
-        <div className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <MetricCard title="CPU"><Chart xs={xs} series={cpu} fmt={fmtPct} /></MetricCard>
-          <MetricCard title="Memory"><Chart xs={xs} series={mem} fmt={fmtBytes} /></MetricCard>
-          <MetricCard title="Disk"><Chart xs={xs} series={disk} fmt={fmtBytes} /></MetricCard>
-          <MetricCard title="Network"><Chart xs={xs} series={net} fmt={fmtBytes} /></MetricCard>
-          {sensors.length > 0 && (
-            <MetricCard title="Temperature">
-              <Chart xs={xs} series={temp} fmt={(v) => `${v.toFixed(0)}°C`} />
+  // One sample cannot be a line. uPlot draws nothing and pads the time axis out
+  // to a span of years, which reads as a broken chart rather than a new host.
+  const chartable = points.length >= 2;
+
+  // The grid is items-start: a card whose lone series carries no legend would
+  // otherwise stretch to the height of the multi-series card beside it and end
+  // in a band of empty canvas.
+
+  return (
+    <div className="space-y-6">
+      <Section
+        title="Charts"
+        description={`Every sample the server kept for the last ${range}.`}
+        action={
+          <>
+            {ranges}
+            {action}
+          </>
+        }
+      >
+        {!chartable ? (
+          <Card className="p-4">
+            <p className="text-sm text-muted">
+              {points.length === 0
+                ? 'No sample in this range yet. The agent pushes one every ~15s.'
+                : 'Only one sample in this range so far. A line needs two — try a longer range.'}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+            <MetricCard title="CPU" value={fmtPct(latest(cpu))}>
+              <Chart xs={xs} series={cpu} fmt={fmtPct} />
             </MetricCard>
-          )}
-          <MetricCard title="Disk I/O"><Chart xs={xs} series={diskio} fmt={fmtBytes} /></MetricCard>
-          <MetricCard title="Load average">
-            <Chart xs={xs} series={load} fmt={(v) => v.toFixed(2)} />
-          </MetricCard>
-          {hasGPU && (
-            <MetricCard title="GPU">
-              <Chart xs={xs} series={gpuUtil} fmt={fmtPct} />
+            <MetricCard title="Memory" value={fmtBytes(latest(mem))}>
+              <Chart xs={xs} series={mem} fmt={fmtBytes} />
             </MetricCard>
-          )}
-          {hasGPU && (
-            <MetricCard title="GPU memory">
-              <Chart xs={xs} series={gpuMem} fmt={fmtBytes} />
+            <MetricCard title="Disk" value={fmtBytes(latest(disk))}>
+              <Chart xs={xs} series={disk} fmt={fmtBytes} />
             </MetricCard>
-          )}
-          {containerCpu.length > 0 && (
-            <MetricCard title="Container CPU">
-              <Chart xs={xs} series={containerCpu} fmt={fmtPct} />
+            <MetricCard title="Network">
+              <Chart xs={xs} series={net} fmt={fmtBytes} />
             </MetricCard>
-          )}
-          {containerMem.length > 0 && (
-            <MetricCard title="Container memory">
-              <Chart xs={xs} series={containerMem} fmt={fmtBytes} />
+            {sensors.length > 0 && (
+              <MetricCard title="Temperature">
+                <Chart xs={xs} series={temp} fmt={(v) => `${v.toFixed(0)}°C`} />
+              </MetricCard>
+            )}
+            <MetricCard title="Disk I/O">
+              <Chart xs={xs} series={diskio} fmt={fmtBytes} />
             </MetricCard>
-          )}
-        </div>
-      )}
+            <MetricCard title="Load average">
+              <Chart xs={xs} series={load} fmt={(v) => v.toFixed(2)} />
+            </MetricCard>
+            {hasGPU && (
+              <MetricCard title="GPU" value={fmtPct(latest(gpuUtil))}>
+                <Chart xs={xs} series={gpuUtil} fmt={fmtPct} />
+              </MetricCard>
+            )}
+            {hasGPU && (
+              <MetricCard title="GPU memory" value={fmtBytes(latest(gpuMem))}>
+                <Chart xs={xs} series={gpuMem} fmt={fmtBytes} />
+              </MetricCard>
+            )}
+            {containerCpu.length > 0 && (
+              <MetricCard title="Container CPU">
+                <Chart xs={xs} series={containerCpu} fmt={fmtPct} />
+              </MetricCard>
+            )}
+            {containerMem.length > 0 && (
+              <MetricCard title="Container memory">
+                <Chart xs={xs} series={containerMem} fmt={fmtBytes} />
+              </MetricCard>
+            )}
+          </div>
+        )}
+      </Section>
 
       <DiskList disks={disks} />
 
       {admin && <ProcessTable procs={procs} path={path} />}
     </div>
   );
+}
+
+// latest is the newest non-null reading of a single-series chart, which is the
+// number an operator actually came for; the plot is the context around it.
+function latest(series: Series[]): number {
+  const data = series[0]?.data ?? [];
+  for (let i = data.length - 1; i >= 0; i -= 1) {
+    const v = data[i];
+    if (v != null) {
+      return v;
+    }
+  }
+  return 0;
 }
 
 // ProcessTable answers two different questions from one card: what is running
@@ -274,24 +331,28 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
     };
   }, [usagePath, window]);
 
-  const heading = (label: string, key: ProcessSort) => {
-    let className = 'text-right font-medium hover:text-content';
-    if (by === key) {
-      className = 'text-right font-medium text-content';
+  // A sortable column says so: the header is the control, and the one in force
+  // carries the arrow rather than leaving the reader to infer the order.
+  const sortable = (label: string, key: ProcessSort) => {
+    const active = by === key;
+    let tone = 'text-muted hover:text-content';
+    if (active) {
+      tone = 'text-content';
     }
     return (
-      <th scope="col" className="sticky top-0 z-10 bg-surface-1 py-2 pl-3">
-        <button type="button" onClick={() => setBy(key)} className={className}>
+      <Th className="text-right">
+        <button
+          type="button"
+          onClick={() => setBy(key)}
+          aria-label={`Sort by ${label}`}
+          className={`inline-flex items-center gap-1 text-eyebrow font-semibold uppercase transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-link ${tone}`}
+        >
           {label}
+          {active && <span aria-hidden>↓</span>}
         </button>
-      </th>
+      </Th>
     );
   };
-  const plain = (label: string) => (
-    <th scope="col" className="sticky top-0 z-10 bg-surface-1 py-2 pr-3 text-left font-medium">
-      {label}
-    </th>
-  );
 
   const rows = sortProcesses(procs, by).filter((p) => matchesQuery(search, p.command, p.user, String(p.pid)));
   const usageRows = sortUsage(usage, by).filter((u) => matchesQuery(search, u.command));
@@ -304,16 +365,17 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
     emptyText = 'No process matches the search.';
   }
 
+  let description = 'What was running at the agent’s last push.';
+  if (window !== 'last') {
+    description = `Averaged over the last ${window}, heaviest first.`;
+  }
+
   return (
-    <Card className="mt-4 p-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-muted">
-          Top processes{' '}
-          <span className="text-muted">
-            {window === 'last' ? '(at the last push)' : `(average over the last ${window})`}
-          </span>
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
+    <Section
+      title="Top processes"
+      description={description}
+      action={
+        <>
           <SearchBar
             value={search}
             onChange={setSearch}
@@ -326,69 +388,74 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
               <button
                 key={w}
                 type="button"
+                aria-pressed={window === w}
                 onClick={() => setWindow(w)}
-                className={`rounded-[5px] px-2 py-0.5 text-xs transition-colors ${
-                  window === w ? 'bg-surface-2 text-content' : 'text-muted hover:text-content'
-                }`}
+                className={segmented(window === w)}
               >
                 {w === 'last' ? 'last push' : w}
               </button>
             ))}
           </div>
-        </div>
-      </div>
-      {empty && <p className="py-2 text-sm text-muted">{emptyText}</p>}
-      {!empty && (
-        <div className="max-h-80 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-muted">
-              <tr>
-                {window === 'last' && plain('PID')}
-                {window === 'last' && plain('User')}
-                {plain('Command')}
-                {heading(window === 'last' ? 'CPU' : 'CPU avg', 'cpu')}
-                {window !== 'last' && plain('CPU peak')}
-                {heading(window === 'last' ? 'Memory' : 'Memory avg', 'mem')}
-                {window !== 'last' && plain('Memory peak')}
-              </tr>
-            </thead>
-            <tbody>
-              {window === 'last' &&
-                rows.map((p) => (
-                  <tr key={p.pid} className="border-t border-hairline">
-                    <td className="py-1.5 pr-3 font-mono text-xs text-muted">{p.pid}</td>
-                    <td className="py-1.5 pr-3 text-xs text-muted">{p.user}</td>
-                    <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={p.command}>
-                      {p.command}
-                    </td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</td>
-                  </tr>
-                ))}
-              {window !== 'last' &&
-                usageRows.map((u) => (
-                  <tr key={u.command} className="border-t border-hairline">
-                    <td className="max-w-md truncate py-1.5 pr-3 font-mono text-xs text-content" title={u.command}>
-                      {u.command}
-                    </td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{u.cpu_avg.toFixed(1)}%</td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-muted">{u.cpu_max.toFixed(1)}%</td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-content">{fmtBytes(u.mem_avg)}</td>
-                    <td className="py-1.5 pl-3 text-right tabular-nums text-muted">{fmtBytes(u.mem_max)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        </>
+      }
+    >
+      {empty ? (
+        <Card className="p-4">
+          <p className="text-sm text-muted">{emptyText}</p>
+        </Card>
+      ) : (
+        <Table
+          head={
+            <>
+              {window === 'last' && <Th>PID</Th>}
+              {window === 'last' && <Th>User</Th>}
+              <Th>Command</Th>
+              {sortable(window === 'last' ? 'CPU' : 'CPU avg', 'cpu')}
+              {window !== 'last' && <Th className="text-right">CPU peak</Th>}
+              {sortable(window === 'last' ? 'Memory' : 'Memory avg', 'mem')}
+              {window !== 'last' && <Th className="text-right">Memory peak</Th>}
+            </>
+          }
+        >
+          {window === 'last' &&
+            rows.map((p) => (
+              <Tr key={p.pid}>
+                <Td className="font-mono text-xs tabular-nums text-muted">{p.pid}</Td>
+                <Td className="text-xs text-muted">{p.user}</Td>
+                <Td className="max-w-md truncate font-mono text-xs text-content" title={p.command}>
+                  {p.command}
+                </Td>
+                <Td className="text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</Td>
+                <Td className="text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</Td>
+              </Tr>
+            ))}
+          {window !== 'last' &&
+            usageRows.map((u) => (
+              <Tr key={u.command}>
+                <Td className="max-w-md truncate font-mono text-xs text-content" title={u.command}>
+                  {u.command}
+                </Td>
+                <Td className="text-right tabular-nums text-content">{u.cpu_avg.toFixed(1)}%</Td>
+                <Td className="text-right tabular-nums text-muted">{u.cpu_max.toFixed(1)}%</Td>
+                <Td className="text-right tabular-nums text-content">{fmtBytes(u.mem_avg)}</Td>
+                <Td className="text-right tabular-nums text-muted">{fmtBytes(u.mem_max)}</Td>
+              </Tr>
+            ))}
+        </Table>
       )}
-    </Card>
+    </Section>
   );
 }
 
-function MetricCard({ title, children }: { title: string; children: React.ReactNode }) {
+// A single-series card carries its current reading in the header, so the number
+// is legible without hovering the plot for uPlot's legend.
+function MetricCard({ title, value, children }: { title: string; value?: string; children: ReactNode }) {
   return (
     <Card className="p-4">
-      <p className="mb-2 text-xs font-medium text-muted">{title}</p>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="text-xs font-medium text-muted">{title}</p>
+        {value && <p className="text-sm font-medium tabular-nums text-content">{value}</p>}
+      </div>
       {children}
     </Card>
   );
