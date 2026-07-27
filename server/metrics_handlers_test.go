@@ -335,3 +335,62 @@ func TestHostMetricsEndpointDisksEmptyForSilentHost(t *testing.T) {
 		t.Error("disks is null; the UI would have to guard against it")
 	}
 }
+
+// The server's own filesystems are asked for in the same breath as a host's, and
+// the server never pushes to itself: its snapshot is written by the sample loop,
+// so the endpoint has to read it back from the reserved self-monitoring host.
+func TestServerMetricsCarriesDisks(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	// The reserved self-monitoring row is created at startup, not by the test
+	// harness, and host_disks references it.
+	if err := ts.app.db.EnsureServerHost("linux"); err != nil {
+		t.Fatalf("ensure server host: %v", err)
+	}
+
+	err := ts.app.db.ReplaceHostDisks(store.ServerHostID, []contracts.DiskUsage{
+		{Mount: "/", Device: "/dev/sda3", FSType: "ext4", Used: 386, Total: 490},
+	}, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("store server disks: %v", err)
+	}
+
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/server-metrics?range=1h", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("server-metrics = %d: %s", resp.StatusCode, data)
+	}
+	var body struct {
+		Disks store.HostDisks `json:"disks"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Disks.Disks) != 1 || body.Disks.Disks[0].Mount != "/" {
+		t.Errorf("disks = %+v, want the server's root filesystem: %s", body.Disks.Disks, data)
+	}
+}
+
+// The sample loop is what writes them, and it is the only writer for the server:
+// without this call the Server page shows charts and an empty filesystem list.
+func TestServerSampleLoopStoresItsOwnDisks(t *testing.T) {
+	ts := newTestServer(t)
+	if err := ts.app.db.EnsureServerHost("linux"); err != nil {
+		t.Fatalf("ensure server host: %v", err)
+	}
+	m := ts.app.sampleHost()
+	if len(m.Disks) == 0 {
+		t.Skip("this machine reported no measurable filesystem")
+	}
+	if err := ts.app.db.ReplaceHostDisks(store.ServerHostID, m.Disks, time.Now().UTC()); err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	got, ok := ts.app.db.LatestHostDisks(store.ServerHostID)
+	if !ok || len(got.Disks) != len(m.Disks) {
+		t.Errorf("stored %d disks, sampled %d", len(got.Disks), len(m.Disks))
+	}
+	for _, d := range got.Disks {
+		if d.Mount == "" || d.Total == 0 {
+			t.Errorf("filesystem with no mount or capacity got through: %+v", d)
+		}
+	}
+}

@@ -111,7 +111,7 @@ func TestListHostsReportsAutoUpdateAndState(t *testing.T) {
 		t.Errorf("update_state = %q, want %q", before.UpdateState, updateStateOutdated)
 	}
 	// Guards the wire key itself, not just the Go struct round trip.
-	for _, key := range []string{`"auto_update":"default"`, `"update_state":"outdated"`} {
+	for _, key := range []string{`"auto_update":"default"`, `"update_state":"outdated"`, `"auto_update_vetoed":false`} {
 		if !strings.Contains(string(rawList), key) {
 			t.Errorf("raw list response missing %s: %s", key, rawList)
 		}
