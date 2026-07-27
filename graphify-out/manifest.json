@@ -755,14 +755,14 @@
     "semantic_hash": "602ba87a0ef08f8319f0d4d5f768b645"
   },
   "server/tool_handlers.go": {
-    "mtime": 1785072539.1358185,
-    "ast_hash": "80bc202fa5e8e3cef554e0e19a1f82af",
-    "semantic_hash": "80bc202fa5e8e3cef554e0e19a1f82af"
+    "mtime": 1785189058.0356503,
+    "ast_hash": "deb7917bc2211755a7a1ac512e155b3d",
+    "semantic_hash": ""
   },
   "server/tool_handlers_test.go": {
-    "mtime": 1785087641.259351,
-    "ast_hash": "eedd96c9f4fb1d41aaaf4ae1d2106fce",
-    "semantic_hash": "eedd96c9f4fb1d41aaaf4ae1d2106fce"
+    "mtime": 1785189040.0969768,
+    "ast_hash": "88453353787fe5edd5a7a7c9bafd1834",
+    "semantic_hash": ""
   },
   "server/tool_visibility_handlers.go": {
     "mtime": 1785070916.3284597,
