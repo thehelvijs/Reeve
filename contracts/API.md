@@ -307,14 +307,10 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
   mounts are dropped by the agent, as are snap loop devices, and a bind mount is
   reported once per device. `GET /admin/server-metrics` carries the same field
   for the machine running Reeve.
-  The metrics response also carries `disks`: `{ts, disks:[{mount, device,
-  fs_type, used, total}]}` — every filesystem the agent reported, a replaceable
-  snapshot rather than a series. `metrics.disk_used`/`disk_total` stay the root
-  filesystem, which is what the chart and the disk alert threshold are built on.
-  Kernel and virtual mounts are dropped by the agent, snap loop devices with
-  them, and a bind mount is reported once per device.
-  `GET /admin/server-metrics` carries the same field for the machine running
-  Reeve.
+  An inventory item is `{source_type, source_ref, name, state, detail, linked}`.
+  `state` is what the machine says the thing is doing — a systemd active state or
+  a container state, empty for a cron job. `detail` is the sub-state, the image,
+  or the schedule.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each

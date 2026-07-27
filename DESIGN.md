@@ -97,6 +97,16 @@ tone instead.
 
 ## Components (defaults)
 
+- **Page header:** one component for every page, list or detail. Title at 20px,
+  the record's icon and current state beside it, an optional subtitle, one
+  right-aligned action, closed by a hairline rule. A detail page adds a back link
+  above it. No page grows its own heading.
+- **Section:** everything below the page header is one. A 14px heading, the count
+  of what is under it, a line saying what it is for, one control on the right,
+  then the card, table or form. Sections in a view stack on one gap. A section
+  brings no margin of its own.
+- **Facts:** a definition list for what a record *is*: eyebrow term, 14px value.
+  What it is *doing* goes in bars or a chart, not here.
 - **Primary button:** accent fill, `--on-accent` label, weight 600, radius 4px.
   One per form or settings card, so a page of independent cards carries one each.
   A view that is a single form carries exactly one.
@@ -117,7 +127,12 @@ tone instead.
   a sentence.
 - **Theme toggle:** one control, in the app sidebar and in the portal header, so
   an anonymous visitor can switch too. It names what it will do, not what is on.
-- **Charts:** a plot with one line, and a resource bar, take `--data-primary`,
+- **Charts:** a card per measure, its current reading in the header, and the plot
+  under it. A single-series plot carries no legend, because the header is the
+  readout. A multi-series plot keeps uPlot's legend, which names the lines.
+  Fewer than two samples is a sentence, not a plot: one point draws nothing and
+  pads the time axis out to years.
+  A plot with one line, and a resource bar, take `--data-primary`,
   which is the brand lime on dark and the link blue on light. Lime reads 13.4:1 on
   the dark canvas and 1.2:1 on white, so it carries data in exactly one theme.
   A plot with several lines takes slots instead, `--series-1` to `--series-8`,
@@ -162,6 +177,6 @@ tone instead.
 - No accent as text, border, chart line, or status color.
 - No second brand color, no gradient, no glassmorphism.
 - No drop shadow that carries hierarchy.
-- No unlabeled list rows.
+- No unlabeled list rows, and no state word without a column naming it.
 - No raw server vocabulary in the UI.
 - No more than the four defined radii.
