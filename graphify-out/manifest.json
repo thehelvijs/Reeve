@@ -810,9 +810,9 @@
     "semantic_hash": "721d1bd1bfebfa0213727f5a0ef8c1cb"
   },
   "web/e2e/core.spec.ts": {
-    "mtime": 1785104793.6086147,
-    "ast_hash": "b72336191b028a61d2fee498c2fd1107",
-    "semantic_hash": "b72336191b028a61d2fee498c2fd1107"
+    "mtime": 1785175086.2460978,
+    "ast_hash": "3af4501150b1f174f613a8c0f21e6b13",
+    "semantic_hash": ""
   },
   "web/e2e/portal.spec.ts": {
     "mtime": 1785105223.4054043,
@@ -845,9 +845,9 @@
     "semantic_hash": "6a58d45c9c2a08e423f6492fab135520"
   },
   "web/e2e/zz-enter-submits.spec.ts": {
-    "mtime": 1785151281.3393059,
-    "ast_hash": "52fb6650728c1365bf7eecd4822aa694",
-    "semantic_hash": "52fb6650728c1365bf7eecd4822aa694"
+    "mtime": 1785175108.9579136,
+    "ast_hash": "a4c90842fdcbcbe02d3c2b4411ab9cbd",
+    "semantic_hash": ""
   },
   "web/e2e/zz-profile.spec.ts": {
     "mtime": 1784756917.0,
@@ -880,9 +880,9 @@
     "semantic_hash": "ab1e41574f07bff7f1956bfd8848bec1"
   },
   "web/e2e/zzzz-confirm-visibility-disks.spec.ts": {
-    "mtime": 1785151801.152348,
-    "ast_hash": "bf527325a5dd4af4724be4217693687d",
-    "semantic_hash": "bf527325a5dd4af4724be4217693687d"
+    "mtime": 1785175086.2470977,
+    "ast_hash": "651e8ee43b8dc08436ee7900c5f52a6f",
+    "semantic_hash": ""
   },
   "web/package.json": {
     "mtime": 1785082711.0803258,
@@ -1150,9 +1150,9 @@
     "semantic_hash": "f389247428b5278690f997c6da272bf2"
   },
   "web/src/components/ui.tsx": {
-    "mtime": 1785150521.8040876,
-    "ast_hash": "15a89c5420f29b779c4fcf14c0677cb6",
-    "semantic_hash": "15a89c5420f29b779c4fcf14c0677cb6"
+    "mtime": 1785175086.248098,
+    "ast_hash": "2790b28591d8d0950b94974efab466c3",
+    "semantic_hash": ""
   },
   "web/src/lib/agentUpdate.ts": {
     "mtime": 1785099384.0446346,
@@ -1345,8 +1345,8 @@
     "semantic_hash": "345bbb7635f1ebf142eb3d0f1f4be1a2"
   },
   "web/src/pages/HostInventory.tsx": {
-    "mtime": 1785172982.7268858,
-    "ast_hash": "9b61e24eda60b95f3d66695c42da5b60",
+    "mtime": 1785175086.2490978,
+    "ast_hash": "d9ea556bc4c8f7d8bb5a3c553504f3f1",
     "semantic_hash": ""
   },
   "web/src/pages/Hosts.tsx": {
@@ -1475,9 +1475,9 @@
     "semantic_hash": "0d1d953660c3961766e4ac6fefc605c9"
   },
   "web/e2e/PLAYWRIGHT-CHECKLIST.md": {
-    "mtime": 1785085085.688429,
-    "ast_hash": "42b417addb8e0944e2998fed7ddabe21",
-    "semantic_hash": "42b417addb8e0944e2998fed7ddabe21"
+    "mtime": 1785175956.7695243,
+    "ast_hash": "6dcf21cb019cf09ba44c21cfba10d940",
+    "semantic_hash": ""
   },
   "web/index.html": {
     "mtime": 1785155403.4698207,
@@ -1500,8 +1500,8 @@
     "semantic_hash": ""
   },
   "web/e2e/zzzz-inventory-search.spec.ts": {
-    "mtime": 1785173115.995226,
-    "ast_hash": "b35b7e369381bc11b5090453313d8365",
+    "mtime": 1785175086.248098,
+    "ast_hash": "b8e7b1352ae70777be8fc07e79acc8bd",
     "semantic_hash": ""
   }
 }
