@@ -280,3 +280,58 @@ func TestHostProcessUsageUnknownHost(t *testing.T) {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
+
+// The metrics response carries every filesystem the agent reported, not just
+// the root one the charts are built on.
+func TestHostMetricsEndpointCarriesDisks(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	hostID, token := enrollHost(t, ts, admin, "disk-host")
+
+	push := samplePush()
+	push.Metrics.Disks = []contracts.DiskUsage{
+		{Mount: "/", Device: "/dev/sda3", FSType: "ext4", Used: 16, Total: 30},
+		{Mount: "/mnt/media", Device: "/dev/sdb1", FSType: "ext4", Used: 900, Total: 1000},
+	}
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+	}
+
+	resp, data = ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/metrics?range=1h", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("metrics = %d: %s", resp.StatusCode, data)
+	}
+	var body struct {
+		Disks store.HostDisks `json:"disks"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Disks.Disks) != 2 {
+		t.Fatalf("disks = %+v, want both filesystems: %s", body.Disks.Disks, data)
+	}
+	if body.Disks.Disks[1].Mount != "/mnt/media" || body.Disks.Disks[1].Total != 1000 {
+		t.Errorf("second filesystem = %+v, want /mnt/media", body.Disks.Disks[1])
+	}
+}
+
+// A host that has never reported sends an empty list, not null, so the UI has
+// nothing to guard against.
+func TestHostMetricsEndpointDisksEmptyForSilentHost(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	h, _ := ts.app.db.CreateHost("silent-disks", "linux", "", "hash-sd", 60)
+
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+h.ID+"/metrics", nil, nil)
+	var body struct {
+		Disks store.HostDisks `json:"disks"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Disks.Disks == nil {
+		t.Error("disks is null; the UI would have to guard against it")
+	}
+}

@@ -3,6 +3,8 @@ import { api } from '../api';
 import { Card } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
+import DiskList from './DiskList';
+import type { DiskUsage } from '../lib/disks';
 import {
   sortProcesses,
   sortUsage,
@@ -62,6 +64,7 @@ export default function HostMetrics({ path }: { path: string }) {
   const [points, setPoints] = useState<HostPoint[]>([]);
   const [containers, setContainers] = useState<ContainerPoint[]>([]);
   const [procs, setProcs] = useState<ProcessSample[]>([]);
+  const [disks, setDisks] = useState<DiskUsage[]>([]);
 
   useEffect(() => {
     const load = () => {
@@ -70,11 +73,13 @@ export default function HostMetrics({ path }: { path: string }) {
           host: HostPoint[];
           containers: ContainerPoint[];
           processes?: { procs: ProcessSample[] };
+          disks?: { disks: DiskUsage[] };
         }>(`${path}?range=${range}`)
         .then((d) => {
           setPoints(d.host ?? []);
           setContainers(d.containers ?? []);
           setProcs(d.processes?.procs ?? []);
+          setDisks(d.disks?.disks ?? []);
         });
     };
     load();
@@ -199,6 +204,8 @@ export default function HostMetrics({ path }: { path: string }) {
           )}
         </div>
       )}
+
+      <DiskList disks={disks} />
 
       <ProcessTable procs={procs} path={path} />
     </div>

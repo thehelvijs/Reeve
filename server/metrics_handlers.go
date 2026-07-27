@@ -36,10 +36,15 @@ func (a *app) handleServerMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read metrics")
 		return
 	}
+	disks, _ := a.db.LatestHostDisks(store.ServerHostID)
+	if disks.Disks == nil {
+		disks.Disks = []contracts.DiskUsage{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"resolution": spec.resolution,
 		"host":       host,
 		"containers": []any{},
+		"disks":      disks,
 	})
 }
 
@@ -71,11 +76,16 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 	if procs.Procs == nil {
 		procs.Procs = []contracts.ProcessSample{}
 	}
+	disks, _ := a.db.LatestHostDisks(id)
+	if disks.Disks == nil {
+		disks.Disks = []contracts.DiskUsage{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"resolution": spec.resolution,
 		"host":       host,
 		"containers": containers,
 		"processes":  procs,
+		"disks":      disks,
 	})
 }
 

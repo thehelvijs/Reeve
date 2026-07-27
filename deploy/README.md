@@ -198,6 +198,13 @@ grant for the admin who ran it. Untick "Save this login as a credential" in the
 modal to skip it. Nothing is kept when the install fails or when there was no
 secret (forwarded key, NOPASSWD sudo).
 
+**Filesystems.** Each push reports every mounted filesystem worth measuring —
+mount point, device, type, used and total — listed on the host page fullest
+first, since the disk about to run out is rarely the root one. Kernel and
+virtual mounts are dropped, snap loop devices with them, and a bind mount counts
+once per device. The Server page shows the same for the machine running Reeve.
+The disk chart and the disk alert threshold still track the root filesystem.
+
 **Remote control.** An admin can queue a fixed set of actions for a host from
 its page — restart, shut down, and start/stop/restart of a systemd unit or a
 Docker container — which the agent collects on its next push (~15s) and runs as

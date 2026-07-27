@@ -298,6 +298,16 @@ CREATE TABLE IF NOT EXISTS host_processes (
     procs   TEXT NOT NULL DEFAULT '[]'
 );
 
+-- One replaceable row per host: every mounted filesystem's capacity as of the
+-- last push. A snapshot, not a series — the root filesystem is already charted
+-- in metric_samples, and what this answers is "which of this machine's disks is
+-- filling up", which only needs the current answer.
+CREATE TABLE IF NOT EXISTS host_disks (
+    host_id TEXT PRIMARY KEY REFERENCES hosts(id) ON DELETE CASCADE,
+    ts      TEXT NOT NULL,
+    disks   TEXT NOT NULL DEFAULT '[]'
+);
+
 -- Per-command usage accumulated into 5-minute buckets, so an average over any
 -- window is SUM(cpu_sum)/SUM(samples) and no per-push row has to be kept. Keyed
 -- by command, not pid: a process that restarts is the same thing to whoever is

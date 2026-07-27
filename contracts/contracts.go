@@ -16,6 +16,7 @@ const (
 	MaxPushCronJobs   = 2000
 	MaxPushLogEvents  = 1000
 	MaxPushProcesses  = 100
+	MaxPushDisks      = 100
 
 	// MaxAckCommands bounds what one ack asks an agent to run, and
 	// MaxPushCommandResults what it reports back.
@@ -69,6 +70,7 @@ func (p Push) TooLarge() string {
 		{"container_stats", len(p.ContainerStats), MaxPushContainers},
 		{"cron_jobs", len(p.CronJobs), MaxPushCronJobs},
 		{"processes", len(p.Processes), MaxPushProcesses},
+		{"disks", len(p.Metrics.Disks), MaxPushDisks},
 		{"command_results", len(p.CommandResults), MaxPushCommandResults},
 		{"log_events", len(p.LogEvents), MaxPushLogEvents},
 	} {
@@ -188,6 +190,20 @@ type HostMetrics struct {
 	GPUUtil     float64            `json:"gpu_util"`
 	GPUMemUsed  uint64             `json:"gpu_mem_used"`
 	GPUMemTotal uint64             `json:"gpu_mem_total"`
+	// Disks is every mounted filesystem worth reporting capacity for. DiskUsed
+	// and DiskTotal above stay as the root filesystem, which is what the charts
+	// and the disk alert threshold are built on; this is the full picture for a
+	// machine whose data lives somewhere other than /.
+	Disks []DiskUsage `json:"disks,omitempty"`
+}
+
+// DiskUsage is one mounted filesystem's capacity at push time.
+type DiskUsage struct {
+	Mount  string `json:"mount"`
+	Device string `json:"device"`
+	FSType string `json:"fs_type"`
+	Used   uint64 `json:"used"`
+	Total  uint64 `json:"total"`
 }
 
 // ProcessSample is one process's resource use at push time. CPUPct is percent

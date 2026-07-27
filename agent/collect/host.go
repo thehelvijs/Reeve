@@ -3,6 +3,7 @@ package collect
 import (
 	"os"
 	"os/exec"
+	"sort"
 	"syscall"
 
 	"github.com/thehelvijs/Reeve/contracts"
@@ -47,8 +48,32 @@ func (s *HostSampler) Sample() contracts.HostMetrics {
 	}
 	m.CPUPct = s.cpuPercent()
 	m.DiskUsed, m.DiskTotal = diskUsage("/")
+	m.Disks = sampleDisks()
 	sampleGPU(&m)
 	return m
+}
+
+// sampleDisks measures every filesystem ParseMounts kept. A mount that cannot
+// be statfs'd (a stale network share, a device that vanished mid-scan) or that
+// reports no capacity is dropped rather than listed as a zero-byte disk.
+func sampleDisks() []contracts.DiskUsage {
+	content, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return nil
+	}
+	mounts := ParseMounts(string(content))
+	out := make([]contracts.DiskUsage, 0, len(mounts))
+	for _, mnt := range mounts {
+		used, total := diskUsage(mnt.Path)
+		if total == 0 {
+			continue
+		}
+		out = append(out, contracts.DiskUsage{
+			Mount: mnt.Path, Device: mnt.Device, FSType: mnt.FSType, Used: used, Total: total,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Mount < out[j].Mount })
+	return out
 }
 
 // sampleGPU fills the GPU fields via nvidia-smi when present; a missing

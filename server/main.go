@@ -175,8 +175,15 @@ func every(ctx context.Context, d time.Duration, fn func()) {
 // page can chart them like any monitored host.
 func (a *app) runServerSampleLoop(ctx context.Context) {
 	sample := func() {
-		if err := a.db.InsertHostMetric(store.ServerHostID, a.sampleHost(), time.Now().UTC()); err != nil {
+		now := time.Now().UTC()
+		m := a.sampleHost()
+		if err := a.db.InsertHostMetric(store.ServerHostID, m, now); err != nil {
 			log.Printf("server sample: %v", err)
+		}
+		// The server never pushes to itself, so its filesystem snapshot has to
+		// be written here or the Server page shows charts and no disks.
+		if err := a.db.ReplaceHostDisks(store.ServerHostID, m.Disks, now); err != nil {
+			log.Printf("server sample disks: %v", err)
 		}
 	}
 	sample()

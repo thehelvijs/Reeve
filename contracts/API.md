@@ -294,6 +294,21 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
   `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
   carries `processes`, the latest top-by-CPU-and-memory snapshot).
+  The response also carries `disks`: `{ts, disks:[{mount, device, fs_type, used,
+  total}]}` — every filesystem the agent reported, a replaceable snapshot rather
+  than a series. `metrics.disk_used`/`disk_total` stay the root filesystem, which
+  is what the chart and the disk alert threshold are built on. Kernel and virtual
+  mounts are dropped by the agent, as are snap loop devices, and a bind mount is
+  reported once per device. `GET /admin/server-metrics` carries the same field
+  for the machine running Reeve.
+  The metrics response also carries `disks`: `{ts, disks:[{mount, device,
+  fs_type, used, total}]}` — every filesystem the agent reported, a replaceable
+  snapshot rather than a series. `metrics.disk_used`/`disk_total` stay the root
+  filesystem, which is what the chart and the disk alert threshold are built on.
+  Kernel and virtual mounts are dropped by the agent, snap loop devices with
+  them, and a bind mount is reported once per device.
+  `GET /admin/server-metrics` carries the same field for the machine running
+  Reeve.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each
