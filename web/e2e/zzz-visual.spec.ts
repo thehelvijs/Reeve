@@ -240,6 +240,71 @@ for (const theme of THEMES) {
           mask: volatile(page),
         });
       });
+
+      // The host page carried no baseline at all, which is how five tabs came to
+      // hold four different heading shapes without a pixel test noticing. Each
+      // tab is its own shot: they share only the header and the tab strip.
+      //
+      // The host is enrolled here rather than reused, so the shot does not depend
+      // on which of the fleet an earlier spec left in what state. Its inventory
+      // is fixed; its charts are masked (uPlot draws from live samples), and with
+      // one sample they are a sentence instead, which is itself the layout under
+      // test on a machine that just enrolled.
+      test('host page tabs', async ({ page }) => {
+        const created = await page.request.post('/api/admin/hosts', {
+          data: { name: `zzz-visual-${theme}`, offline_after_secs: 3600 },
+        });
+        expect(created.status(), 'could not enroll the host to photograph').toBe(201);
+        const host = await created.json();
+        const push = await page.request.post('/api/ingest', {
+          headers: { Authorization: `Bearer ${host.enroll_token}` },
+          data: {
+            agent_version: '9.9.9',
+            agent_checksum: '0'.repeat(64),
+            control_enabled: true,
+            sent_at: new Date().toISOString(),
+            services: [
+              { unit: 'nginx.service', active_state: 'active', sub_state: 'running' },
+              { unit: 'cups.service', active_state: 'inactive', sub_state: 'dead' },
+              { unit: 'broken.service', active_state: 'failed', sub_state: 'failed' },
+            ],
+            containers: [
+              { id: 'v1', name: 'grafana', image: 'grafana/grafana:11.2.0', state: 'running', health: '' },
+            ],
+            cron_jobs: [{ name: 'nightly-backup', schedule: '0 3 * * *' }],
+            processes: [
+              { pid: 101, user: 'root', command: '/usr/sbin/nginx -g daemon off;', cpu_pct: 3, mem_rss: 104857600 },
+            ],
+            metrics: {
+              cpu_pct: 12,
+              mem_used: 6_000_000_000,
+              mem_total: 16_000_000_000,
+              disk_used: 21_000_000_000,
+              disk_total: 30_000_000_000,
+              disks: [
+                { mount: '/', device: '/dev/sda1', fs_type: 'ext4', used: 21_000_000_000, total: 30_000_000_000 },
+              ],
+            },
+          },
+        });
+        expect(push.status(), 'the host would have no inventory to photograph').toBe(200);
+
+        for (const tab of ['overview', 'metrics', 'inventory', 'credentials', 'settings']) {
+          await page.goto(`/hosts/${host.host.id}?tab=${tab}`);
+          await expect(page.locator('main')).toBeVisible();
+          await settle(page);
+          await expect(page).toHaveScreenshot(`app-host-${tab}-${theme}.png`, {
+            fullPage: true,
+            mask: volatile(page),
+          });
+        }
+
+        // Enrolled for this shot only. Left behind it would be an extra row in
+        // every later spec's fleet, and one more outdated host in the rollup.
+        const gone = await page.request.delete(`/api/admin/hosts/${host.host.id}`);
+        expect(gone.ok(), 'the photographed host outlived its test').toBe(true);
+      });
+
     });
   });
 }

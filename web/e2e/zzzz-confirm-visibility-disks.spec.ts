@@ -54,7 +54,7 @@ test('a destructive row action asks first, and cancelling runs nothing', async (
   await page.goto(`/hosts/${hostID}?tab=inventory`);
 
   // Restart takes whatever is using the unit down with it, so it asks.
-  await page.locator('button:text-is("restart")').first().click();
+  await page.locator('button:text-is("Restart")').first().click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   // The question names the target: these rows sit close together.
@@ -67,7 +67,7 @@ test('a destructive row action asks first, and cancelling runs nothing', async (
   expect(await afterCancel.json()).toEqual([]);
 
   // Confirming queues it, which is the other half of the guarantee.
-  await page.locator('button:text-is("restart")').first().click();
+  await page.locator('button:text-is("Restart")').first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Restart' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect
@@ -75,7 +75,7 @@ test('a destructive row action asks first, and cancelling runs nothing', async (
     .toBe(1);
 
   // Starting something that is down cannot lose anything, so it stays one click.
-  await page.locator('button:text-is("start")').first().click();
+  await page.locator('button:text-is("Start")').first().click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
@@ -125,7 +125,7 @@ test('every reported filesystem is listed, fullest first', async ({ page }) => {
   const hostID = await enrollReportingHost(page.request, 'e2e-disk-host');
   await page.goto(`/hosts/${hostID}?tab=metrics`);
 
-  const card = page.locator('p:has-text("Filesystems")').locator('xpath=..');
+  const card = page.locator('section').filter({ has: page.locator('h2:text-is("Filesystems")') });
   await expect(card).toContainText('Filesystems (2)');
   await expect(card).toContainText('/mnt/media · /dev/sdb1 · ext4');
   await expect(card).toContainText('/ · /dev/sda2 · ext4');
@@ -140,5 +140,5 @@ test('every reported filesystem is listed, fullest first', async ({ page }) => {
 
   // The server's own filesystems are the same feature on a different page.
   await page.goto('/admin/server');
-  await expect(page.locator('p:has-text("Filesystems")')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Filesystems/ })).toBeVisible();
 });

@@ -200,7 +200,7 @@ test('a per-host policy of off disables updates for that host alone', async ({ p
   await push(req, pinned.token, OLD_BUILD);
 
   await page.goto(`/hosts/${pinned.id}`);
-  await expect(page.getByText('Agent', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agent updates' })).toBeVisible();
   await page.selectOption('select', 'off');
   // Wait for the PUT the select triggers to land before the next push relies on it.
   await expect(page.getByText('updates off', { exact: true })).toBeVisible();

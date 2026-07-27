@@ -51,10 +51,10 @@ async function enrollStockedHost(req: APIRequestContext, name: string) {
   return body.host.id as string;
 }
 
-// The heading sits in a row beside its search box, and that row's parent holds
-// the list: two steps up from the h2 is the section.
+// Every block of a page is a <section> carrying one <h2>, so a list is found by
+// its own heading rather than by counting steps up the tree.
 function section(page: Page, title: string) {
-  return page.locator(`h2:text-is("${title}")`).locator('xpath=../..');
+  return page.locator('section').filter({ has: page.locator(`h2:text-is("${title}")`) });
 }
 
 test('each inventory list filters from its own heading', async ({ page }) => {
@@ -92,7 +92,7 @@ test('an inventory search with no match says so', async ({ page }) => {
 
   const units = section(page, 'Systemd units');
   await units.getByRole('searchbox', { name: 'Search systemd units…' }).fill('nosuchunit');
-  await expect(units).toContainText('Nothing here matches the search.');
+  await expect(units).toContainText('Nothing here matches the search');
   await expect(units).toContainText('Systemd units (0)');
 });
 
