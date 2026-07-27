@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { api } from '../api';
-import { Button, Card, ErrorText } from '../components/ui';
+import { Button, buttonBox, Card, ErrorText } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import MetricBar from '../components/MetricBar';
 import HostMetrics from '../components/HostMetrics';
@@ -129,10 +129,10 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <a
-          href="/api/admin/backup"
-          className="rounded-button border border-hairline px-3 py-1.5 text-sm text-content transition-colors hover:bg-surface-2"
-        >
+        {/* A download is a link, not a button, but it sits in a button row, so
+            it borrows the button's box exactly rather than an approximation of
+            it. */}
+        <a href="/api/admin/backup" className={buttonBox}>
           Download backup
         </a>
         <Button variant="danger" disabled={busy} onClick={pick}>

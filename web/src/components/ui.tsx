@@ -1,5 +1,12 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 
+// buttonBox is the geometry every button-shaped control shares: padding, radius,
+// type scale and a border. Exported so a control that cannot be a <button> — a
+// download link, say — occupies the same box instead of an approximation that
+// ends up a few pixels short of the button beside it.
+export const buttonBox =
+  'inline-flex items-center justify-center whitespace-nowrap rounded-button border border-hairline px-3 py-2 text-sm font-medium text-content transition-colors duration-150 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+
 // Primary: the single accent action per view. Dark label on acid-lime.
 export function Button({
   variant = 'primary',
@@ -7,16 +14,16 @@ export function Button({
   type = 'button',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' }) {
-  const base =
-    'inline-flex items-center justify-center whitespace-nowrap rounded-button px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:pointer-events-none';
   // Every variant carries a border, transparent on the primary: without it the
   // accent button is 2px shorter than the outlined ones and any row mixing them
   // sits crooked.
   const styles = {
-    primary: 'border border-transparent bg-accent text-accent-fg hover:bg-accent-hover',
-    secondary: 'border border-hairline text-muted hover:text-content hover:border-hairline-strong',
-    danger: 'border border-hairline text-muted hover:text-red-400 hover:border-red-400/40',
+    primary: 'border-transparent bg-accent text-accent-fg hover:bg-accent-hover',
+    secondary: 'border-hairline text-muted hover:text-content hover:border-hairline-strong',
+    danger: 'border-hairline text-muted hover:text-red-400 hover:border-red-400/40',
   }[variant];
+  const base =
+    'inline-flex items-center justify-center whitespace-nowrap rounded-button border px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:pointer-events-none';
   return <button type={type} className={`${base} ${styles} ${className}`} {...props} />;
 }
 
