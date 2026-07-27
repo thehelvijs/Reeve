@@ -16,7 +16,9 @@ import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components
 import Modal from '../components/Modal';
 import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
 import { hostRowActions } from '../lib/hostActions';
+import { matchesQuery } from '../lib/search';
 import BackLink from '../components/BackLink';
+import SearchBar from '../components/SearchBar';
 import EntityIcon from '../components/EntityIcon';
 import IconUploader from '../components/IconUploader';
 import ThumbnailUploader from '../components/ThumbnailUploader';
@@ -527,14 +529,32 @@ function Section({
   control?: ((verb: string, target: string) => Promise<void>) | null;
   hostName: string;
 }) {
+  const [search, setSearch] = useState('');
+  const shown = items.filter((it) => matchesQuery(search, it.name, it.detail));
+  let empty = 'None reported.';
+  if (search.trim()) {
+    empty = 'Nothing here matches the search.';
+  }
+
   return (
     <div className="mt-6">
-      <h2 className="text-sm font-medium text-content">
-        {title} <span className="text-muted">({items.length})</span>
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-content">
+          {title} <span className="text-muted">({shown.length})</span>
+        </h2>
+        {items.length > 0 && (
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder={`Search ${title.toLowerCase()}…`}
+            shortcut={false}
+            className="w-56"
+          />
+        )}
+      </div>
       <Card className="mt-2 max-h-80 divide-y divide-hairline overflow-y-auto">
-        {items.length === 0 && <p className="px-4 py-3 text-sm text-muted">None reported.</p>}
-        {items.map((it) => (
+        {shown.length === 0 && <p className="px-4 py-3 text-sm text-muted">{empty}</p>}
+        {shown.map((it) => (
           <div key={it.source_ref} className="flex items-center justify-between px-4 py-2.5">
             <div className="min-w-0">
               <p className="truncate text-sm text-content">{it.name}</p>

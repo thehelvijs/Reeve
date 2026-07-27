@@ -5,6 +5,8 @@ import { Card } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
 import DiskList from './DiskList';
+import SearchBar from './SearchBar';
+import { matchesQuery } from '../lib/search';
 import type { DiskUsage } from '../lib/disks';
 import {
   sortProcesses,
@@ -241,6 +243,7 @@ export default function HostMetrics({ path }: { path: string }) {
 function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string }) {
   const [by, setBy] = useState<ProcessSort>('cpu');
   const [window, setWindow] = useState<UsageWindow>('last');
+  const [search, setSearch] = useState('');
   const [usage, setUsage] = useState<ProcessUsage[]>([]);
   const usagePath = path.replace(/\/metrics$/, '/process-usage');
 
@@ -286,9 +289,16 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
     </th>
   );
 
-  const rows = sortProcesses(procs, by);
-  const usageRows = sortUsage(usage, by);
-  const empty = window === 'last' ? rows.length === 0 : usageRows.length === 0;
+  const rows = sortProcesses(procs, by).filter((p) => matchesQuery(search, p.command, p.user, String(p.pid)));
+  const usageRows = sortUsage(usage, by).filter((u) => matchesQuery(search, u.command));
+  let empty = usageRows.length === 0;
+  if (window === 'last') {
+    empty = rows.length === 0;
+  }
+  let emptyText = 'Nothing reported for this window yet.';
+  if (search.trim()) {
+    emptyText = 'No process matches the search.';
+  }
 
   return (
     <Card className="mt-4 p-4">
@@ -299,22 +309,31 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
             {window === 'last' ? '(at the last push)' : `(average over the last ${window})`}
           </span>
         </p>
-        <div className="inline-flex rounded-button border border-hairline p-0.5">
-          {USAGE_WINDOWS.map((w) => (
-            <button
-              key={w}
-              type="button"
-              onClick={() => setWindow(w)}
-              className={`rounded-[5px] px-2 py-0.5 text-xs transition-colors ${
-                window === w ? 'bg-surface-2 text-content' : 'text-muted hover:text-content'
-              }`}
-            >
-              {w === 'last' ? 'last push' : w}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search processes…"
+            shortcut={false}
+            className="w-56"
+          />
+          <div className="inline-flex rounded-button border border-hairline p-0.5">
+            {USAGE_WINDOWS.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setWindow(w)}
+                className={`rounded-[5px] px-2 py-0.5 text-xs transition-colors ${
+                  window === w ? 'bg-surface-2 text-content' : 'text-muted hover:text-content'
+                }`}
+              >
+                {w === 'last' ? 'last push' : w}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      {empty && <p className="py-2 text-sm text-muted">Nothing reported for this window yet.</p>}
+      {empty && <p className="py-2 text-sm text-muted">{emptyText}</p>}
       {!empty && (
         <div className="max-h-80 overflow-auto">
           <table className="w-full text-sm">
