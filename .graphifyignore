@@ -1,0 +1,6 @@
+*-snapshots/
+test-results/
+server/webdist/
+web/public/icon-*.png
+agent/release_pubkey.txt
+deploy/testdata/
