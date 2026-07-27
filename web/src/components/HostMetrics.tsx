@@ -53,9 +53,16 @@ function labelFor(containers: ContainerPoint[], id: string): string {
 }
 
 const RANGES = ['1h', '12h', '24h', '7d', '30d'];
-const ACCENT = '#e4f222';
-const MUTED = '#8a8f98';
-const PALETTE = ['#e4f222', '#7dd3fc', '#f0abfc', '#86efac', '#fca5a5', '#fdba74', '#c4b5fd', '#67e8f9'];
+
+// Series colors are assigned in this fixed order, never by rank, so a series
+// keeps its color when a filter changes how many are drawn. The order
+// alternates dark and light steps: that lightness gap is what keeps adjacent
+// series apart for a red-green colorblind reader, where hue alone collapses.
+// Validated on a white surface for lightness band, chroma, deutan/tritan
+// separation and 3:1 contrast.
+const PRIMARY = '#0b4f9e';
+const SECONDARY = '#c07f0a';
+const PALETTE = ['#0b4f9e', '#c07f0a', '#7a2f6e', '#2aa39b', '#4a5c00', '#7f7cd0', '#96331f', '#5f9628'];
 
 const fmtPct = (v: number) => `${v.toFixed(0)}%`;
 
@@ -88,12 +95,12 @@ export default function HostMetrics({ path }: { path: string }) {
   }, [path, range]);
 
   const xs = points.map((p) => Math.floor(new Date(p.ts).getTime() / 1000));
-  const cpu: Series[] = [{ label: 'CPU %', color: ACCENT, data: points.map((p) => p.cpu_pct) }];
-  const mem: Series[] = [{ label: 'Memory used', color: ACCENT, data: points.map((p) => p.mem_used) }];
-  const disk: Series[] = [{ label: 'Disk used', color: ACCENT, data: points.map((p) => p.disk_used) }];
+  const cpu: Series[] = [{ label: 'CPU %', color: PRIMARY, data: points.map((p) => p.cpu_pct) }];
+  const mem: Series[] = [{ label: 'Memory used', color: PRIMARY, data: points.map((p) => p.mem_used) }];
+  const disk: Series[] = [{ label: 'Disk used', color: PRIMARY, data: points.map((p) => p.disk_used) }];
   const net: Series[] = [
-    { label: 'RX', color: ACCENT, data: points.map((p) => p.net_rx) },
-    { label: 'TX', color: MUTED, data: points.map((p) => p.net_tx) },
+    { label: 'RX', color: PRIMARY, data: points.map((p) => p.net_rx) },
+    { label: 'TX', color: SECONDARY, data: points.map((p) => p.net_tx) },
   ];
 
   const sensors = Array.from(new Set(points.flatMap((p) => Object.keys(p.temps ?? {}))));
@@ -104,19 +111,19 @@ export default function HostMetrics({ path }: { path: string }) {
   }));
 
   const diskio: Series[] = [
-    { label: 'read', color: ACCENT, data: points.map((p) => p.disk_read) },
-    { label: 'write', color: MUTED, data: points.map((p) => p.disk_write) },
+    { label: 'read', color: PRIMARY, data: points.map((p) => p.disk_read) },
+    { label: 'write', color: SECONDARY, data: points.map((p) => p.disk_write) },
   ];
 
   const load: Series[] = [
-    { label: '1m', color: ACCENT, data: points.map((p) => p.load1) },
+    { label: '1m', color: PRIMARY, data: points.map((p) => p.load1) },
     { label: '5m', color: PALETTE[1], data: points.map((p) => p.load5) },
     { label: '15m', color: PALETTE[2], data: points.map((p) => p.load15) },
   ];
 
   const hasGPU = points.some((p) => p.gpu_mem_total > 0);
-  const gpuUtil: Series[] = [{ label: 'GPU %', color: ACCENT, data: points.map((p) => p.gpu_util) }];
-  const gpuMem: Series[] = [{ label: 'GPU memory', color: ACCENT, data: points.map((p) => p.gpu_mem_used) }];
+  const gpuUtil: Series[] = [{ label: 'GPU %', color: PRIMARY, data: points.map((p) => p.gpu_util) }];
+  const gpuMem: Series[] = [{ label: 'GPU memory', color: PRIMARY, data: points.map((p) => p.gpu_mem_used) }];
 
   const containerIds = Array.from(new Set(containers.map((c) => c.container_id)));
   const containerCpu: Series[] = containerIds.map((id, i) => {

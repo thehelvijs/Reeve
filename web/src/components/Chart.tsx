@@ -35,16 +35,17 @@ export default function Chart({
       cursor: { y: false, points: { show: true } },
       legend: { show: true },
       scales: { x: { time: true } },
+      // Axis labels wear the muted text token; the grid stays recessive.
       axes: [
         {
-          stroke: '#8a8f98',
-          grid: { stroke: 'rgba(255,255,255,0.05)', width: 1 },
-          ticks: { stroke: 'rgba(255,255,255,0.1)' },
+          stroke: '#626168',
+          grid: { stroke: 'rgba(31,30,36,0.08)', width: 1 },
+          ticks: { stroke: 'rgba(31,30,36,0.16)' },
         },
         {
-          stroke: '#8a8f98',
-          grid: { stroke: 'rgba(255,255,255,0.05)', width: 1 },
-          ticks: { stroke: 'rgba(255,255,255,0.1)' },
+          stroke: '#626168',
+          grid: { stroke: 'rgba(31,30,36,0.08)', width: 1 },
+          ticks: { stroke: 'rgba(31,30,36,0.16)' },
           values: fmt ? (_u, splits) => splits.map((v) => fmt(v)) : undefined,
         },
       ],
@@ -53,7 +54,7 @@ export default function Chart({
         ...series.map((s) => ({
           label: s.label,
           stroke: s.color,
-          width: 1.5,
+          width: 2,
           points: { show: false },
           value: (_u: uPlot, v: number | null) => {
             if (v == null) {
