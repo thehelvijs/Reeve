@@ -5,9 +5,9 @@
     "semantic_hash": "65712ee6e193bf4b0ac22a52fd112155"
   },
   "agent/collect/cron.go": {
-    "mtime": 1785011475.364628,
-    "ast_hash": "4d567aa695a6a1ee0925048b3c1dd15d",
-    "semantic_hash": "4d567aa695a6a1ee0925048b3c1dd15d"
+    "mtime": 1785184427.6214285,
+    "ast_hash": "4ee1816ad2b98e00fc484292e1361f30",
+    "semantic_hash": ""
   },
   "agent/collect/docker.go": {
     "mtime": 1785014366.003289,
@@ -45,9 +45,9 @@
     "semantic_hash": "3038500d59c25728b2376754b8d489b3"
   },
   "agent/collect/procs.go": {
-    "mtime": 1785088681.6496665,
-    "ast_hash": "1f36e7361b998bbfc9ad670c9bf5e085",
-    "semantic_hash": "1f36e7361b998bbfc9ad670c9bf5e085"
+    "mtime": 1785184423.201469,
+    "ast_hash": "81ae23e2ea7d676f9967bc470aea9743",
+    "semantic_hash": ""
   },
   "agent/collect/procs_test.go": {
     "mtime": 1785088721.0926206,
@@ -1502,6 +1502,16 @@
   "web/e2e/zzzz-inventory-search.spec.ts": {
     "mtime": 1785175086.248098,
     "ast_hash": "b8e7b1352ae70777be8fc07e79acc8bd",
+    "semantic_hash": ""
+  },
+  "agent/collect/redact.go": {
+    "mtime": 1785184516.7966704,
+    "ast_hash": "f88c22805c598c2fb4b41b8d97638089",
+    "semantic_hash": ""
+  },
+  "agent/collect/redact_test.go": {
+    "mtime": 1785184529.65657,
+    "ast_hash": "cdf2cbe67bd2844289b730e4e28082a9",
     "semantic_hash": ""
   }
 }
