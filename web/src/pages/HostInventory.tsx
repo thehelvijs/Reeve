@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import SSHDeployModal from '../components/SSHDeployModal';
 import { needsConfirm, rowConfirmation } from '../lib/confirmText';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   api,
   type AutoUpdatePolicy,
@@ -12,7 +12,7 @@ import {
   type ThresholdsPayload,
 } from '../api';
 import { useAuth } from '../auth';
-import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill, Tabs } from '../components/ui';
 import Modal from '../components/Modal';
 import { POLICY_LABEL, UPDATE_LABEL, UPDATE_TONE } from '../lib/agentUpdate';
 import { hostRowActions } from '../lib/hostActions';
@@ -38,10 +38,17 @@ import ThresholdFields, {
 
 const REFRESH_MS = 15000;
 
+// The host page is five pages: what it is doing now, what it has been doing,
+// what it runs, what it costs to log in to, and how it is configured. The tab
+// lives in the URL so a link to a machine's metrics stays a link to its metrics.
+const HOST_TABS = ['overview', 'metrics', 'inventory', 'credentials', 'settings'] as const;
+type HostTab = (typeof HOST_TABS)[number];
+
 export default function HostInventory() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
   const [inv, setInv] = useState<Inv | null>(null);
   const [host, setHost] = useState<Host | null>(null);
   const [metricsKey, setMetricsKey] = useState(0);
@@ -91,6 +98,25 @@ export default function HostInventory() {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
+  const admin = user?.role === 'admin';
+  const requested = params.get('tab') as HostTab | null;
+  let tab: HostTab = 'overview';
+  if (requested && HOST_TABS.includes(requested) && (requested !== 'settings' || admin)) {
+    tab = requested;
+  }
+  const setTab = (next: HostTab) => setParams({ tab: next }, { replace: true });
+
+  const inventoryCount = inv.services.length + inv.containers.length + inv.cron_jobs.length;
+  const tabs: { key: HostTab; label: string; count?: number }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'metrics', label: 'Metrics' },
+    { key: 'inventory', label: 'Inventory', count: inventoryCount },
+    { key: 'credentials', label: 'Credentials' },
+  ];
+  if (admin) {
+    tabs.push({ key: 'settings', label: 'Settings' });
+  }
+
   return (
     <div>
       <BackLink to="/hosts">Hosts</BackLink>
@@ -99,61 +125,29 @@ export default function HostInventory() {
         <h1 className="text-2xl font-semibold tracking-tight text-content">{host?.name ?? 'Host'}</h1>
       </div>
       {id && <UptimeSummary path={`/api/hosts/${id}/uptime`} />}
-      {host?.thumbnail_url && (
-        <img
-          src={host.thumbnail_url}
-          alt=""
-          className="mt-4 w-full max-w-lg rounded-card border border-hairline object-cover"
-        />
+
+      <div className="mt-5">
+        <Tabs tabs={tabs} active={tab} onChange={setTab} label="Host sections" />
+      </div>
+
+      {tab === 'overview' && (
+        <>
+          {host?.thumbnail_url && (
+            <img
+              src={host.thumbnail_url}
+              alt=""
+              className="mt-4 w-full max-w-lg rounded-card border border-hairline object-cover"
+            />
+          )}
+          {id && host && admin && <HostControls hostId={id} host={host} />}
+          {host && admin && <AgentCard host={host} onChanged={load} />}
+          {id && <EventHistory path={`/api/hosts/${id}/events`} />}
+        </>
       )}
 
-      {id && user?.role === 'admin' && (
-        <Card className="mt-6 p-5">
-          <p className="text-sm font-medium text-content">Icon</p>
-          <div className="mt-4">
-            <IconUploader
-              url={host?.icon_url}
-              name={host?.name ?? 'Host'}
-              path={`/api/admin/hosts/${id}/icon`}
-              onChange={load}
-            />
-          </div>
-          <p className="mt-6 text-sm font-medium text-content">Thumbnail</p>
-          <div className="mt-4">
-            <ThumbnailUploader
-              url={host?.thumbnail_url}
-              path={`/api/admin/hosts/${id}/thumbnail`}
-              onChange={load}
-            />
-          </div>
-        </Card>
-      )}
-
-      {id && <CredentialsSection hostId={id} canManage={user?.role === 'admin'} />}
-
-      {id && host && user?.role === 'admin' && <HostControls hostId={id} host={host} />}
-
-      {host && user?.role === 'admin' && <AgentCard host={host} onChanged={load} />}
-
-      {id && host && user?.role === 'admin' && (
-        <Card className="mt-4 p-5">
-          <p className="text-sm font-medium text-content">Location</p>
-          <p className="mt-1 text-xs text-muted">Where this host physically lives. Shown on the map view.</p>
-          <div className="mt-4">
-            <MapPicker
-              hostId={id}
-              location={host.physical_location ?? ''}
-              latitude={host.latitude}
-              longitude={host.longitude}
-              onSaved={load}
-            />
-          </div>
-        </Card>
-      )}
-
-      {id && (
-        <div className="mt-6">
-          {user?.role === 'admin' && (
+      {tab === 'metrics' && id && (
+        <div className="mt-4">
+          {admin && (
             <div className="mb-2 flex justify-end">
               <Button variant="secondary" onClick={() => setClearing(true)}>
                 Clear metrics
@@ -162,6 +156,76 @@ export default function HostInventory() {
           )}
           <HostMetrics key={metricsKey} path={`/api/hosts/${id}/metrics`} />
         </div>
+      )}
+
+      {tab === 'inventory' && (
+        <>
+          <Section
+            title="Systemd units"
+            items={inv.services}
+            onCreate={createFrom}
+            control={controlFor('service')}
+            hostName={hostLabel}
+          />
+          <Section
+            title="Containers"
+            items={inv.containers}
+            onCreate={createFrom}
+            control={controlFor('container')}
+            hostName={hostLabel}
+          />
+          <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} hostName={hostLabel} />
+        </>
+      )}
+
+      {tab === 'credentials' && id && (
+        <CredentialsSection hostId={id} canManage={admin} />
+      )}
+
+      {tab === 'settings' && admin && (
+        <>
+          {id && (
+            <Card className="mt-4 p-5">
+              <p className="text-sm font-medium text-content">Icon</p>
+              <div className="mt-4">
+                <IconUploader
+                  url={host?.icon_url}
+                  name={host?.name ?? 'Host'}
+                  path={`/api/admin/hosts/${id}/icon`}
+                  onChange={load}
+                />
+              </div>
+              <p className="mt-6 text-sm font-medium text-content">Thumbnail</p>
+              <div className="mt-4">
+                <ThumbnailUploader
+                  url={host?.thumbnail_url}
+                  path={`/api/admin/hosts/${id}/thumbnail`}
+                  onChange={load}
+                />
+              </div>
+            </Card>
+          )}
+
+          {id && host && (
+            <Card className="mt-4 p-5">
+              <p className="text-sm font-medium text-content">Location</p>
+              <p className="mt-1 text-xs text-muted">Where this host physically lives. Shown on the map view.</p>
+              <div className="mt-4">
+                <MapPicker
+                  hostId={id}
+                  location={host.physical_location ?? ''}
+                  latitude={host.latitude}
+                  longitude={host.longitude}
+                  onSaved={load}
+                />
+              </div>
+            </Card>
+          )}
+
+          {id && <HostThresholds hostId={id} />}
+
+          {id && host && <DeleteHost hostId={id} host={host} />}
+        </>
       )}
 
       {clearing && (
@@ -173,28 +237,6 @@ export default function HostInventory() {
           onClose={() => setClearing(false)}
         />
       )}
-
-      {id && <EventHistory path={`/api/hosts/${id}/events`} />}
-
-      {id && user?.role === 'admin' && <HostThresholds hostId={id} />}
-
-      <Section
-        title="Systemd units"
-        items={inv.services}
-        onCreate={createFrom}
-        control={controlFor('service')}
-        hostName={hostLabel}
-      />
-      <Section
-        title="Containers"
-        items={inv.containers}
-        onCreate={createFrom}
-        control={controlFor('container')}
-        hostName={hostLabel}
-      />
-      <Section title="Cron jobs" items={inv.cron_jobs} onCreate={createFrom} hostName={hostLabel} />
-
-      {id && host && user?.role === 'admin' && <DeleteHost hostId={id} host={host} />}
     </div>
   );
 }

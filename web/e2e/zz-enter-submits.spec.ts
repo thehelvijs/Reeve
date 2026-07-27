@@ -123,6 +123,7 @@ test('enter stores and reveals a credential', async ({ page }) => {
   await page.getByRole('button', { name: 'Create' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
   await page.click('text=EnterHost');
+  await page.getByRole('tab', { name: 'Credentials' }).click();
   await page.getByRole('button', { name: 'Add credential' }).click();
   await page.getByRole('textbox', { name: 'Label' }).fill('enter-cred');
   await page.getByRole('textbox', { name: 'username' }).fill('root');
@@ -187,6 +188,7 @@ test('enter picks a city and then saves the host location', async ({ page }) => 
   await loginAdmin(page);
   await page.goto('/hosts');
   await page.locator('#host-list a', { hasText: 'enter-key-host' }).first().click();
+  await page.getByRole('tab', { name: 'Settings' }).click();
 
   const city = page.getByPlaceholder('Search a city, e.g. Riga');
   await city.fill('Riga');

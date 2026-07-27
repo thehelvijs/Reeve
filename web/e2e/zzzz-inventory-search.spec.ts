@@ -60,7 +60,7 @@ function section(page: Page, title: string) {
 test('each inventory list filters from its own heading', async ({ page }) => {
   await login(page);
   const hostID = await enrollStockedHost(page.request, 'e2e-inventory-search');
-  await page.goto(`/hosts/${hostID}`);
+  await page.goto(`/hosts/${hostID}?tab=inventory`);
 
   const units = section(page, 'Systemd units');
   await expect(units).toContainText('Systemd units (3)');
@@ -88,7 +88,7 @@ test('each inventory list filters from its own heading', async ({ page }) => {
 test('an inventory search with no match says so', async ({ page }) => {
   await login(page);
   const hostID = await enrollStockedHost(page.request, 'e2e-inventory-nomatch');
-  await page.goto(`/hosts/${hostID}`);
+  await page.goto(`/hosts/${hostID}?tab=inventory`);
 
   const units = section(page, 'Systemd units');
   await units.getByRole('searchbox', { name: 'Search systemd units…' }).fill('nosuchunit');
@@ -99,7 +99,7 @@ test('an inventory search with no match says so', async ({ page }) => {
 test('the process table filters by command, user and pid', async ({ page }) => {
   await login(page);
   const hostID = await enrollStockedHost(page.request, 'e2e-process-search');
-  await page.goto(`/hosts/${hostID}`);
+  await page.goto(`/hosts/${hostID}?tab=metrics`);
 
   const table = page.locator('table').filter({ hasText: '/usr/sbin/nginx' });
   await expect(table.locator('tbody tr')).toHaveCount(2);
@@ -116,4 +116,37 @@ test('the process table filters by command, user and pid', async ({ page }) => {
 
   await box.fill('nosuchprocess');
   await expect(page.getByText('No process matches the search.')).toBeVisible();
+});
+
+// The page is five tabs. What has to hold: the tab is in the URL so a link to a
+// machine's metrics stays one, an unknown or forbidden tab falls back to the
+// overview rather than rendering an empty page, and each tab holds its own
+// content and only its own.
+test('the host page opens on the overview and keeps its tab in the URL', async ({ page }) => {
+  await login(page);
+  const hostID = await enrollStockedHost(page.request, 'e2e-host-tabs');
+  await page.goto(`/hosts/${hostID}`);
+
+  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('Event history')).toBeVisible();
+  await expect(page.locator('h2:text-is("Systemd units")')).toHaveCount(0);
+
+  await page.getByRole('tab', { name: /^Inventory/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/hosts/${hostID}\\?tab=inventory$`));
+  await expect(page.locator('h2:text-is("Systemd units")')).toBeVisible();
+  await expect(page.getByText('Event history')).toHaveCount(0);
+
+  // The count on the tab is the whole inventory: 3 units, 2 containers, 2 jobs.
+  await expect(page.getByRole('tab', { name: /^Inventory/ })).toContainText('7');
+
+  await page.reload();
+  await expect(page.locator('h2:text-is("Systemd units")')).toBeVisible();
+});
+
+test('an unknown tab falls back to the overview', async ({ page }) => {
+  await login(page);
+  const hostID = await enrollStockedHost(page.request, 'e2e-host-badtab');
+  await page.goto(`/hosts/${hostID}?tab=nonsense`);
+  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText('Event history')).toBeVisible();
 });

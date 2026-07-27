@@ -157,15 +157,17 @@ export function Td({ children, className = '', ...props }: TdHTMLAttributes<HTML
   );
 }
 
-// Tabs filter a list in place. The count is part of the label: it says how much
-// is behind a tab before it is opened, and reads as zero rather than empty.
+// Tabs filter a list in place, or split one page into sections. A count is part
+// of the label where there is something to count: it says how much is behind a
+// tab before it is opened, and reads as zero rather than empty. A tab that holds
+// a form rather than a list leaves it out.
 export function Tabs<T extends string>({
   tabs,
   active,
   onChange,
   label,
 }: {
-  tabs: { key: T; label: string; count: number }[];
+  tabs: { key: T; label: string; count?: number }[];
   active: T;
   onChange: (key: T) => void;
   label: string;
@@ -189,9 +191,11 @@ export function Tabs<T extends string>({
               className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-1 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-link ${tone}`}
             >
               {t.label}
-              <span className="rounded-pill bg-surface-2 px-1.5 text-xs font-medium tabular-nums text-muted">
-                {t.count}
-              </span>
+              {t.count !== undefined && (
+                <span className="rounded-pill bg-surface-2 px-1.5 text-xs font-medium tabular-nums text-muted">
+                  {t.count}
+                </span>
+              )}
             </button>
           );
         })}

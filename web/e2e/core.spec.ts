@@ -38,6 +38,8 @@ test('signup, create tool, store and reveal a host credential', async ({ page })
   await page.click('button:has-text("Done")');
   await page.click('text=cred-host');
 
+  // Credentials are their own tab on the host page.
+  await page.getByRole('tab', { name: 'Credentials' }).click();
   await page.click('button:has-text("Add credential")');
   // Default type is ssh_password; switch to api_token for a single field.
   await page.selectOption('select', 'api_token');

@@ -56,7 +56,7 @@ instance may already hold.
 
 ## Admin
 - [ ] Users list (avatars/names), role toggle, deactivate, delete.
-- [ ] Host detail: icon + thumbnail upload, location map picker (city autocomplete + pin).
+- [ ] Host detail → Settings: icon + thumbnail upload, location map picker (city autocomplete + pin).
 
 ## Forms
 - [ ] Add-for-monitoring page: endpoint toggle (host&port / URL), save → tool detail.
@@ -64,8 +64,8 @@ instance may already hold.
 ## Agent updates
 - [ ] Hosts page: rollup line shows the server version and per-state counts.
 - [ ] Hosts row: outdated shows an amber pill, stalled a red one, up-to-date no pill.
-- [ ] Host detail: Agent card shows version, state pill, policy select, Update now.
-- [ ] Host detail: a vetoed host explains that the machine refuses updates.
+- [ ] Host detail → Overview: Agent card shows version, state pill, policy select, Update now.
+- [ ] Host detail → Overview: a vetoed host explains that the machine refuses updates.
 - [ ] Settings → Agent updates: toggle, concurrency, stall timeout save and persist.
 - [ ] Paused rollout: banner names the stalled hosts; Resume rollout clears it.
 - [ ] Paused rollout: each named host is a link to its detail page, and the

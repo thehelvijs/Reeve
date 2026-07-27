@@ -51,7 +51,7 @@ async function enrollReportingHost(req: APIRequestContext, name: string) {
 test('a destructive row action asks first, and cancelling runs nothing', async ({ page }) => {
   await login(page);
   const hostID = await enrollReportingHost(page.request, 'e2e-confirm-host');
-  await page.goto(`/hosts/${hostID}`);
+  await page.goto(`/hosts/${hostID}?tab=inventory`);
 
   // Restart takes whatever is using the unit down with it, so it asks.
   await page.locator('button:text-is("restart")').first().click();
@@ -123,7 +123,7 @@ test('the visibility toggle hides a service from the anonymous portal', async ({
 test('every reported filesystem is listed, fullest first', async ({ page }) => {
   await login(page);
   const hostID = await enrollReportingHost(page.request, 'e2e-disk-host');
-  await page.goto(`/hosts/${hostID}`);
+  await page.goto(`/hosts/${hostID}?tab=metrics`);
 
   const card = page.locator('p:has-text("Filesystems")').locator('xpath=..');
   await expect(card).toContainText('Filesystems (2)');
