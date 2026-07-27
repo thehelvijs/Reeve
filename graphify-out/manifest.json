@@ -25,9 +25,9 @@
     "semantic_hash": "b4463e6ad5d883c4552082b4b7f8bc99"
   },
   "agent/collect/logs.go": {
-    "mtime": 1785011475.3704991,
-    "ast_hash": "00389c5bf999d1773176e9d1879ea83a",
-    "semantic_hash": "00389c5bf999d1773176e9d1879ea83a"
+    "mtime": 1785184827.272728,
+    "ast_hash": "6f99585143c4f967c5cb9955069cc00c",
+    "semantic_hash": ""
   },
   "agent/collect/metrics.go": {
     "mtime": 1784661341.0,
@@ -1510,8 +1510,8 @@
     "semantic_hash": ""
   },
   "agent/collect/redact_test.go": {
-    "mtime": 1785184529.65657,
-    "ast_hash": "cdf2cbe67bd2844289b730e4e28082a9",
+    "mtime": 1785184834.2605133,
+    "ast_hash": "b04fb7a2d768d196c303d88fcc1177dc",
     "semantic_hash": ""
   }
 }
