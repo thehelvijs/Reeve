@@ -134,3 +134,43 @@ func TestPruneRemovesOldRaw(t *testing.T) {
 		t.Errorf("expected 1 raw point after prune, got %d", len(pts))
 	}
 }
+
+// A byte counter that does not divide evenly is what a real machine reports, and
+// AVG over it is a float. The integer columns hold it as one — SQLite converts a
+// REAL to INTEGER only when that is lossless — so the read has to survive it.
+// Every metrics range 500'd on a host whose rollup had ever run over odd bytes.
+func TestRollupOfUnevenBytesStaysReadable(t *testing.T) {
+	db := openTemp(t)
+	host := seedHost(t, db)
+	base := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+
+	// Offsets chosen so every integer column's mean lands on a third, never a
+	// whole number: 0+1+3 over 3 samples.
+	for _, off := range []uint64{0, 1, 3} {
+		m := contracts.HostMetrics{
+			CPUPct: 10, MemUsed: 1000 + off, MemTotal: 4000 + off,
+			DiskUsed: 700 + off, DiskTotal: 2000 + off, DiskRead: 11 + off, DiskWrite: 7 + off,
+			NetRx: 101 + off, NetTx: 53 + off, UptimeSecs: 60 + off,
+			GPUMemUsed: 5 + off, GPUMemTotal: 100 + off,
+		}
+		if err := db.InsertHostMetric(host, m, base.Add(time.Duration(off*40)*time.Second)); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+	if err := db.RollupAndPrune(base.Add(2*time.Hour), DefaultRetention); err != nil {
+		t.Fatalf("rollup: %v", err)
+	}
+
+	for _, res := range []string{"raw", "5m", "1h"} {
+		pts, err := db.QueryHostMetrics(host, res, base.Add(-time.Hour))
+		if err != nil {
+			t.Fatalf("query %s: %v", res, err)
+		}
+		if len(pts) == 0 {
+			t.Fatalf("query %s returned no points", res)
+		}
+		if pts[0].MemUsed == 0 || pts[0].NetRx == 0 {
+			t.Errorf("%s point lost its byte counters: %+v", res, pts[0])
+		}
+	}
+}

@@ -79,9 +79,13 @@ func (db *DB) rollupHostMetrics(from, to string, bucketSecs int64, now time.Time
 		SELECT host_id,
 			strftime('%%Y-%%m-%%dT%%H:%%M:%%SZ', (CAST(strftime('%%s', ts) AS INTEGER) / %d) * %d, 'unixepoch'),
 			'%s',
-			AVG(cpu_pct), AVG(mem_used), AVG(mem_total), AVG(disk_used), AVG(disk_total),
-			AVG(disk_read), AVG(disk_write), AVG(net_rx), AVG(net_tx), AVG(uptime_secs), '{}',
-			AVG(load1), AVG(load5), AVG(load15), AVG(gpu_util), AVG(gpu_mem_used), AVG(gpu_mem_total)
+			AVG(cpu_pct), CAST(AVG(mem_used) AS INTEGER), CAST(AVG(mem_total) AS INTEGER),
+			CAST(AVG(disk_used) AS INTEGER), CAST(AVG(disk_total) AS INTEGER),
+			CAST(AVG(disk_read) AS INTEGER), CAST(AVG(disk_write) AS INTEGER),
+			CAST(AVG(net_rx) AS INTEGER), CAST(AVG(net_tx) AS INTEGER),
+			CAST(AVG(uptime_secs) AS INTEGER), '{}',
+			AVG(load1), AVG(load5), AVG(load15), AVG(gpu_util),
+			CAST(AVG(gpu_mem_used) AS INTEGER), CAST(AVG(gpu_mem_total) AS INTEGER)
 		FROM metric_samples
 		WHERE resolution = '%s'
 		GROUP BY host_id, (CAST(strftime('%%s', ts) AS INTEGER) / %d)
@@ -98,7 +102,7 @@ func (db *DB) rollupContainerStats(from, to string, bucketSecs int64, now time.T
 		SELECT host_id, container_id,
 			strftime('%%Y-%%m-%%dT%%H:%%M:%%SZ', (CAST(strftime('%%s', ts) AS INTEGER) / %d) * %d, 'unixepoch'),
 			'%s',
-			AVG(cpu_pct), AVG(mem_used), AVG(mem_limit)
+			AVG(cpu_pct), CAST(AVG(mem_used) AS INTEGER), CAST(AVG(mem_limit) AS INTEGER)
 		FROM container_stats
 		WHERE resolution = '%s'
 		GROUP BY host_id, container_id, (CAST(strftime('%%s', ts) AS INTEGER) / %d)

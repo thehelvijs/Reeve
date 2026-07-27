@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
@@ -42,6 +43,18 @@ type ContainerPoint struct {
 // metricTimeFmt uses second precision so SQLite's strftime can bucket by epoch
 // during rollup. INSERT OR REPLACE keeps a same-second re-push idempotent.
 const metricTimeFmt = time.RFC3339
+
+// intCols reads byte and second counters back as integers. A rollup averages
+// them, SQLite keeps a fractional mean as REAL even in an INTEGER column, and
+// scanning that into a uint64 fails — which took every metrics range down on a
+// host whose rollup had run. Casting on read also rescues rows already stored.
+func intCols(names ...string) string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = "CAST(" + n + " AS INTEGER)"
+	}
+	return strings.Join(out, ", ")
+}
 
 // InsertHostMetric stores a raw host metric sample from a push.
 func (db *DB) InsertHostMetric(hostID string, m contracts.HostMetrics, ts time.Time) error {
@@ -205,8 +218,10 @@ func insertContainerStats(w writer, hostID string, stats []contracts.ContainerSa
 // cutoff, oldest first.
 func (db *DB) QueryHostMetrics(hostID, resolution string, since time.Time) ([]MetricPoint, error) {
 	rows, err := db.sql.Query(
-		`SELECT ts, cpu_pct, mem_used, mem_total, disk_used, disk_total, disk_read, disk_write,
-			net_rx, net_tx, temps, load1, load5, load15, gpu_util, gpu_mem_used, gpu_mem_total
+		`SELECT ts, cpu_pct, `+intCols(
+			"mem_used", "mem_total", "disk_used", "disk_total", "disk_read", "disk_write",
+			"net_rx", "net_tx")+`, temps, load1, load5, load15, gpu_util, `+
+			intCols("gpu_mem_used", "gpu_mem_total")+`
 		 FROM metric_samples WHERE host_id = ? AND resolution = ? AND ts >= ?
 		 ORDER BY ts`, hostID, resolution, since.UTC().Format(time.RFC3339Nano))
 	if err != nil {
@@ -234,7 +249,7 @@ func (db *DB) QueryHostMetrics(hostID, resolution string, since time.Time) ([]Me
 func (db *DB) QueryContainerStats(hostID, resolution string, since time.Time) ([]ContainerPoint, error) {
 	rows, err := db.sql.Query(
 		`SELECT container_stats.container_id, cs.name, container_stats.ts,
-			container_stats.cpu_pct, container_stats.mem_used, container_stats.mem_limit
+			container_stats.cpu_pct, `+intCols("container_stats.mem_used", "container_stats.mem_limit")+`
 		 FROM container_stats
 		 LEFT JOIN container_status cs ON cs.host_id = container_stats.host_id
 			AND cs.container_id = container_stats.container_id
