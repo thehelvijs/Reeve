@@ -5,6 +5,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* uPlot's legend names the lines of a multi-series plot and reads out the value
+   under the cursor. Its own stylesheet sets 12px bold, which competed with the
+   card's title; this is the eyebrow scale the rest of the chrome uses. */
+.u-legend {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.u-legend th,
+.u-legend .u-label {
+  font-weight: 600;
+}
+.u-legend .u-value {
+  font-weight: 400;
+  color: var(--text);
+}
+
 /* Leaflet, themed to match the surface ladder. */
 .leaflet-container {
   background: var(--surface-2);

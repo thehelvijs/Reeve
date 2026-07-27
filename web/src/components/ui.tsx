@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TdHTMLAttributes } from 'react';
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TdHTMLAttributes,
+} from 'react';
 
 // buttonBox is the geometry every button-shaped control shares: padding, radius,
 // type scale and a border. Exported so a control that cannot be a <button> — a
@@ -61,10 +67,25 @@ export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInpu
   );
 }
 
+// Select carries the input's box so a dropdown beside a text field or a button
+// lines up with it. Three pages had grown their own copy of this class string.
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={`rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link disabled:opacity-50 ${className}`}
+      {...props}
+    />
+  );
+}
+
+// The label is `block` so it sits above its control even when the control is not
+// full width: a bare <span> shares a line with a <select>, which put "Auto-update"
+// to the left of its dropdown while every other field in the app labelled from
+// above.
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-semibold text-content">{label}</span>
+      <span className="block text-xs font-semibold text-content">{label}</span>
       {children}
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
@@ -103,6 +124,55 @@ export function Pill({
 // so a heading never competes with the page title.
 export function Eyebrow({ children }: { children: ReactNode }) {
   return <h2 className="text-eyebrow font-semibold uppercase text-muted">{children}</h2>;
+}
+
+// Section is the one shape a block of a page takes: a named heading, the count
+// of what is under it, a line saying what it is for, and one control on the
+// right. Everything below the page title is one of these, so a card, a table
+// and a form all sit at the same altitude and a screen reader gets an outline.
+export function Section({
+  title,
+  count,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  count?: number;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-sm font-medium text-content">
+            {title}
+            {count !== undefined && <span className="text-muted"> ({count})</span>}
+          </h2>
+          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+        </div>
+        {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+      </div>
+      <div className="mt-2">{children}</div>
+    </section>
+  );
+}
+
+// Facts is the label/value grid a detail page uses for what a thing *is*, as
+// opposed to what it is doing. A definition list, because that is what it is.
+export function Facts({ items }: { items: { label: string; value: ReactNode }[] }) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+      {items.map((f) => (
+        <div key={f.label} className="min-w-0">
+          <dt className="text-eyebrow font-semibold uppercase text-muted">{f.label}</dt>
+          <dd className="mt-0.5 truncate text-sm text-content">{f.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 // Table is the default shape for a list of records: every column is named, so a
