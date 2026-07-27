@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useTheme, type Theme } from '../lib/theme';
 
 export interface MapPoint {
   id?: string;
@@ -9,10 +10,19 @@ export interface MapPoint {
   label?: string;
 }
 
-// LeafletMap renders a dark-tiled slippy map (scroll to zoom). It fits the view
-// to the markers so a single server shows its city rather than the whole globe.
-// onPick fires with a clicked coordinate (location picker); onPointClick fires
-// when a marker is clicked. Tiles come from CARTO (the one external dependency).
+// CARTO ships a raster per theme, so the basemap is swapped rather than filtered.
+function tileURL(theme: Theme): string {
+  if (theme === 'light') {
+    return 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  }
+  return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+}
+
+// LeafletMap renders a slippy map (scroll to zoom) tiled for the active theme. It
+// fits the view to the markers so a single server shows its city rather than the
+// whole globe. onPick fires with a clicked coordinate (location picker);
+// onPointClick fires when a marker is clicked. Tiles come from CARTO (the one
+// external dependency).
 export default function LeafletMap({
   points = [],
   onPick,
@@ -27,6 +37,12 @@ export default function LeafletMap({
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const tilesRef = useRef<L.TileLayer | null>(null);
+  const theme = useTheme();
+  // The map is built once, so the setup effect reads the theme through a ref
+  // rather than listing it as a dependency and tearing the map down on a switch.
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
   const pointClickRef = useRef(onPointClick);
@@ -41,7 +57,7 @@ export default function LeafletMap({
       worldCopyJump: true,
       minZoom: 2,
     }).setView([20, 0], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    tilesRef.current = L.tileLayer(tileURL(themeRef.current), {
       subdomains: 'abcd',
       maxZoom: 19,
       detectRetina: true,
@@ -63,6 +79,10 @@ export default function LeafletMap({
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    tilesRef.current?.setUrl(tileURL(theme));
+  }, [theme]);
 
   useEffect(() => {
     const map = mapRef.current;

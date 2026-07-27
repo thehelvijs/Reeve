@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { cssVar, useTheme } from '../lib/theme';
 import { Card } from './ui';
 import Chart, { type Series } from './Chart';
 import { fmtBytes } from '../lib/format';
@@ -54,15 +55,18 @@ function labelFor(containers: ContainerPoint[], id: string): string {
 
 const RANGES = ['1h', '12h', '24h', '7d', '30d'];
 
-// Series colors are assigned in this fixed order, never by rank, so a series
-// keeps its color when a filter changes how many are drawn. The order
-// alternates dark and light steps: that lightness gap is what keeps adjacent
-// series apart for a red-green colorblind reader, where hue alone collapses.
-// Validated on a white surface for lightness band, chroma, deutan/tritan
-// separation and 3:1 contrast.
-const PRIMARY = '#0b4f9e';
-const SECONDARY = '#c07f0a';
-const PALETTE = ['#0b4f9e', '#c07f0a', '#7a2f6e', '#2aa39b', '#4a5c00', '#7f7cd0', '#96331f', '#5f9628'];
+// Slots, not colors: --series-1..8 are set per theme in theme.css, each set
+// validated against its own canvas. A slot is assigned by position and never by
+// rank, so a series keeps its color when the drawn count changes.
+const SERIES_SLOTS = 8;
+
+function palette(): string[] {
+  const out: string[] = [];
+  for (let i = 1; i <= SERIES_SLOTS; i += 1) {
+    out.push(cssVar(`--series-${i}`));
+  }
+  return out;
+}
 
 const fmtPct = (v: number) => `${v.toFixed(0)}%`;
 
@@ -72,6 +76,12 @@ export default function HostMetrics({ path }: { path: string }) {
   const [containers, setContainers] = useState<ContainerPoint[]>([]);
   const [procs, setProcs] = useState<ProcessSample[]>([]);
   const [disks, setDisks] = useState<DiskUsage[]>([]);
+  // Subscribed for the re-render, not for the value: a theme switch re-runs
+  // palette(), which reads the slots the new theme set.
+  useTheme();
+  const PALETTE = palette();
+  const PRIMARY = PALETTE[0];
+  const SECONDARY = PALETTE[1];
 
   useEffect(() => {
     const load = () => {

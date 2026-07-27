@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { cssVar, useTheme } from '../lib/theme';
 
 export interface Series {
   label: string;
@@ -22,12 +23,18 @@ export default function Chart({
   height?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // uPlot paints to a canvas from color strings, so it cannot follow a variable
+  // on its own: the theme is a dependency that forces a redraw.
+  const theme = useTheme();
 
   useEffect(() => {
     const el = ref.current;
     if (!el) {
       return;
     }
+    const axis = cssVar('--axis');
+    const grid = cssVar('--grid');
+    const tick = cssVar('--tick');
     const width = el.clientWidth || 600;
     const opts: uPlot.Options = {
       width,
@@ -38,14 +45,14 @@ export default function Chart({
       // Axis labels wear the muted text token; the grid stays recessive.
       axes: [
         {
-          stroke: '#626168',
-          grid: { stroke: 'rgba(31,30,36,0.08)', width: 1 },
-          ticks: { stroke: 'rgba(31,30,36,0.16)' },
+          stroke: axis,
+          grid: { stroke: grid, width: 1 },
+          ticks: { stroke: tick },
         },
         {
-          stroke: '#626168',
-          grid: { stroke: 'rgba(31,30,36,0.08)', width: 1 },
-          ticks: { stroke: 'rgba(31,30,36,0.16)' },
+          stroke: axis,
+          grid: { stroke: grid, width: 1 },
+          ticks: { stroke: tick },
           values: fmt ? (_u, splits) => splits.map((v) => fmt(v)) : undefined,
         },
       ],
@@ -77,7 +84,7 @@ export default function Chart({
       window.removeEventListener('resize', onResize);
       plot.destroy();
     };
-  }, [xs, series, fmt, height]);
+  }, [xs, series, fmt, height, theme]);
 
   return <div ref={ref} className="w-full" />;
 }

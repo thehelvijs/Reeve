@@ -11,7 +11,7 @@
   font-family: inherit;
 }
 .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: var(--surface-1) !important;
   color: var(--text-muted) !important;
 }
 .leaflet-control-attribution a {
@@ -31,8 +31,10 @@
   height: 14px;
   border-radius: 9999px;
   background: var(--link);
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1px rgba(31, 30, 36, 0.25);
+  /* The ring separates the pin from the tiles under it, so it takes the page's
+     own canvas rather than a fixed white. */
+  border: 2px solid var(--canvas);
+  box-shadow: 0 0 0 1px var(--border-strong);
 }
 .reeve-tip {
   background: var(--canvas) !important;

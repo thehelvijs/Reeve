@@ -6,6 +6,7 @@ import { groupToolsByHost } from '../lib/group';
 import EntityIcon from './EntityIcon';
 import StatusPill from './StatusPill';
 import { dotClass, hostTone, TOOL_TONE } from '../lib/statusTone';
+import { cssVar, useTheme } from '../lib/theme';
 
 // A node carries either a host status or a tool status, so it resolves through whichever map owns the value.
 function nodeDot(status?: string): string {
@@ -63,6 +64,11 @@ export default function PortalGraph({
   onOpenTool: (id: string) => void;
   onOpenHost?: (id: string) => void;
 }) {
+  // React Flow draws its edges and dot grid from color strings, so the theme has
+  // to reach them the same way it reaches the charts.
+  const theme = useTheme();
+  const edgeColor = cssVar('--graph-edge');
+  const dotsColor = cssVar('--graph-dots');
   const { nodes, edges } = useMemo(() => {
     const groups = groupToolsByHost(tools, hosts);
     const ns: Node[] = [];
@@ -112,13 +118,13 @@ export default function PortalGraph({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        colorMode="light"
+        colorMode={theme}
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         nodesDraggable={false}
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: '#bfbfc3', strokeWidth: 1.5 } }}
+        defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: edgeColor, strokeWidth: 1.5 } }}
         onNodeClick={(_, node) => {
           const d = node.data as HostData | SvcData;
           if (d.kind === 'service') {
@@ -128,7 +134,7 @@ export default function PortalGraph({
           }
         }}
       >
-        <Background gap={22} size={1} color="#dcdcde" />
+        <Background gap={22} size={1} color={dotsColor} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
