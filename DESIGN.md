@@ -117,9 +117,12 @@ tone instead.
   a sentence.
 - **Theme toggle:** one control, in the app sidebar and in the portal header, so
   an anonymous visitor can switch too. It names what it will do, not what is on.
-- **Charts:** series colors are slots, `--series-1` to `--series-8`, assigned in
-  order and never by rank, so a series keeps its color when the drawn count
-  changes. Each theme has its own eight steps, selected against its own canvas
+- **Charts:** a plot with one line, and a resource bar, take `--data-primary`,
+  which is the brand lime on dark and the link blue on light. Lime reads 13.4:1 on
+  the dark canvas and 1.2:1 on white, so it carries data in exactly one theme.
+  A plot with several lines takes slots instead, `--series-1` to `--series-8`,
+  assigned in order and never by rank, so a series keeps its color when the drawn
+  count changes. Each theme has its own eight steps, selected against its own canvas
   rather than flipped from the other. Both sets pass a lightness band, a chroma
   floor, deutan and tritan separation, and 3:1 contrast. `Chart.tsx` reads
   `--axis`, `--grid` and `--tick` at draw time, so nothing in a plot is

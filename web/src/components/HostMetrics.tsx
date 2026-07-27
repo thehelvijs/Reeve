@@ -58,6 +58,10 @@ const RANGES = ['1h', '12h', '24h', '7d', '30d'];
 // Slots, not colors: --series-1..8 are set per theme in theme.css, each set
 // validated against its own canvas. A slot is assigned by position and never by
 // rank, so a series keeps its color when the drawn count changes.
+//
+// A chart with one line takes --data-primary instead, which is the brand lime on
+// dark. Lime is too bright to sit in an even categorical ramp, but a lone line has
+// no ramp to be even with.
 const SERIES_SLOTS = 8;
 
 function palette(): string[] {
@@ -80,6 +84,7 @@ export default function HostMetrics({ path }: { path: string }) {
   // palette(), which reads the slots the new theme set.
   useTheme();
   const PALETTE = palette();
+  const SOLO = cssVar('--data-primary');
   const PRIMARY = PALETTE[0];
   const SECONDARY = PALETTE[1];
 
@@ -105,9 +110,9 @@ export default function HostMetrics({ path }: { path: string }) {
   }, [path, range]);
 
   const xs = points.map((p) => Math.floor(new Date(p.ts).getTime() / 1000));
-  const cpu: Series[] = [{ label: 'CPU %', color: PRIMARY, data: points.map((p) => p.cpu_pct) }];
-  const mem: Series[] = [{ label: 'Memory used', color: PRIMARY, data: points.map((p) => p.mem_used) }];
-  const disk: Series[] = [{ label: 'Disk used', color: PRIMARY, data: points.map((p) => p.disk_used) }];
+  const cpu: Series[] = [{ label: 'CPU %', color: SOLO, data: points.map((p) => p.cpu_pct) }];
+  const mem: Series[] = [{ label: 'Memory used', color: SOLO, data: points.map((p) => p.mem_used) }];
+  const disk: Series[] = [{ label: 'Disk used', color: SOLO, data: points.map((p) => p.disk_used) }];
   const net: Series[] = [
     { label: 'RX', color: PRIMARY, data: points.map((p) => p.net_rx) },
     { label: 'TX', color: SECONDARY, data: points.map((p) => p.net_tx) },
@@ -132,8 +137,8 @@ export default function HostMetrics({ path }: { path: string }) {
   ];
 
   const hasGPU = points.some((p) => p.gpu_mem_total > 0);
-  const gpuUtil: Series[] = [{ label: 'GPU %', color: PRIMARY, data: points.map((p) => p.gpu_util) }];
-  const gpuMem: Series[] = [{ label: 'GPU memory', color: PRIMARY, data: points.map((p) => p.gpu_mem_used) }];
+  const gpuUtil: Series[] = [{ label: 'GPU %', color: SOLO, data: points.map((p) => p.gpu_util) }];
+  const gpuMem: Series[] = [{ label: 'GPU memory', color: SOLO, data: points.map((p) => p.gpu_mem_used) }];
 
   const containerIds = Array.from(new Set(containers.map((c) => c.container_id)));
   const containerCpu: Series[] = containerIds.map((id, i) => {

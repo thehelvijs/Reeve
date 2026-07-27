@@ -72,6 +72,12 @@
   --graph-edge: #535158;
   --graph-dots: #333238;
 
+  /* A lone series, and a resource bar, take the brand color: it reads 13.4:1 on
+     this canvas, which is why it looked right here before there was a light
+     theme to break it. A set of series takes the validated slots below instead —
+     lime is far too bright to sit in an even categorical ramp. */
+  --data-primary: #e4f222;
+
   /* Categorical series, assigned in this order and never by rank. Validated on
      the dark canvas for lightness band, chroma floor, deutan and tritan
      separation, and 3:1 contrast. */
@@ -154,6 +160,10 @@
   --tick: rgba(31, 30, 36, 0.16);
   --graph-edge: #bfbfc3;
   --graph-dots: #dcdcde;
+
+  /* Lime is 1.2:1 on white, so the light theme cannot borrow it: a lone series
+     and a bar take the same blue as the links instead. */
+  --data-primary: #0b4f9e;
 
   /* Its own steps, validated against white — not a flip of the dark set. */
   --series-1: #0b4f9e;

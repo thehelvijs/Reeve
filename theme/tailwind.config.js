@@ -33,6 +33,8 @@ module.exports = {
           DEFAULT: 'var(--link)',
           hover: 'var(--link-hover)',
         },
+        // A lone measure: lime on dark, blue on light.
+        data: 'var(--data-primary)',
         // Status tones: bare name for text, -solid for a dot or bar fill,
         // -soft/-line for a badge.
         up: {
