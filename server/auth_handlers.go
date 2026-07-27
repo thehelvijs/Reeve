@@ -162,7 +162,7 @@ func (a *app) throttled(w http.ResponseWriter, keys ...string) bool {
 
 func (a *app) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
-		a.db.DeleteSession(c.Value)
+		a.db.DeleteSession(auth.HashToken(c.Value))
 	}
 	a.clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)
@@ -179,13 +179,14 @@ func (a *app) handleMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) startSession(w http.ResponseWriter, userID string) {
-	sess, err := a.db.CreateSession(userID, a.cfg.SessionTTL)
+	token, hash := auth.NewSessionToken()
+	sess, err := a.db.CreateSession(userID, hash, a.cfg.SessionTTL)
 	if err != nil {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
-		Value:    sess.ID,
+		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   a.cfg.CookieSecure,

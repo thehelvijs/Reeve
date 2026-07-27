@@ -25,6 +25,13 @@ names — because it has to be searchable, sortable and aggregatable. Treat the
 database as a full map of what the team runs and where; only the secrets
 attached to those entries are encrypted.
 
+**Reeve stores no bearer token verbatim.** The session cookie, the agent
+enrollment token and the password-reset link each carry 32 random bytes. The
+database keeps only a SHA-256 of each. A reader of the database file learns who
+holds a live session, and gets nothing to replay as one. Passwords use argon2id
+at a 64 MiB cost instead, because a password is guessable and a random token is
+not.
+
 **Revealing a credential is audited.** Every reveal records who, which
 credential, which host it opens, when, and the source IP. Grants and revocations are recorded too.
 The source IP is the peer address unless `REEVE_TRUST_PROXY=true` declares a

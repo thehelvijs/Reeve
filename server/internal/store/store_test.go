@@ -101,7 +101,7 @@ func TestValidateBackupRejectsAForeignDatabaseWithoutTouchingIt(t *testing.T) {
 func TestForeignKeysEnforced(t *testing.T) {
 	db := openTemp(t)
 	_, err := db.SQL().Exec(
-		"INSERT INTO sessions(id, user_id, expires_at, created_at) VALUES ('s1','nouser','x','y')",
+		"INSERT INTO sessions(token_hash, user_id, expires_at, created_at) VALUES ('s1','nouser','x','y')",
 	)
 	if err == nil {
 		t.Fatal("expected foreign key violation inserting session for missing user")

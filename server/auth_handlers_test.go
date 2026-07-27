@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
+
+	"github.com/thehelvijs/Reeve/server/internal/auth"
 )
 
 func signup(t *testing.T, ts *testServer, c *http.Client, email, pass string) (*http.Response, userView) {
@@ -230,5 +234,44 @@ func TestLoginSuccessClearsFailureCount(t *testing.T) {
 		if resp := login(t, ts, "a@b.com", "wrong", "10.0.0.1"); resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("post-reset attempt %d status = %d, want 401", i+1, resp.StatusCode)
 		}
+	}
+}
+
+// TestSessionCookieIsNotStoredInTheDatabase pins the property that makes a
+// readable database useless for signing in: the sessions table holds the hash
+// of the cookie, so the stored value cannot be replayed as one.
+func TestSessionCookieIsNotStoredInTheDatabase(t *testing.T) {
+	ts := newTestServer(t)
+	c := adminClient(t, ts)
+
+	u, _ := url.Parse(ts.srv.URL)
+	var cookie string
+	for _, ck := range c.Jar.Cookies(u) {
+		if ck.Name == sessionCookie {
+			cookie = ck.Value
+		}
+	}
+	if cookie == "" {
+		t.Fatal("no session cookie was set")
+	}
+	if !strings.HasPrefix(cookie, auth.SessionTokenPrefix) {
+		t.Errorf("cookie %q does not carry the session prefix", cookie)
+	}
+
+	var stored string
+	if err := ts.app.db.SQL().QueryRow(`SELECT token_hash FROM sessions`).Scan(&stored); err != nil {
+		t.Fatalf("read sessions: %v", err)
+	}
+	if stored == cookie {
+		t.Fatal("the session cookie is stored verbatim: the database file is a login")
+	}
+	if stored != auth.HashToken(cookie) {
+		t.Errorf("stored value is not the cookie's hash")
+	}
+
+	resp, _ := ts.do(t, nil, http.MethodGet, "/api/me", nil,
+		map[string]string{"Cookie": sessionCookie + "=" + stored})
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("replaying the stored value: status = %d, want 401", resp.StatusCode)
 	}
 }

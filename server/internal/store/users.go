@@ -214,23 +214,27 @@ func (db *DB) exec1(query string, args ...any) error {
 	return nil
 }
 
-// Session is a server-side login session keyed by an opaque cookie value.
+// Session is a server-side login session. Every method here takes and returns
+// the hash of the cookie value, never the value itself: the cookie is a bearer
+// token, so storing it as it arrives would make the database file enough to
+// sign in as anyone holding a live session.
 type Session struct {
-	ID        string
+	TokenHash string
 	UserID    string
 	ExpiresAt time.Time
 }
 
-// CreateSession stores a session and returns its id (the cookie value).
-func (db *DB) CreateSession(userID string, ttl time.Duration) (Session, error) {
+// CreateSession stores a session under the caller's token hash. The caller
+// mints the token with auth.NewSessionToken and keeps the secret half.
+func (db *DB) CreateSession(userID, tokenHash string, ttl time.Duration) (Session, error) {
 	s := Session{
-		ID:        NewID() + NewID(),
+		TokenHash: tokenHash,
 		UserID:    userID,
 		ExpiresAt: time.Now().UTC().Add(ttl),
 	}
 	_, err := db.sql.Exec(
-		`INSERT INTO sessions(id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
-		s.ID, s.UserID, s.ExpiresAt.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano),
+		`INSERT INTO sessions(token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)`,
+		s.TokenHash, s.UserID, s.ExpiresAt.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano),
 	)
 	if err != nil {
 		return Session{}, err
@@ -238,27 +242,27 @@ func (db *DB) CreateSession(userID string, ttl time.Duration) (Session, error) {
 	return s, nil
 }
 
-// GetSession returns a non-expired session, or ErrNotFound.
-func (db *DB) GetSession(id string) (Session, error) {
+// GetSession returns a non-expired session by token hash, or ErrNotFound.
+func (db *DB) GetSession(tokenHash string) (Session, error) {
 	var s Session
 	var exp string
 	err := db.sql.QueryRow(
-		`SELECT id, user_id, expires_at FROM sessions WHERE id = ?`, id,
-	).Scan(&s.ID, &s.UserID, &exp)
+		`SELECT token_hash, user_id, expires_at FROM sessions WHERE token_hash = ?`, tokenHash,
+	).Scan(&s.TokenHash, &s.UserID, &exp)
 	if err != nil {
 		return Session{}, ErrNotFound
 	}
 	s.ExpiresAt, _ = time.Parse(time.RFC3339Nano, exp)
 	if time.Now().UTC().After(s.ExpiresAt) {
-		db.DeleteSession(id)
+		db.DeleteSession(tokenHash)
 		return Session{}, ErrNotFound
 	}
 	return s, nil
 }
 
-// DeleteSession removes a session (logout).
-func (db *DB) DeleteSession(id string) error {
-	_, err := db.sql.Exec(`DELETE FROM sessions WHERE id = ?`, id)
+// DeleteSession removes a session by token hash (logout).
+func (db *DB) DeleteSession(tokenHash string) error {
+	_, err := db.sql.Exec(`DELETE FROM sessions WHERE token_hash = ?`, tokenHash)
 	return err
 }
 

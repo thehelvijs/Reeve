@@ -157,7 +157,7 @@ func (a *app) handleDeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if c, err := r.Cookie(sessionCookie); err == nil {
-		a.db.DeleteSession(c.Value)
+		a.db.DeleteSession(auth.HashToken(c.Value))
 	}
 	a.clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)

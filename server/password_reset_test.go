@@ -22,7 +22,8 @@ func TestResetPasswordCLISetsPasswordAndDropsSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	sess, err := db.CreateSession(u.ID, time.Hour)
+	_, sessHash := auth.NewSessionToken()
+	sess, err := db.CreateSession(u.ID, sessHash, time.Hour)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -44,7 +45,7 @@ func TestResetPasswordCLISetsPasswordAndDropsSessions(t *testing.T) {
 	if auth.VerifyPassword("original-password", after.PasswordHash) {
 		t.Error("old password still verifies after a reset")
 	}
-	if _, err := db2.GetSession(sess.ID); err == nil {
+	if _, err := db2.GetSession(sess.TokenHash); err == nil {
 		t.Error("session survived a password reset")
 	}
 }

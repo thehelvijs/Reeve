@@ -117,7 +117,8 @@ func TestUsersCLISetPasswordSignsSessionsOut(t *testing.T) {
 	e := newCLIEnv(t)
 	e.mustRun("create", "boss@example.com", "-password", "old-password", "-role", "admin")
 	u := e.user("boss@example.com")
-	sess, err := e.db().CreateSession(u.ID, time.Hour)
+	_, hash := auth.NewSessionToken()
+	sess, err := e.db().CreateSession(u.ID, hash, time.Hour)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestUsersCLISetPasswordSignsSessionsOut(t *testing.T) {
 	if auth.VerifyPassword("old-password", after.PasswordHash) {
 		t.Error("old password still verifies")
 	}
-	if _, err := e.db().GetSession(sess.ID); err == nil {
+	if _, err := e.db().GetSession(sess.TokenHash); err == nil {
 		t.Error("session survived the password change")
 	}
 	if _, err := e.run("set-password", "boss@example.com"); err == nil {

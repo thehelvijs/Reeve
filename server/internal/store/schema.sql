@@ -13,8 +13,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TEXT NOT NULL
 );
 
+-- token_hash is the sha256 of the session cookie, never the cookie itself: the
+-- cookie is a bearer token, so a readable database would otherwise be enough to
+-- sign in as anyone holding a live session.
 CREATE TABLE IF NOT EXISTS sessions (
-    id         TEXT PRIMARY KEY,
+    token_hash TEXT PRIMARY KEY,
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TEXT NOT NULL,
     created_at TEXT NOT NULL

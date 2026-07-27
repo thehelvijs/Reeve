@@ -91,13 +91,26 @@ func PrincipalFromUser(u store.User) Principal {
 // prefix keep working.
 const AgentTokenPrefix = "rva_"
 
+// SessionTokenPrefix marks a browser session cookie, so a value found in a log
+// or a paste is identifiable. A hint only, like the agent prefix.
+const SessionTokenPrefix = "rvs_"
+
 // NewAgentToken returns a fresh agent enrollment token and its storage hash.
 func NewAgentToken() (token, hash string) {
+	return newToken(AgentTokenPrefix)
+}
+
+// NewSessionToken returns a fresh session cookie value and its storage hash.
+func NewSessionToken() (token, hash string) {
+	return newToken(SessionTokenPrefix)
+}
+
+func newToken(prefix string) (token, hash string) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand failed: " + err.Error())
 	}
-	token = AgentTokenPrefix + hex.EncodeToString(b)
+	token = prefix + hex.EncodeToString(b)
 	return token, HashToken(token)
 }
 

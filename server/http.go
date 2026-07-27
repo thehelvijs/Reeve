@@ -158,7 +158,7 @@ func (a *app) resolvePrincipal(next http.Handler) http.Handler {
 
 func (a *app) principalFromRequest(r *http.Request) (auth.Principal, bool) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
-		sess, err := a.db.GetSession(c.Value)
+		sess, err := a.db.GetSession(auth.HashToken(c.Value))
 		if err == nil {
 			if u, err := a.activeUser(sess.UserID); err == nil {
 				return auth.PrincipalFromUser(u), true
