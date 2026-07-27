@@ -235,14 +235,14 @@
     "semantic_hash": "7f00ce9fec577abe3a67835256593bf8"
   },
   "server/auth_handlers.go": {
-    "mtime": 1785087641.2630024,
-    "ast_hash": "e4a4ec050779185821e72c2c2b2b2608",
-    "semantic_hash": "e4a4ec050779185821e72c2c2b2b2608"
+    "mtime": 1785183005.828249,
+    "ast_hash": "5859ea0b504940d7e783200c223d1641",
+    "semantic_hash": ""
   },
   "server/auth_handlers_test.go": {
-    "mtime": 1785087641.2498808,
-    "ast_hash": "899cad32921ac4951f1264f07ab111f8",
-    "semantic_hash": "899cad32921ac4951f1264f07ab111f8"
+    "mtime": 1785182940.2619498,
+    "ast_hash": "f9bbe5346105d1e95117779bdd425db6",
+    "semantic_hash": ""
   },
   "server/backup_handlers.go": {
     "mtime": 1785012345.4868438,
@@ -365,9 +365,9 @@
     "semantic_hash": "f8b26a6b13baab0db7734beaafbbea63"
   },
   "server/http.go": {
-    "mtime": 1785070916.3244598,
-    "ast_hash": "43ad3cb9b3d73c69736b5f2c8072d124",
-    "semantic_hash": "43ad3cb9b3d73c69736b5f2c8072d124"
+    "mtime": 1785183005.834928,
+    "ast_hash": "3485c407b91742a44873b0e4c2540aa8",
+    "semantic_hash": ""
   },
   "server/http_test.go": {
     "mtime": 1785087641.2554064,
@@ -400,9 +400,9 @@
     "semantic_hash": "295c84701c4a4c4a6a003968e5059cbe"
   },
   "server/internal/auth/auth.go": {
-    "mtime": 1785070916.3254597,
-    "ast_hash": "2882abd9f1d437c24257062c09653f61",
-    "semantic_hash": "2882abd9f1d437c24257062c09653f61"
+    "mtime": 1785182821.170856,
+    "ast_hash": "0084602cf19b0f690f5dd54b44dfb2ad",
+    "semantic_hash": ""
   },
   "server/internal/auth/auth_test.go": {
     "mtime": 1785070916.3254597,
@@ -585,9 +585,9 @@
     "semantic_hash": "1509938e2811b9f5ec51ceea70640a5c"
   },
   "server/internal/store/schema.sql": {
-    "mtime": 1785134362.8765182,
-    "ast_hash": "83989635202dc97c9d05e17fa3c736fe",
-    "semantic_hash": "83989635202dc97c9d05e17fa3c736fe"
+    "mtime": 1785182854.128878,
+    "ast_hash": "d20784e5e91255b2bd389781f42777a4",
+    "semantic_hash": ""
   },
   "server/internal/store/schema_test.go": {
     "mtime": 1785093405.824793,
@@ -610,9 +610,9 @@
     "semantic_hash": "5b82375980e736688223f674565f7c55"
   },
   "server/internal/store/store_test.go": {
-    "mtime": 1785087887.352899,
-    "ast_hash": "1d209d8e5ca41ac3887ccbcfdf41d80e",
-    "semantic_hash": "1d209d8e5ca41ac3887ccbcfdf41d80e"
+    "mtime": 1785182906.7299197,
+    "ast_hash": "0797f066b5b2c75feec06473f77e02d8",
+    "semantic_hash": ""
   },
   "server/internal/store/telemetry.go": {
     "mtime": 1785132176.4204018,
@@ -630,9 +630,9 @@
     "semantic_hash": "f0ac46296831b762ae09a22479eb87df"
   },
   "server/internal/store/users.go": {
-    "mtime": 1785072409.26405,
-    "ast_hash": "fd73a0f1d19855adb22de716f74e1e3a",
-    "semantic_hash": "fd73a0f1d19855adb22de716f74e1e3a"
+    "mtime": 1785182837.969867,
+    "ast_hash": "40d085c894cd99a028f07579fcfeecb2",
+    "semantic_hash": ""
   },
   "server/internal/store/webhooks.go": {
     "mtime": 1785089477.7668333,
@@ -690,9 +690,9 @@
     "semantic_hash": "7b558775443e626d3d1b0688ddce2312"
   },
   "server/password_reset_test.go": {
-    "mtime": 1785087641.247349,
-    "ast_hash": "52efb8312f08aa040821ac710147d561",
-    "semantic_hash": "52efb8312f08aa040821ac710147d561"
+    "mtime": 1785182901.9499156,
+    "ast_hash": "231ed0c1a341d31381e661c18ceb3d56",
+    "semantic_hash": ""
   },
   "server/principal_handlers.go": {
     "mtime": 1785021092.769863,
@@ -700,9 +700,9 @@
     "semantic_hash": "65d1a2821590a9cf93cec1be2a15e53e"
   },
   "server/profile_handlers.go": {
-    "mtime": 1785011475.3749614,
-    "ast_hash": "73bf21e4513d463c51b3e6dd0250ffc0",
-    "semantic_hash": "73bf21e4513d463c51b3e6dd0250ffc0"
+    "mtime": 1785182869.1978893,
+    "ast_hash": "671d5c5365c58b96974bb28ac4164e1d",
+    "semantic_hash": ""
   },
   "server/profile_handlers_test.go": {
     "mtime": 1785087641.25173,
@@ -775,9 +775,9 @@
     "semantic_hash": "f6c7341eb862af2de41f25b844e06c42"
   },
   "server/users_cli_test.go": {
-    "mtime": 1785070916.32946,
-    "ast_hash": "f4a3038ce8cf57215e7b375bb6458313",
-    "semantic_hash": "f4a3038ce8cf57215e7b375bb6458313"
+    "mtime": 1785182893.8929088,
+    "ast_hash": "8538abfae24e156d3f76e2a612296bee",
+    "semantic_hash": ""
   },
   "server/webhook_handlers.go": {
     "mtime": 1785081842.3267372,
@@ -1450,9 +1450,9 @@
     "semantic_hash": "6e3d77a8d48957a113b7db1c09d41779"
   },
   "SECURITY.md": {
-    "mtime": 1785095939.889192,
-    "ast_hash": "0ab7dcbe549d409d501091ef57e33233",
-    "semantic_hash": "0ab7dcbe549d409d501091ef57e33233"
+    "mtime": 1785183092.2201178,
+    "ast_hash": "78c9e256a5d46c2df2ce3c9cf1ec57b6",
+    "semantic_hash": ""
   },
   "contracts/API.md": {
     "mtime": 1785134677.2898443,
