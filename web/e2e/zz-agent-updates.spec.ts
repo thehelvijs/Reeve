@@ -62,9 +62,9 @@ async function setFleetPolicy(
   expect(res.status()).toBe(200);
 }
 
-// Each row is an <a> wrapping name+pills; a second, textless <a> wraps only the chevron. Scoped to the list because the paused-rollout banner also links stalled hosts by name.
+// A row is a <tr> whose first cell links the host by name. Scoped to the list because the paused-rollout banner also links stalled hosts by name.
 function hostRow(page: Page, name: string) {
-  return page.locator('#host-list a', { hasText: name });
+  return page.locator('#host-list tr', { hasText: name });
 }
 
 function pausedBanner(page: Page) {
@@ -91,9 +91,9 @@ test('a current agent reads as up to date and an old one as outdated', async ({ 
   const behindRow = hostRow(page, 'e2e-behind');
 
   // Each assertion below targets the exact row it names, so it stands on its own regardless of what else runs first.
-  // Both report the same version string: what separates them is the binary, which is the point.
-  await expect(currentRow).toContainText(`agent ${SERVER_VERSION}`);
-  await expect(behindRow).toContainText(`agent ${SERVER_VERSION}`);
+  // Both report the same version string in the Agent column: what separates them is the binary, which is the point.
+  await expect(currentRow).toContainText(SERVER_VERSION);
+  await expect(behindRow).toContainText(SERVER_VERSION);
 
   // check_now=true means the server already granted the behind host a slot in the same push, so it reads "updating", not "outdated" (see updateStateFor in server/agent_update.go).
   await expect(behindRow.getByText('updating', { exact: true })).toBeVisible();

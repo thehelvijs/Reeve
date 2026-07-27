@@ -21,11 +21,16 @@ function volatile(page: Page) {
     page.getByText(/\d{1,2}\/\d{1,2}\/\d{2,4}/),
     page.getByText(/\d+[dhms] ago/),
     page.getByText(/^\d+d \d+h \d+m$/),
-    // 0%, 9GB / 15GB, 7/14 — metric readouts and rollup counts.
+    // 0%, 9GB / 15GB, 7 of 14 — metric readouts and rollup counts.
     page.getByText(/^\d+(\.\d+)?%$/),
     page.getByText(/^\d+(\.\d+)?[BKMGT]B( \/ \d+(\.\d+)?[BKMGT]B)?$/),
     page.getByText(/^\d+\/\d+$/),
+    page.getByText(/^\d+ of \d+$/),
     page.getByText(/^(online|offline|never)$/),
+    // A tab's count says how many hosts are in that state, which depends on
+    // which of them are reporting at the moment the shot is taken. The tab's own
+    // box and label are what this baseline is for.
+    page.locator('[role="tab"] span'),
     // Rollout state, and the row actions derived from it: which host holds a
     // slot depends on how long the suite took to get here and on what the
     // agent-update spec left behind. What this baseline is for is the row's
@@ -173,7 +178,6 @@ test.describe('authed app', () => {
     services: '/services',
     'services-new': '/services/new',
     collections: '/collections',
-    hosts: '/hosts',
     requests: '/requests',
     profile: '/profile',
     'admin-users': '/admin/users',
@@ -199,4 +203,22 @@ test.describe('authed app', () => {
       });
     });
   }
+
+  // Hosts is snapshotted apart from the loop because the rollup banner above the
+  // table grows a paragraph while a rollout is paused, which moves every row
+  // below it. A mask paints over text but cannot absorb a height change, so the
+  // pause is cleared first and the baseline describes the settled fleet. The
+  // paused banner itself is asserted in zz-agent-updates.spec.ts.
+  test('hosts', async ({ page }) => {
+    const res = await page.request.post('/api/admin/agent-updates/resume', { data: {} });
+    expect(res.ok(), 'could not clear a paused rollout').toBe(true);
+    await page.goto('/hosts');
+    await expect(page.locator('main')).toBeVisible();
+    await expect(page.getByText('Rollout paused')).toHaveCount(0);
+    await settle(page);
+    await expect(page).toHaveScreenshot('app-hosts.png', {
+      fullPage: true,
+      mask: volatile(page),
+    });
+  });
 });

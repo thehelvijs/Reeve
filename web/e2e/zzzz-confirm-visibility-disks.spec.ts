@@ -94,7 +94,9 @@ test('the visibility toggle hides a service from the anonymous portal', async ({
   expect(created.status()).toBe(201);
 
   await page.goto('/services');
-  const row = page.locator('a[href^="/services/"]', { hasText: 'E2EToggle' });
+  // The visibility control is its own cell beside the name link, so the row —
+  // not the link — is what scopes it.
+  const row = page.locator('tr', { hasText: 'E2EToggle' });
   await expect(row.getByRole('button', { name: 'public' })).toBeVisible();
 
   // Anonymous sees it while it is public.

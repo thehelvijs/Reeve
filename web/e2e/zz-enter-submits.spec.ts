@@ -168,7 +168,7 @@ test('enter advances the how-to modal and probes over SSH', async ({ page }) => 
   await page.keyboard.press('Escape');
 
   await page
-    .locator('#host-list > div', { hasText: 'enter-key-host' })
+    .locator('#host-list tr', { hasText: 'enter-key-host' })
     .getByRole('button', { name: 'Install over SSH' })
     .click();
   // Address is focused on open; a closed port fails the probe fast.
@@ -180,7 +180,7 @@ test('enter advances the how-to modal and probes over SSH', async ({ page }) => 
     page.getByRole('textbox', { name: 'Username' }).press('Enter'),
   ]);
   expect(probe.status()).toBe(502);
-  await expect(page.getByRole('dialog').locator('p.text-red-400')).toBeVisible();
+  await expect(page.getByRole('dialog').locator('p.text-down')).toBeVisible();
 });
 
 test('enter picks a city and then saves the host location', async ({ page }) => {
