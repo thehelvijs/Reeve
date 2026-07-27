@@ -1000,9 +1000,9 @@
     "semantic_hash": "0dc65382aa716ce46f3beca5fa2b81fb"
   },
   "web/src/components/EventHistory.tsx": {
-    "mtime": 1785072899.1845334,
-    "ast_hash": "e4df57c49eb821da6960b25a4e41bef8",
-    "semantic_hash": "e4df57c49eb821da6960b25a4e41bef8"
+    "mtime": 1785173006.5899768,
+    "ast_hash": "26178bbf6ab0b8cb2fa4ee84cf4d110a",
+    "semantic_hash": ""
   },
   "web/src/components/HostControls.test.ts": {
     "mtime": 1785093185.4189842,
@@ -1020,8 +1020,8 @@
     "semantic_hash": "2f662e52315a0d56e2f5c0354571e252"
   },
   "web/src/components/HostMetrics.tsx": {
-    "mtime": 1785157432.098729,
-    "ast_hash": "3359461f1e6ec092372f03ce29adc58f",
+    "mtime": 1785173030.0079525,
+    "ast_hash": "555be52b071cc402fce691cb2cdb9703",
     "semantic_hash": ""
   },
   "web/src/components/IconUploader.tsx": {
@@ -1345,9 +1345,9 @@
     "semantic_hash": "345bbb7635f1ebf142eb3d0f1f4be1a2"
   },
   "web/src/pages/HostInventory.tsx": {
-    "mtime": 1785151195.1566546,
-    "ast_hash": "d1f4f20e1accaac8559095c4b0815c0b",
-    "semantic_hash": "d1f4f20e1accaac8559095c4b0815c0b"
+    "mtime": 1785172982.7268858,
+    "ast_hash": "9b61e24eda60b95f3d66695c42da5b60",
+    "semantic_hash": ""
   },
   "web/src/pages/Hosts.tsx": {
     "mtime": 1785169140.1475182,
@@ -1497,6 +1497,11 @@
   "web/src/lib/search.ts": {
     "mtime": 1785169073.0892797,
     "ast_hash": "492053f82b64b364973f3d58b3ca6677",
+    "semantic_hash": ""
+  },
+  "web/e2e/zzzz-inventory-search.spec.ts": {
+    "mtime": 1785173115.995226,
+    "ast_hash": "b35b7e369381bc11b5090453313d8365",
     "semantic_hash": ""
   }
 }
