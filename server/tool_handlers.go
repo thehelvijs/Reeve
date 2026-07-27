@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -233,6 +234,9 @@ func (a *app) handleCreateTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_visibility", "visibility must be public or restricted")
 		return
 	}
+	if !checkEndpointFields(w, in) {
+		return
+	}
 	slug, ok := a.resolveSlug(w, in.Slug, in.Name, "")
 	if !ok {
 		return
@@ -286,6 +290,9 @@ func (a *app) handleUpdateTool(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validSourceType(in.SourceType) || !validVisibility(in.Visibility) {
 		writeError(w, http.StatusBadRequest, "invalid_field", "invalid source_type or visibility")
+		return
+	}
+	if !checkEndpointFields(w, in) {
 		return
 	}
 	// A rename leaves the slug alone: /go/ URLs are bookmarked, and silently
@@ -422,6 +429,41 @@ func validSourceType(s string) bool {
 
 func validVisibility(s string) bool {
 	return s == "" || s == store.VisibilityPublic || s == store.VisibilityRestricted
+}
+
+// validScheme allows the two the tool form offers. Empty means "unset", which
+// resolveEndpoint turns into http. Anything else ends up in a Location header
+// and in the endpoint JSON, and javascript: and data: do not belong in either.
+func validScheme(s string) bool {
+	return s == "" || s == "http" || s == "https"
+}
+
+// validToolURL accepts an absolute http or https URL, or none at all. A tool's
+// URL is handed straight to a redirect, so it is a navigation target typed by a
+// user and has to be checked like one.
+func validToolURL(raw string) bool {
+	if raw == "" {
+		return true
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// checkEndpointFields writes the error response itself, so both the create and
+// the update path reject the same values with the same message.
+func checkEndpointFields(w http.ResponseWriter, in toolInput) bool {
+	if !validScheme(in.Scheme) {
+		writeError(w, http.StatusBadRequest, "invalid_scheme", "scheme must be http or https")
+		return false
+	}
+	if !validToolURL(in.URL) {
+		writeError(w, http.StatusBadRequest, "invalid_url", "url must be an absolute http or https URL")
+		return false
+	}
+	return true
 }
 
 // toolStatus derives a tool's live status from agent telemetry; tools without an

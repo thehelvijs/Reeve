@@ -224,3 +224,60 @@ func TestToolSearchFilter(t *testing.T) {
 		t.Errorf("collection filter mismatch: %+v", tools)
 	}
 }
+
+// TestToolEndpointFieldsRejectScriptSchemes pins that a tool's navigation target
+// stays a navigation target. Both fields end up in a Location header and in the
+// endpoint JSON, so neither may name a scheme that executes.
+func TestToolEndpointFieldsRejectScriptSchemes(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+
+	rejected := []toolInput{
+		{Name: "js scheme", Scheme: "javascript"},
+		{Name: "js url", URL: "javascript:alert(document.cookie)"},
+		{Name: "data url", URL: "data:text/html,<script>alert(1)</script>"},
+		{Name: "file url", URL: "file:///etc/shadow"},
+		{Name: "relative url", URL: "/not/absolute"},
+		{Name: "hostless url", URL: "http://"},
+	}
+	for _, in := range rejected {
+		resp, data := ts.do(t, admin, http.MethodPost, "/api/tools", in, nil)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400 (%s)", in.Name, resp.StatusCode, data)
+		}
+	}
+
+	accepted := []toolInput{
+		{Name: "https tool", Scheme: "https", Address: "grafana.lan"},
+		{Name: "http tool", Scheme: "http", Address: "10.0.0.5", Port: 3000},
+		{Name: "url tool", URL: "https://grafana.lan:3000/d/abc"},
+		{Name: "host follower"},
+	}
+	for _, in := range accepted {
+		resp, data := ts.do(t, admin, http.MethodPost, "/api/tools", in, nil)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("%s: status = %d, want 201 (%s)", in.Name, resp.StatusCode, data)
+		}
+	}
+}
+
+// TestToolUpdateRejectsScriptSchemes covers the other door into the same field:
+// a tool created clean and edited dirty afterwards.
+func TestToolUpdateRejectsScriptSchemes(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	tool := createTool(t, ts, admin, toolInput{Name: "clean", Scheme: "https", Address: "grafana.lan"})
+
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/tools/"+tool.ID,
+		toolInput{Name: "clean", URL: "javascript:alert(1)"}, nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("update status = %d, want 400 (%s)", resp.StatusCode, data)
+	}
+
+	_, data = ts.do(t, admin, http.MethodGet, "/api/tools/"+tool.ID, nil, nil)
+	var after toolResponse
+	json.Unmarshal(data, &after)
+	if after.URL != "" {
+		t.Errorf("rejected update still changed the stored URL to %q", after.URL)
+	}
+}
