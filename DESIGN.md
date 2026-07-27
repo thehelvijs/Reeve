@@ -1,9 +1,9 @@
 # DESIGN.md - UI style guide
 
 All UI in this project follows the design language below. The model is GitLab's
-Pajamas: a light canvas, dense tables, one accent kept for the brand, and
-structure that names itself. An operator reads Reeve next to a terminal all day.
-The numbers must stay legible. Nothing here is atmosphere.
+Pajamas: dense tables, one accent kept for the brand, and structure that names
+itself. An operator reads Reeve next to a terminal all day. The numbers must stay
+legible. Nothing here is atmosphere.
 
 > Ready-made tokens: `theme/theme.css` (CSS variables, the source of truth) and
 > `theme/tailwind.config.js`. When you build a web UI, wire these into the app.
@@ -11,9 +11,10 @@ The numbers must stay legible. Nothing here is atmosphere.
 
 ## Principles
 
-- **Light, and only light.** White content, a faint grey chrome, near-black text.
-  There is no dark theme and no theme toggle. One theme means one thing to keep
-  correct.
+- **Two themes, dark by default.** Both are first-class and both are gated: the
+  axe sweep and the pixel sweep run every view twice. A token without a value in
+  one map is invisible in exactly one theme, so nothing hardcodes a color that a
+  theme should own.
 - **Two colors do two jobs.** Blue (`--link`) carries every interactive state:
   links, focus rings, bars, chart lines. Acid-lime (`--accent`) is the brand. It
   appears on the wordmark and on the primary button of a form, and never as text.
@@ -31,39 +32,38 @@ The numbers must stay legible. Nothing here is atmosphere.
 
 ## Color tokens
 
-Surfaces:
-- `--canvas`       `#ffffff`  content background, cards, inputs
-- `--surface-1`    `#fbfafd`  sidebar, table header, row hover
-- `--surface-2`    `#f0f0f2`  pressed and selected fills, code blocks
-- `--surface-3`    `#ffffff`  popovers, with a border and `--shadow-pop`
+Dark is `:root`, so it holds with no attribute and with JavaScript off. Light is
+`[data-theme='light']`. `web/public/theme-boot.js` applies the stored choice
+before first paint; `src/lib/theme.ts` owns the key, the default and the toggle.
 
-Borders:
-- `--border`       `#dcdcde`  default separation
-- `--border-strong``#bfbfc3`  input and button edges
+| token | dark | light | use |
+| --- | --- | --- | --- |
+| `--canvas` | `#1f1e24` | `#ffffff` | content background, cards, inputs |
+| `--surface-1` | `#28272d` | `#fbfafd` | sidebar, table header, row hover |
+| `--surface-2` | `#333238` | `#f0f0f2` | pressed fills, code blocks |
+| `--surface-3` | `#28272d` | `#ffffff` | popovers, with a border and `--shadow-pop` |
+| `--border` | `#434248` | `#dcdcde` | default separation |
+| `--border-strong` | `#535158` | `#bfbfc3` | input and button edges |
+| `--text` | `#ececef` | `#1f1e24` | primary |
+| `--text-muted` | `#bfbfc3` | `#626168` | secondary and captions |
 
-Text:
-- `--text`         `#1f1e24`  primary
-- `--text-muted`   `#626168`  secondary and captions, 5.7:1 on white
+Dark is a gray-950 canvas rather than a near-black one, and its borders are
+visible rather than implied. The inky version that came before was hard to read.
 
-Brand:
-- `--accent`       `#e4f222`  acid-lime, always a fill
-- `--accent-hover` `#d5e300`
-- `--on-accent`    `#1f1e24`  text on top of the accent
+Brand, the same in both themes because it is only ever a fill:
+- `--accent` `#e4f222` acid-lime, `--on-accent` `#1f1e24` for text on top of it.
 
-Interaction:
-- `--link`         `#1068bf`  links, focus rings, neutral bars and chart lines
-- `--link-hover`   `#0b5cad`
-- `--focus`        `#1068bf`
+Interaction. `--link` carries links, focus rings, neutral bars and chart lines:
+- dark `#63a6e9`, light `#1068bf`.
 
-Status. Each state has four steps: a text-safe tone, a solid fill for a dot or a
-bar, and a soft/line pair for a badge.
-- up:   `#24663b` / `#108548` / `#ecf4ee` / `#c3e6cd`
-- down: `#ae1800` / `#dd2b0e` / `#fcf1ef` / `#fdd4cd`
-- warn: `#8f4700` / `#ab6100` / `#fdf1dd` / `#f5d9a8`
-- idle: `#626168` / `#a4a3a8` / `#f0f0f2` / `#dcdcde`
+Status. Each state has four steps in each theme: a text-safe tone, a solid fill
+for a dot or a bar, and a soft/line pair for a badge. Read the values from
+`theme/theme.css`; the shape is `--up`, `--up-solid`, `--up-soft`, `--up-line`,
+and the same for `down`, `warn` and `idle`.
 
-Never put the accent on text, a border, a chart line, or a status. It measures
-1.2:1 against white, so it disappears. Use `--link` or a status tone instead.
+Never put the accent on text, a border, a chart line, or a status. It clears no
+text-contrast bar on either canvas, so it disappears. Use `--link` or a status
+tone instead.
 
 ## Typography
 
@@ -100,9 +100,10 @@ Never put the accent on text, a border, a chart line, or a status. It measures
 - **Primary button:** accent fill, `--on-accent` label, weight 600, radius 4px.
   One per form or settings card, so a page of independent cards carries one each.
   A view that is a single form carries exactly one.
-- **Secondary button:** white fill, `--border-strong` edge, dark label, grey
-  hover.
-- **Danger button:** white fill, `--down-line` edge, `--down` label, red hover.
+- **Secondary button:** `--canvas` fill, `--border-strong` edge, `--text` label,
+  `--surface-2` hover.
+- **Danger button:** `--canvas` fill, `--down-line` edge, `--down` label,
+  `--down-soft` hover.
 - **Card:** `--canvas`, `--border` hairline, radius 8px.
 - **Table:** header row on `--surface-1` in eyebrow type, hairline row dividers,
   `--surface-1` row hover. The first cell links the record by name in `--link`.
@@ -112,13 +113,17 @@ Never put the accent on text, a border, a chart line, or a status. It measures
 - **Pill:** a status badge in the soft/line/text steps of its tone.
 - **Input:** `--canvas` fill, `--border-strong` edge, blue focus ring.
 - **Focus state:** always visible, always the blue ring. Never removed.
-- **Inline link:** blue and underlined. color alone does not mark a link inside
+- **Inline link:** blue and underlined. Color alone does not mark a link inside
   a sentence.
-- **Charts:** series colors come from the fixed palette in `HostMetrics.tsx`,
-  assigned in order and never by rank. The order alternates dark and light steps,
-  which is what keeps neighbouring series apart for a colorblind reader. The
-  palette passes a lightness band, a chroma floor, deutan and tritan separation,
-  and 3:1 contrast on white. Re-validate it before you change it.
+- **Theme toggle:** one control, in the app sidebar and in the portal header, so
+  an anonymous visitor can switch too. It names what it will do, not what is on.
+- **Charts:** series colors are slots, `--series-1` to `--series-8`, assigned in
+  order and never by rank, so a series keeps its color when the drawn count
+  changes. Each theme has its own eight steps, selected against its own canvas
+  rather than flipped from the other. Both sets pass a lightness band, a chroma
+  floor, deutan and tritan separation, and 3:1 contrast. `Chart.tsx` reads
+  `--axis`, `--grid` and `--tick` at draw time, so nothing in a plot is
+  hardcoded. Re-validate a set before you change it.
 
 ## Writing
 
@@ -147,7 +152,10 @@ Never put the accent on text, a border, a chart line, or a status. It measures
 
 ## Do not
 
-- No dark theme, no theme toggle, no `prefers-color-scheme` branch.
+- No third theme, and no `prefers-color-scheme` branch: dark is the product's
+  default, not a guess about the desk.
+- No color literal in a component. If a library needs a string, read the token
+  with `cssVar` and depend on `useTheme` so it redraws.
 - No accent as text, border, chart line, or status color.
 - No second brand color, no gradient, no glassmorphism.
 - No drop shadow that carries hierarchy.

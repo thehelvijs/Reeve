@@ -6,6 +6,11 @@
  */
 module.exports = {
   content: ['./index.html', './src/**/*.{html,js,ts,jsx,tsx,vue,svelte}'],
+  // Tokens cover almost everything, so `dark:` is for the few properties a
+  // variable cannot carry — a filter, a blend mode. The selector mirrors the
+  // variable map: dark is anything not explicitly marked light, so it holds
+  // before the boot script runs and with JavaScript off.
+  darkMode: ['selector', ':root:not([data-theme="light"])'],
   theme: {
     extend: {
       colors: {

@@ -12,6 +12,7 @@ import CollectionInfoModal from '../components/CollectionInfoModal';
 import HostInfoModal from '../components/HostInfoModal';
 import ToolInfoModal from '../components/ToolInfoModal';
 import VisibilityToggle from '../components/VisibilityToggle';
+import ThemeToggle from '../components/ThemeToggle';
 import { groupToolsByCollection, groupToolsByHost } from '../lib/group';
 import { SOURCE_URL, UI_VERSION } from '../version';
 
@@ -146,9 +147,10 @@ export default function Portal() {
             <SearchBar value={search} onChange={setSearch} />
           </div>
         </div>
-        <Button className="ml-auto shrink-0" onClick={() => navigate(user ? '/dashboard' : '/login')}>
-          Dashboard
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <ThemeToggle />
+          <Button onClick={() => navigate(user ? '/dashboard' : '/login')}>Dashboard</Button>
+        </div>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col px-8 py-6">

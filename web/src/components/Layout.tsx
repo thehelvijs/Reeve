@@ -7,6 +7,7 @@ import Avatar from './Avatar';
 import SearchBar from './SearchBar';
 import NavIcon, { type IconName } from './NavIcon';
 import Wordmark from './Wordmark';
+import ThemeToggle from './ThemeToggle';
 import { prefetch } from '../lib/cache';
 import { SOURCE_URL } from '../version';
 
@@ -77,9 +78,12 @@ export default function Layout() {
             <Avatar url={user?.avatar_url} name={user?.display_name} email={user?.email ?? ''} size={28} />
             <span className="min-w-0 flex-1 truncate text-xs text-content">{user?.display_name || user?.email}</span>
           </NavLink>
-          <Button variant="secondary" className="mt-2 w-full" onClick={() => logout()}>
-            Sign out
-          </Button>
+          <div className="mt-2 flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => logout()}>
+              Sign out
+            </Button>
+            <ThemeToggle />
+          </div>
           <a
             href={SOURCE_URL}
             target="_blank"

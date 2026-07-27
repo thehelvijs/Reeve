@@ -3,9 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#1f1e24" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <title>Reeve</title>
+    <!-- Blocking on purpose: it has to set data-theme before the first paint. -->
+    <script src="/theme-boot.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,9 +1,14 @@
 /* Reeve theme — generated from DESIGN.md.
    Framework-agnostic CSS custom properties (the source of truth).
 
-   Light is the only theme: the palette follows GitLab's Pajamas grays and
-   semantic colors, because an operator reads this dashboard next to a
-   terminal all day and needs the numbers legible, not atmospheric.
+   Dark is the default, so :root carries it and a visitor with no stored
+   preference (and no JavaScript) gets dark with no flash. Light is an equal
+   theme selected by data-theme="light" on <html>; web/public/theme-boot.js sets
+   that attribute before first paint.
+
+   Both maps follow GitLab's Pajamas scales. Dark is a gray-950 canvas rather
+   than a near-black one, and its borders are visible rather than implied: the
+   previous inky dark was hard to read, which is what started this.
 
    Font: install Inter Variable, e.g.
      npm i @fontsource-variable/inter   ->   import '@fontsource-variable/inter';
@@ -12,52 +17,72 @@
 
 :root {
   /* Surfaces */
-  --canvas: #ffffff;
-  --surface-1: #fbfafd;
-  --surface-2: #f0f0f2;
-  --surface-3: #ffffff;
+  --canvas: #1f1e24;
+  --surface-1: #28272d;
+  --surface-2: #333238;
+  --surface-3: #28272d;
 
   /* Borders (hairline) */
-  --border: #dcdcde;
-  --border-strong: #bfbfc3;
+  --border: #434248;
+  --border-strong: #535158;
 
   /* Text */
-  --text: #1f1e24;
-  --text-muted: #626168;
+  --text: #ececef;
+  --text-muted: #bfbfc3;
 
-  /* Brand accent (acid-lime) — the wordmark and one primary action per view.
-     It clears no text-contrast bar on white, so it is only ever a fill with
-     --on-accent text on top; --link carries every other interactive color. */
+  /* Brand accent (acid-lime) — the wordmark and a form's primary action. It
+     clears no text-contrast bar on either canvas, so it is only ever a fill
+     with --on-accent text on top; --link carries interactive color. */
   --accent: #e4f222;
-  --accent-hover: #d5e300;
+  --accent-hover: #eef658;
   --on-accent: #1f1e24;
 
   /* Interaction */
-  --link: #1068bf;
-  --link-hover: #0b5cad;
-  --focus: #1068bf;
+  --link: #63a6e9;
+  --link-hover: #8bc0f0;
+  --focus: #63a6e9;
 
   /* Status. Each has a text-safe tone, a solid fill for dots and bars, and a
      soft/line pair for badges. */
-  --up: #24663b;
-  --up-solid: #108548;
-  --up-soft: #ecf4ee;
-  --up-line: #c3e6cd;
+  --up: #91d4a8;
+  --up-solid: #2da160;
+  --up-soft: #1b2f22;
+  --up-line: #2f5b3f;
 
-  --down: #ae1800;
-  --down-solid: #dd2b0e;
-  --down-soft: #fcf1ef;
-  --down-line: #fdd4cd;
+  --down: #fcb5aa;
+  --down-solid: #ec5941;
+  --down-soft: #331a16;
+  --down-line: #6b2a1c;
 
-  --warn: #8f4700;
-  --warn-solid: #ab6100;
-  --warn-soft: #fdf1dd;
-  --warn-line: #f5d9a8;
+  --warn: #e9be74;
+  --warn-solid: #d99530;
+  --warn-soft: #332512;
+  --warn-line: #6b4a1c;
 
-  --idle: #626168;
-  --idle-solid: #a4a3a8;
-  --idle-soft: #f0f0f2;
-  --idle-line: #dcdcde;
+  --idle: #bfbfc3;
+  --idle-solid: #737278;
+  --idle-soft: #2b2a30;
+  --idle-line: #434248;
+
+  /* Charts. Axis and grid are read from here by Chart.tsx rather than hardcoded,
+     so a theme owns every color it draws with. */
+  --axis: #bfbfc3;
+  --grid: rgba(236, 236, 239, 0.09);
+  --tick: rgba(236, 236, 239, 0.18);
+  --graph-edge: #535158;
+  --graph-dots: #333238;
+
+  /* Categorical series, assigned in this order and never by rank. Validated on
+     the dark canvas for lightness band, chroma floor, deutan and tritan
+     separation, and 3:1 contrast. */
+  --series-1: #1f6cb0;
+  --series-2: #b85440;
+  --series-3: #00a49e;
+  --series-4: #be7c1c;
+  --series-5: #a054a4;
+  --series-6: #4f7715;
+  --series-7: #8c7dd5;
+  --series-8: #2ca470;
 
   /* Radius vocabulary */
   --radius-button: 4px;
@@ -79,15 +104,76 @@
   --font-mono: 'Berkeley Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Elevation. Only ever on something that floats over the page. */
-  --shadow-pop: 0 1px 4px rgba(31, 30, 36, 0.12), 0 4px 12px rgba(31, 30, 36, 0.08);
+  --shadow-pop: 0 1px 4px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.4);
 
   /* Motion */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --dur: 160ms;
 }
 
+[data-theme='light'] {
+  --canvas: #ffffff;
+  --surface-1: #fbfafd;
+  --surface-2: #f0f0f2;
+  --surface-3: #ffffff;
+
+  --border: #dcdcde;
+  --border-strong: #bfbfc3;
+
+  --text: #1f1e24;
+  --text-muted: #626168;
+
+  --accent-hover: #d5e300;
+
+  --link: #1068bf;
+  --link-hover: #0b5cad;
+  --focus: #1068bf;
+
+  --up: #24663b;
+  --up-solid: #108548;
+  --up-soft: #ecf4ee;
+  --up-line: #c3e6cd;
+
+  --down: #ae1800;
+  --down-solid: #dd2b0e;
+  --down-soft: #fcf1ef;
+  --down-line: #fdd4cd;
+
+  --warn: #8f4700;
+  --warn-solid: #ab6100;
+  --warn-soft: #fdf1dd;
+  --warn-line: #f5d9a8;
+
+  --idle: #626168;
+  --idle-solid: #a4a3a8;
+  --idle-soft: #f0f0f2;
+  --idle-line: #dcdcde;
+
+  --axis: #626168;
+  --grid: rgba(31, 30, 36, 0.08);
+  --tick: rgba(31, 30, 36, 0.16);
+  --graph-edge: #bfbfc3;
+  --graph-dots: #dcdcde;
+
+  /* Its own steps, validated against white — not a flip of the dark set. */
+  --series-1: #0b4f9e;
+  --series-2: #c07f0a;
+  --series-3: #7a2f6e;
+  --series-4: #2aa39b;
+  --series-5: #4a5c00;
+  --series-6: #7f7cd0;
+  --series-7: #96331f;
+  --series-8: #5f9628;
+
+  --shadow-pop: 0 1px 4px rgba(31, 30, 36, 0.12), 0 4px 12px rgba(31, 30, 36, 0.08);
+}
+
 /* Base */
 html {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
   color-scheme: light;
 }
 
