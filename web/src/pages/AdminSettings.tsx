@@ -259,7 +259,7 @@ function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch
           </Field>
           <Field label="Encryption">
             <select
-              className="w-full rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-link"
               value={draft.tls}
               onChange={(e) => setDraft({ ...draft, tls: e.target.value as SMTPInput['tls'] })}
             >
@@ -334,7 +334,7 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
           </p>
         </div>
       ) : (
-        <p className="text-xs text-red-400">
+        <p className="text-xs text-down">
           Set REEVE_PUBLIC_URL on the server first — Google matches the redirect URI exactly, so it cannot be
           derived per request.
         </p>
@@ -398,7 +398,7 @@ function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: 
   }
   return (
     <select
-      className="w-full rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+      className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-link"
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
     >

@@ -161,7 +161,7 @@ export default function SSHDeployModal({
             <>
               <Field label="Private key (PEM)">
                 <textarea
-                  className="h-28 w-full rounded-button border border-hairline bg-surface-2 px-3 py-2 font-mono text-xs text-content focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="h-28 w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 font-mono text-xs text-content focus:outline-none focus:ring-2 focus:ring-link"
                   value={target.private_key}
                   placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
                   onChange={(e) => set('private_key', e.target.value)}

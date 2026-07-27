@@ -223,7 +223,7 @@ function VisibilityManager({ toolId }: { toolId: string }) {
             className="inline-flex items-center gap-1.5 rounded-pill border border-hairline bg-surface-2 px-2 py-0.5 text-xs text-content"
           >
             {label(g)}
-            <button className="text-muted hover:text-red-400" onClick={() => remove(g)} aria-label="Remove">
+            <button className="text-muted hover:text-down" onClick={() => remove(g)} aria-label="Remove">
               ×
             </button>
           </span>
@@ -252,5 +252,5 @@ function VisibilityManager({ toolId }: { toolId: string }) {
 }
 
 const selectCls =
-  'rounded-button border border-hairline bg-surface-1 px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'rounded-button border border-hairline-strong bg-canvas px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 

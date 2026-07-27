@@ -13,7 +13,7 @@ import Modal from './Modal';
 import PrincipalPicker from './PrincipalPicker';
 
 const selectCls =
-  'w-full rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 
 // CollectionEditor creates or edits a collection. Grants and the avatar need an
 // id, so they only appear once the collection exists.
@@ -107,7 +107,7 @@ export default function CollectionEditor({
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
             placeholder="Shop-floor tooling."
           />
         </Field>

@@ -157,7 +157,7 @@ export default function AdminAlerts() {
               <Pill tone={deliveryTone(d.status)}>{d.status}</Pill>
               <span className="text-xs text-muted">attempts: {d.attempts}</span>
             </div>
-            {d.last_error && <span className="truncate text-xs text-red-400">{d.last_error}</span>}
+            {d.last_error && <span className="truncate text-xs text-down">{d.last_error}</span>}
           </div>
         ))}
       </Card>

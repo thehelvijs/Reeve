@@ -32,7 +32,7 @@ export default function SetupPage() {
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <span className="text-sm font-medium tracking-tight text-accent">Reeve</span>
+          <span className="rounded-button bg-accent px-1.5 text-sm font-semibold text-accent-fg">Reeve</span>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-content">
             Set up your instance
           </h1>
@@ -47,8 +47,8 @@ export default function SetupPage() {
           onSubmit={submit}
           className="space-y-4 rounded-card border border-hairline bg-surface-1 p-6"
         >
-          <div className="flex items-center gap-2 rounded-button border border-accent/30 bg-surface-2 px-3 py-2">
-            <span className="text-xs text-accent">●</span>
+          <div className="flex items-center gap-2 rounded-button border border-warn-line bg-warn-soft px-3 py-2">
+            <span className="text-xs text-warn">●</span>
             <span className="text-xs text-muted">
               This is the admin account. Keep these credentials safe.
             </span>

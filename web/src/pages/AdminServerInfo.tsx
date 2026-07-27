@@ -122,7 +122,7 @@ function BackupSection({ staged, onChange }: { staged: boolean; onChange: () => 
       {staged && (
         <div className="mt-4 rounded-button border border-hairline bg-surface-2 px-3 py-2 text-xs text-content">
           A restore is staged and will be applied on the next start.
-          <button className="ml-2 underline hover:text-accent" onClick={cancel}>
+          <button className="ml-2 underline hover:text-link" onClick={cancel}>
             discard it
           </button>
         </div>

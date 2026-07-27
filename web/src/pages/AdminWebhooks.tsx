@@ -4,7 +4,7 @@ import { api, type Severity, type Webhook } from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 
 const selectClass =
-  'rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 
 export default function AdminWebhooks() {
   const [hooks, setHooks] = useState<Webhook[]>([]);

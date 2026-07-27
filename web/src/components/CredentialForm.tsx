@@ -62,7 +62,7 @@ export default function CredentialForm({
                   setType(e.target.value as CredentialType);
                   setFields({});
                 }}
-                className="w-full rounded-button border border-hairline bg-surface-1 px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
               >
                 {TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -84,7 +84,7 @@ export default function CredentialForm({
                     value={fields[f] ?? ''}
                     onChange={(e) => setFields((p) => ({ ...p, [f]: e.target.value }))}
                     rows={4}
-                    className="w-full rounded-button border border-hairline bg-surface-1 px-3 py-2 font-mono text-xs text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 font-mono text-xs text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
                   />
                 ) : (
                   <Input

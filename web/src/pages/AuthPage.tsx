@@ -35,7 +35,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <span className="text-sm font-medium tracking-tight text-accent">Reeve</span>
+          <span className="rounded-button bg-accent px-1.5 text-sm font-semibold text-accent-fg">Reeve</span>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-content">
             {mode === 'signup' ? 'Create your account' : 'Sign in'}
           </h1>
@@ -82,7 +82,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           )}
           {mode === 'login' && status.password_reset_enabled && (
             <p className="text-center text-sm">
-              <Link to="/forgot" className="text-muted hover:text-accent">
+              <Link to="/forgot" className="text-link underline underline-offset-2 hover:text-link-hover">
                 Forgot your password?
               </Link>
             </p>
@@ -92,7 +92,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           {mode === 'signup' ? (
             <>
               Already have an account?{' '}
-              <Link to="/login" className="text-content hover:text-accent">
+              <Link to="/login" className="text-link underline underline-offset-2 hover:text-link-hover">
                 Sign in
               </Link>
             </>
@@ -100,7 +100,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             status.signup_enabled && (
               <>
                 Need an account?{' '}
-                <Link to="/signup" className="text-content hover:text-accent">
+                <Link to="/signup" className="text-link underline underline-offset-2 hover:text-link-hover">
                   Sign up
                 </Link>
               </>

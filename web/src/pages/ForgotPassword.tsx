@@ -9,7 +9,7 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <span className="text-sm font-medium tracking-tight text-accent">Reeve</span>
+          <span className="rounded-button bg-accent px-1.5 text-sm font-semibold text-accent-fg">Reeve</span>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-content">{title}</h1>
           <p className="mt-1.5 text-sm text-muted">{subtitle}</p>
         </div>
@@ -46,7 +46,7 @@ export function ForgotPassword() {
           The link works once and expires in an hour. No email? Ask an admin to reset your password instead.
         </p>
         <p className="mt-4 text-center text-sm text-muted">
-          <Link to="/login" className="text-content hover:text-accent">
+          <Link to="/login" className="text-link underline underline-offset-2 hover:text-link-hover">
             Back to sign in
           </Link>
         </p>
@@ -66,7 +66,7 @@ export function ForgotPassword() {
         </Button>
       </form>
       <p className="mt-4 text-center text-sm text-muted">
-        <Link to="/login" className="text-content hover:text-accent">
+        <Link to="/login" className="text-link underline underline-offset-2 hover:text-link-hover">
           Back to sign in
         </Link>
       </p>
@@ -100,7 +100,7 @@ export function ResetPassword() {
     return (
       <AuthShell title="Link incomplete" subtitle="That reset link is missing its token.">
         <p className="mt-4 text-center text-sm text-muted">
-          <Link to="/forgot" className="text-content hover:text-accent">
+          <Link to="/forgot" className="text-link underline underline-offset-2 hover:text-link-hover">
             Request a new link
           </Link>
         </p>
@@ -126,7 +126,7 @@ export function ResetPassword() {
         </Button>
       </form>
       <p className="mt-4 text-center text-sm text-muted">
-        <Link to="/login" className="text-content hover:text-accent">
+        <Link to="/login" className="text-link underline underline-offset-2 hover:text-link-hover">
           Back to sign in
         </Link>
       </p>

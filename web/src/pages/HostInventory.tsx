@@ -268,7 +268,7 @@ function AgentCard({ host, onChanged }: { host: Host; onChanged: () => void }) {
             value={host.auto_update}
             onChange={(e) => setPolicy(e.target.value as AutoUpdatePolicy)}
             disabled={busy}
-            className="rounded-button border border-hairline bg-surface-2 px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-accent"
+            className="rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus:ring-2 focus:ring-link"
           >
             {(['default', 'on', 'off'] as const).map((p) => (
               <option key={p} value={p}>
@@ -410,7 +410,7 @@ function RowControls({
 
   return (
     <div className="flex items-center gap-1">
-      {failed && <span className="mr-1 text-xs text-red-400">{failed}</span>}
+      {failed && <span className="mr-1 text-xs text-down">{failed}</span>}
       {['start', 'stop', 'restart'].map((verb) => (
         <button
           key={verb}
@@ -456,7 +456,7 @@ function DeleteHost({ hostId, host }: { hostId: string; host: Host }) {
   };
 
   return (
-    <Card className="mt-6 border-red-900/50 p-5">
+    <Card className="mt-6 border-down-line p-5">
       <p className="text-sm font-medium text-content">Remove this host</p>
       <p className="mt-1 text-xs text-muted">
         Removing the agent stops {host.name} reporting but leaves it here with its history. Deleting

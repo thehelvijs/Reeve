@@ -130,7 +130,7 @@ export default function Portal() {
     <div className="flex h-screen flex-col bg-canvas">
       <header className="relative flex shrink-0 items-center gap-4 border-b border-hairline bg-surface-1 px-8 py-3">
         <span className="flex shrink-0 items-baseline gap-1.5">
-          <span className="text-sm font-medium tracking-tight text-accent">Reeve</span>
+          <span className="rounded-button bg-accent px-1.5 text-sm font-semibold text-accent-fg">Reeve</span>
           <span className="text-[10px] font-medium text-muted">{UI_VERSION}</span>
           <a
             href={SOURCE_URL}
@@ -309,11 +309,11 @@ export default function Portal() {
 }
 
 function HostDot({ status }: { status?: Host['status'] }) {
-  let color = 'bg-muted';
+  let color = 'bg-idle-solid';
   if (status === 'online') {
-    color = 'bg-green-400';
+    color = 'bg-up-solid';
   } else if (status === 'offline') {
-    color = 'bg-red-400';
+    color = 'bg-down-solid';
   }
   return <span className={`inline-block h-2 w-2 rounded-full ${color}`} />;
 }

@@ -72,7 +72,7 @@ export default function AdminGroups() {
                 >
                   {emailFor(m)}
                   <button
-                    className="text-muted hover:text-red-400"
+                    className="text-muted hover:text-down"
                     onClick={() => removeMember(g.id, m)}
                     aria-label={`Remove ${emailFor(m)}`}
                   >
@@ -83,7 +83,7 @@ export default function AdminGroups() {
             </div>
             <div className="mt-3">
               <select
-                className="rounded-button border border-hairline bg-surface-1 px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded-button border border-hairline-strong bg-canvas px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link"
                 value=""
                 onChange={(e) => addMember(g.id, e.target.value)}
               >

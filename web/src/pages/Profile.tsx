@@ -175,7 +175,7 @@ export default function Profile() {
           <ErrorText>{pwErr}</ErrorText>
         </Card>
 
-        <Card className="border-red-500/20 p-5">
+        <Card className="border-down-line p-5">
           <h2 className="text-sm font-medium text-content">Delete account</h2>
           <p className="mt-1 text-sm text-muted">
             Permanently deletes your account. Tools and credentials you own are reassigned to an admin.

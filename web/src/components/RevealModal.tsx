@@ -44,11 +44,11 @@ function SecretField({ name, value }: { name: string; value: string }) {
         <span className="text-xs font-medium text-muted">{name.replace('_', ' ')}</span>
         <div className="flex items-center gap-3">
           {isSensitiveField(name) && (
-            <button type="button" onClick={() => setShown(!shown)} className="text-xs text-muted hover:text-accent">
+            <button type="button" onClick={() => setShown(!shown)} className="text-xs text-muted hover:text-link">
               {shown ? 'hide' : 'show'}
             </button>
           )}
-          <button type="button" onClick={copy} className="text-xs text-muted hover:text-accent">
+          <button type="button" onClick={copy} className="text-xs text-muted hover:text-link">
             {copied ? 'copied' : 'copy'}
           </button>
         </div>

@@ -101,7 +101,7 @@ export default function CredentialsSection({
           </div>
         ))}
       </div>
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-down">{error}</p>}
 
       {adding && (
         <CredentialForm

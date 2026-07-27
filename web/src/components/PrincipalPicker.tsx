@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Principals, type VisibilityGrant } from '../api';
 
 const selectCls =
-  'rounded-button border border-hairline bg-surface-1 px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  'rounded-button border border-hairline-strong bg-canvas px-2 py-1.5 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 
 // PrincipalPicker grants users and groups access to something. It reads
 // /api/principals so a non-admin creator can name people too.
@@ -50,7 +50,7 @@ export default function PrincipalPicker({
             {label(g)}
             <button
               type="button"
-              className="text-muted hover:text-red-400"
+              className="text-muted hover:text-down"
               onClick={() => onRemove(g.principal_type, g.principal_id)}
               aria-label={`Remove ${label(g)}`}
             >

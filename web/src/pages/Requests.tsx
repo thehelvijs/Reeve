@@ -47,7 +47,7 @@ export default function Requests() {
         {reqs.map((r) => (
           <Card key={r.id} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
-              <Link to={`/hosts/${r.host_id}`} className="text-sm text-content hover:text-accent">
+              <Link to={`/hosts/${r.host_id}`} className="text-sm text-link underline underline-offset-2 hover:text-link-hover">
                 {r.host_name || r.host_id}
               </Link>
               {r.note && <p className="truncate text-xs text-muted">“{r.note}”</p>}
