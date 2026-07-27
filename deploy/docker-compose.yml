@@ -9,6 +9,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.server
+      secrets:
+        - signing_key
     image: reeve:source
     # The server reaches hosts by their .local name over mDNS, and multicast out
     # of a bridge network stops at the bridge. Host networking is what makes
@@ -35,3 +37,9 @@ services:
 
 volumes:
   reeve-data: {}
+
+secrets:
+  # Only reaches the build, never the running container. Unset means the
+  # embedded agents go out unsigned and hosts refuse to self-update from here.
+  signing_key:
+    environment: REEVE_SIGNING_KEY

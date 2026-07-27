@@ -16,9 +16,10 @@ COPY --from=web /src/web/dist server/webdist
 RUN apk add --no-cache python3
 # The signing key is optional so a local build works; without it the embedded
 # agents are unsigned and hosts will refuse to self-update from this server.
+# Empty, not absent, is the unset case: compose mounts the secret either way.
 RUN --mount=type=secret,id=signing_key \
     mkdir -p server/scripts && cp deploy/install.sh deploy/uninstall.sh server/scripts/ \
-    && if [ -f /run/secrets/signing_key ]; then \
+    && if [ -s /run/secrets/signing_key ]; then \
          REEVE_SIGNING_KEY="$(cat /run/secrets/signing_key)" python3 scripts/release.py --embed; \
        else \
          python3 scripts/release.py --embed; \

@@ -104,3 +104,23 @@ def test_compose_bind_is_overridable():
 def test_compose_uses_the_host_network():
     server = yaml.safe_load(COMPOSE.read_text())["services"]["server"]
     assert server["network_mode"] == "host"
+
+
+# A compose build with no signing key embeds unsigned agents, and every host
+# then refuses to self-update, so the key has to reach the build without anyone
+# remembering a --secret flag. It stays a build secret: the running server
+# never needs it, and the image must not carry it.
+def test_compose_passes_the_signing_key_to_the_build_only():
+    doc = yaml.safe_load(COMPOSE.read_text())
+    server = doc["services"]["server"]
+    assert server["build"]["secrets"] == ["signing_key"]
+    assert doc["secrets"]["signing_key"] == {"environment": "REEVE_SIGNING_KEY"}
+    assert "secrets" not in server
+    assert "REEVE_SIGNING_KEY" not in server["environment"]
+
+
+# Compose mounts an env-sourced secret as an empty file when the variable is
+# unset, so a -f test would export an empty key and claim it signed.
+def test_dockerfile_treats_an_empty_signing_secret_as_absent():
+    body = (ROOT / "deploy" / "Dockerfile.server").read_text()
+    assert "[ -s /run/secrets/signing_key ]" in body

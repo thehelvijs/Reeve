@@ -226,6 +226,12 @@ printed public key to `agent/release_pubkey.txt`, and add the secret key to CI
 as the `REEVE_SIGNING_KEY` secret. Without that secret CI still builds, but
 the artifacts go out unsigned and deployed agents will not self-update to them.
 
+The same applies to a local `up -d --build`: put the key's one line in
+`deploy/.env` as `REEVE_SIGNING_KEY` and compose passes it to the build as a
+secret. It reaches the build only, never the running container or the image.
+With it empty or missing, the build says so and the embedded agents are
+unsigned.
+
 ### Uninstall
 
 ```sh
