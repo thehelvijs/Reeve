@@ -840,8 +840,8 @@
     "semantic_hash": ""
   },
   "web/e2e/zz-agent-updates.spec.ts": {
-    "mtime": 1785191886.7170908,
-    "ast_hash": "279e14216ad0543eab7b8f9c610313ed",
+    "mtime": 1785273345.7756,
+    "ast_hash": "984524a078aceda232383d1d2b587640",
     "semantic_hash": ""
   },
   "web/e2e/zz-enter-submits.spec.ts": {
@@ -875,8 +875,8 @@
     "semantic_hash": "da55fbf38e6944c33b85bca8eab27726"
   },
   "web/e2e/zzz-visual.spec.ts": {
-    "mtime": 1785261646.032317,
-    "ast_hash": "f0630890f1a855739713477d13e38899",
+    "mtime": 1785273352.1646645,
+    "ast_hash": "9f1927796dd3bffecabee3cccf3a20e0",
     "semantic_hash": ""
   },
   "web/e2e/zzzz-confirm-visibility-disks.spec.ts": {
@@ -1340,13 +1340,13 @@
     "semantic_hash": "345bbb7635f1ebf142eb3d0f1f4be1a2"
   },
   "web/src/pages/HostInventory.tsx": {
-    "mtime": 1785268773.5296097,
-    "ast_hash": "e4823fa2aac7bdb15b122edd8473a774",
+    "mtime": 1785274005.2707822,
+    "ast_hash": "f2f73772d45fbd902ea6c691f37e1fad",
     "semantic_hash": ""
   },
   "web/src/pages/Hosts.tsx": {
-    "mtime": 1785268748.932751,
-    "ast_hash": "0207a3e02ce1a0428c007f97e9cd3519",
+    "mtime": 1785273325.4543912,
+    "ast_hash": "f974530d51cdfc46751d952c5cdd78d0",
     "semantic_hash": ""
   },
   "web/src/pages/Portal.tsx": {
@@ -1425,14 +1425,9 @@
     "semantic_hash": "57b6f87827aa5f2c2ce404fa171fad56"
   },
   "CLAUDE.md": {
-    "mtime": 1785156936.2714639,
-    "ast_hash": "980ff97d29e21356e89a4f0a144cc85c",
+    "mtime": 1785273938.2956915,
+    "ast_hash": "382fbccd94a8b7a41f6b200a51a9129a",
     "semantic_hash": ""
-  },
-  "CONTRIBUTING.md": {
-    "mtime": 1785087576.607978,
-    "ast_hash": "e132864849cb73ce62d1eb8435d08aa1",
-    "semantic_hash": "e132864849cb73ce62d1eb8435d08aa1"
   },
   "DESIGN.md": {
     "mtime": 1785268696.9232168,
@@ -1440,9 +1435,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785093208.654685,
-    "ast_hash": "6e3d77a8d48957a113b7db1c09d41779",
-    "semantic_hash": "6e3d77a8d48957a113b7db1c09d41779"
+    "mtime": 1785274272.4695303,
+    "ast_hash": "41cb2ab934c0a94246b3b146d2354c5f",
+    "semantic_hash": ""
   },
   "SECURITY.md": {
     "mtime": 1785188125.115407,
@@ -1470,8 +1465,8 @@
     "semantic_hash": "0d1d953660c3961766e4ac6fefc605c9"
   },
   "web/e2e/PLAYWRIGHT-CHECKLIST.md": {
-    "mtime": 1785175956.7695243,
-    "ast_hash": "6dcf21cb019cf09ba44c21cfba10d940",
+    "mtime": 1785273341.6775584,
+    "ast_hash": "73fd3b93e905626396c1e5979a68a2e5",
     "semantic_hash": ""
   },
   "web/index.html": {
