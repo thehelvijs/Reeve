@@ -230,8 +230,8 @@
     "semantic_hash": "3700c6915a56e661d4049f9618f1d4c1"
   },
   "server/app.go": {
-    "mtime": 1785187812.0241919,
-    "ast_hash": "b68e9d23eb1d4760bcf71d0a58317d27",
+    "mtime": 1785217891.6862059,
+    "ast_hash": "04a6a8d04990b152217d4c96a4a7abbc",
     "semantic_hash": ""
   },
   "server/auth_handlers.go": {
@@ -845,8 +845,8 @@
     "semantic_hash": ""
   },
   "web/e2e/zz-enter-submits.spec.ts": {
-    "mtime": 1785175108.9579136,
-    "ast_hash": "a4c90842fdcbcbe02d3c2b4411ab9cbd",
+    "mtime": 1785218654.386474,
+    "ast_hash": "fbd6a4ae3fe0020139aa958265ed2089",
     "semantic_hash": ""
   },
   "web/e2e/zz-profile.spec.ts": {
@@ -1040,9 +1040,9 @@
     "semantic_hash": "f59483f0fe3d4f1ca7be8a5d403c30c5"
   },
   "web/src/components/MapPicker.tsx": {
-    "mtime": 1785087641.233631,
-    "ast_hash": "80d20bf2f61ddba2739c9e00f8125aee",
-    "semantic_hash": "80d20bf2f61ddba2739c9e00f8125aee"
+    "mtime": 1785219067.7695856,
+    "ast_hash": "88ea6a51c9bd9e9dd5f5eb93ec7451a9",
+    "semantic_hash": ""
   },
   "web/src/components/MetricBar.tsx": {
     "mtime": 1785157432.0985024,
@@ -1455,8 +1455,8 @@
     "semantic_hash": ""
   },
   "contracts/API.md": {
-    "mtime": 1785192663.2926657,
-    "ast_hash": "89b6d75ab66d59e311b3cd9a25e63f31",
+    "mtime": 1785218057.6688106,
+    "ast_hash": "15ca3ff79c1f885c0ff5abcb2da47cdf",
     "semantic_hash": ""
   },
   "deploy/README.md": {
@@ -1517,6 +1517,31 @@
   "server/internal/store/audit_test.go": {
     "mtime": 1785187812.039192,
     "ast_hash": "31622d05f6e9d97152e590a658ec3f7e",
+    "semantic_hash": ""
+  },
+  "server/geocode_handlers.go": {
+    "mtime": 1785217887.0032172,
+    "ast_hash": "221dd84a9711e6478ee464596a7192c2",
+    "semantic_hash": ""
+  },
+  "server/geocode_handlers_test.go": {
+    "mtime": 1785217937.7620945,
+    "ast_hash": "82af7410c2be17ea21289023f69a940a",
+    "semantic_hash": ""
+  },
+  "web/e2e/zzzz-location-autosave.spec.ts": {
+    "mtime": 1785219073.0185742,
+    "ast_hash": "18389eb7a1675b36be026df8f56a242a",
+    "semantic_hash": ""
+  },
+  "web/src/lib/geocode.test.ts": {
+    "mtime": 1785218004.2189362,
+    "ast_hash": "6322b47aa9c7c3e4a01fd6db5ad04774",
+    "semantic_hash": ""
+  },
+  "web/src/lib/geocode.ts": {
+    "mtime": 1785217986.8629773,
+    "ast_hash": "d01ec07f8aa85f4592b7c5de12e65136",
     "semantic_hash": ""
   }
 }
