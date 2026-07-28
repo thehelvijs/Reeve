@@ -1035,13 +1035,13 @@
     "semantic_hash": "5e816dd1f586da2ebf0f326d93586529"
   },
   "web/src/components/LeafletMap.tsx": {
-    "mtime": 1785222289.3090048,
-    "ast_hash": "539cc7eb4a0db7aac50817df3c6f5acf",
+    "mtime": 1785228036.295661,
+    "ast_hash": "ab0d5e6560eabf1f271e86860704731c",
     "semantic_hash": ""
   },
   "web/src/components/MapPicker.tsx": {
-    "mtime": 1785222610.023323,
-    "ast_hash": "96c51e4dbdf01f07b9279b66170c3a9e",
+    "mtime": 1785228080.9963748,
+    "ast_hash": "d354c4a3293b6894489c4dc045fee222",
     "semantic_hash": ""
   },
   "web/src/components/MetricBar.tsx": {
@@ -1530,8 +1530,8 @@
     "semantic_hash": ""
   },
   "web/e2e/zzzz-location-autosave.spec.ts": {
-    "mtime": 1785222554.0638702,
-    "ast_hash": "e8b4aa08a9212851ed4a1d527ab20ffa",
+    "mtime": 1785228110.5158117,
+    "ast_hash": "33ecfc3d13637e4d7e861bfb46d0ab22",
     "semantic_hash": ""
   },
   "web/src/lib/geocode.test.ts": {
