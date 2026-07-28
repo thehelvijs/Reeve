@@ -365,15 +365,9 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
     emptyText = 'No process matches the search.';
   }
 
-  let description = 'What was running at the agent’s last push.';
-  if (window !== 'last') {
-    description = `Averaged over the last ${window}, heaviest first.`;
-  }
-
   return (
     <Section
       title="Top processes"
-      description={description}
       action={
         <>
           <SearchBar

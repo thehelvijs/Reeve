@@ -60,7 +60,7 @@ test('Cmd+K still focuses the global search', async ({ page }) => {
   await page.evaluate(() =>
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })),
   );
-  await expect(page.getByRole('searchbox', { name: 'Search services…' })).toBeFocused();
+  await expect(page.getByRole('searchbox', { name: 'Search…' })).toBeFocused();
 });
 
 test('a search with no match says so instead of showing an empty page', async ({ page }) => {
