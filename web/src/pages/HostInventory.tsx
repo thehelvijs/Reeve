@@ -231,31 +231,6 @@ export default function HostInventory() {
 
         {tab === 'settings' && admin && (
           <>
-            {id && (
-              <Section title="Icon">
-                <Card className="p-4">
-                  <IconUploader
-                    url={host?.icon_url}
-                    name={host?.name ?? 'Host'}
-                    path={`/api/admin/hosts/${id}/icon`}
-                    onChange={load}
-                  />
-                </Card>
-              </Section>
-            )}
-
-            {id && (
-              <Section title="Thumbnail">
-                <Card className="p-4">
-                  <ThumbnailUploader
-                    url={host?.thumbnail_url}
-                    path={`/api/admin/hosts/${id}/thumbnail`}
-                    onChange={load}
-                  />
-                </Card>
-              </Section>
-            )}
-
             {id && host && (
               <Section title="Location">
                 <Card className="p-4">
@@ -269,6 +244,30 @@ export default function HostInventory() {
                   />
                 </Card>
               </Section>
+            )}
+
+            {id && (
+              <div className="grid items-start gap-6 md:grid-cols-2">
+                <Section title="Icon">
+                  <Card className="p-4">
+                    <IconUploader
+                      url={host?.icon_url}
+                      name={host?.name ?? 'Host'}
+                      path={`/api/admin/hosts/${id}/icon`}
+                      onChange={load}
+                    />
+                  </Card>
+                </Section>
+                <Section title="Thumbnail">
+                  <Card className="p-4">
+                    <ThumbnailUploader
+                      url={host?.thumbnail_url}
+                      path={`/api/admin/hosts/${id}/thumbnail`}
+                      onChange={load}
+                    />
+                  </Card>
+                </Section>
+              </div>
             )}
 
             {id && <HostThresholds hostId={id} />}
