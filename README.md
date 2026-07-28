@@ -78,6 +78,6 @@ you modify it and offer it to others over a network, or ship it inside something
 you distribute, the corresponding source has to be available under the same
 license. The web UI links to this repository to satisfy that (AGPL section 13).
 
-Contributions are accepted under the same license, signed off per the
-[DCO](DCO) — see [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerability reports go
-to [SECURITY.md](SECURITY.md).
+Contributions are accepted under the same license. Sign off every commit per the
+[DCO](DCO) with `git commit -s`. Vulnerability reports go to
+[SECURITY.md](SECURITY.md).
