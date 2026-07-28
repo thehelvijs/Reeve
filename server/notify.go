@@ -32,6 +32,9 @@ func postWebhook(ch notifyChannel, payload string) error {
 	if ch.URL == "" {
 		return errors.New("channel has no url")
 	}
+	if field := chatPayloadField(ch.URL); field != "" {
+		payload = asChatMessage(field, payload)
+	}
 	req, err := http.NewRequest(http.MethodPost, ch.URL, bytes.NewReader([]byte(payload)))
 	if err != nil {
 		return err
@@ -45,11 +48,69 @@ func postWebhook(ch notifyChannel, payload string) error {
 		return err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("webhook returned %d", resp.StatusCode)
+		reason := strings.TrimSpace(string(body))
+		if reason == "" {
+			return fmt.Errorf("webhook returned %d", resp.StatusCode)
+		}
+		return fmt.Errorf("webhook returned %d: %s", resp.StatusCode, reason)
 	}
 	return nil
+}
+
+// chatPayloadField names the one field a chat receiver requires in the body,
+// recognised from its webhook URL. Discord rejects a body without "content" and
+// Slack one without "text", both with a 400, so Reeve's own JSON never lands.
+// An unrecognised URL gets that JSON verbatim, which is what a generic sink wants.
+func chatPayloadField(url string) string {
+	switch {
+	case strings.Contains(url, "discord.com/api/webhooks/"), strings.Contains(url, "discordapp.com/api/webhooks/"):
+		return "content"
+	case strings.Contains(url, "hooks.slack.com/"), strings.Contains(url, "chat.googleapis.com/"):
+		return "text"
+	}
+	return ""
+}
+
+// asChatMessage rewraps a Reeve payload as the single text field a chat receiver
+// takes. A payload it cannot read, or one with no message to lift, goes through
+// as the whole JSON in that field rather than being dropped.
+func asChatMessage(field, payload string) string {
+	var m map[string]any
+	if err := json.Unmarshal([]byte(payload), &m); err != nil {
+		return payload
+	}
+	out, err := json.Marshal(map[string]string{field: chatLine(m, payload)})
+	if err != nil {
+		return payload
+	}
+	return string(out)
+}
+
+// chatLine renders an alert payload as one human line: severity, what it is
+// about, then the message the alert already wrote.
+func chatLine(m map[string]any, raw string) string {
+	msg, _ := m["message"].(string)
+	if msg == "" {
+		return raw
+	}
+	var b strings.Builder
+	if sev, _ := m["severity"].(string); sev != "" {
+		b.WriteString("[" + sev + "] ")
+	}
+	tool, _ := m["tool"].(string)
+	host, _ := m["host"].(string)
+	switch {
+	case tool != "" && host != "":
+		b.WriteString(tool + " on " + host + ": ")
+	case tool != "":
+		b.WriteString(tool + ": ")
+	case host != "":
+		b.WriteString(host + ": ")
+	}
+	b.WriteString(msg)
+	return b.String()
 }
 
 // webhookConfigAAD keeps a channel config from being opened as a credential or a
