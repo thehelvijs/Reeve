@@ -131,12 +131,16 @@ async function login(page: Page) {
   await expect(page).toHaveURL('/');
 }
 
-// The sidebar lists the first few services, collections and hosts, and those
+// The sidebar lists the first few records of whichever section is open, and they
 // arrive after the first paint. Without this the shot is a coin toss between a
-// sidebar with the lists and one without, which is a whole column of difference.
-async function navReady(page: Page) {
-  await expect(page.locator('nav a[href^="/hosts/"]').first()).toBeVisible();
-  await expect(page.locator('nav a[href^="/services/"]').first()).toBeVisible();
+// sidebar with the list and one without, which is a whole column of difference.
+// Every other path lists nothing, so there is nothing to wait for.
+async function navReady(page: Page, path: string) {
+  const section = ['/services', '/collections', '/hosts'].find((s) => path.startsWith(s));
+  if (!section) {
+    return;
+  }
+  await expect(page.locator(`nav a[href^="${section}/"]`).first()).toBeVisible();
 }
 
 for (const theme of THEMES) {
@@ -254,7 +258,7 @@ for (const theme of THEMES) {
         test(name, async ({ page }) => {
           await page.goto(path);
           await expect(page.locator('main')).toBeVisible();
-          await navReady(page);
+          await navReady(page, path);
           await settle(page);
           await expect(page).toHaveScreenshot(`app-${name}-${theme}.png`, {
             fullPage: true,
@@ -273,7 +277,7 @@ for (const theme of THEMES) {
         await alertsSettled(page);
         await page.goto('/admin/alerts');
         await expect(page.locator('main')).toBeVisible();
-        await navReady(page);
+        await navReady(page, '/admin/alerts');
         await settle(page);
         await expect(page).toHaveScreenshot(`app-admin-alerts-${theme}.png`, {
           fullPage: true,
@@ -292,7 +296,7 @@ for (const theme of THEMES) {
         await page.goto('/hosts');
         await expect(page.locator('main')).toBeVisible();
         await expect(page.getByText('Rollout paused')).toHaveCount(0);
-        await navReady(page);
+        await navReady(page, '/hosts');
         await settle(page);
         await expect(page).toHaveScreenshot(`app-hosts-${theme}.png`, {
           fullPage: true,
@@ -351,6 +355,7 @@ for (const theme of THEMES) {
         for (const tab of ['overview', 'metrics', 'inventory', 'credentials', 'settings']) {
           await page.goto(`/hosts/${host.host.id}?tab=${tab}`);
           await expect(page.locator('main')).toBeVisible();
+          await navReady(page, '/hosts');
           await settle(page);
           await expect(page).toHaveScreenshot(`app-host-${tab}-${theme}.png`, {
             fullPage: true,

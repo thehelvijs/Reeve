@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { api, type Collection, type Host, type Tool } from '../api';
 import { useAuth } from '../auth';
 import { Button } from './ui';
@@ -120,9 +120,9 @@ interface NavRecord {
   label: string;
 }
 
-// A section is its own nav link plus, for the sections that hold records, the
-// first few of them and a toggle for the rest. Collapsed by default: the sidebar
-// is navigation, not a second list page.
+// A section is its own nav link plus, while that section is open, the first few
+// of its records and a toggle for the rest. The other sections stay a single
+// line: the sidebar is navigation, not a second list page.
 function NavSection({
   item,
   records,
@@ -131,9 +131,13 @@ function NavSection({
   records: NavRecord[];
 }) {
   const [all, setAll] = useState(false);
-  let shown = records;
-  if (!all) {
-    shown = records.slice(0, NAV_PREVIEW);
+  const open = useMatch({ path: item.to, end: false }) !== null;
+  let shown: NavRecord[] = [];
+  if (open) {
+    shown = records;
+    if (!all) {
+      shown = records.slice(0, NAV_PREVIEW);
+    }
   }
   return (
     <div>
