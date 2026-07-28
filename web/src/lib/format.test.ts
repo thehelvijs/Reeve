@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtBytes, fmtCount, fmtUptime } from './format';
+import { fmtBytes, fmtCount, fmtRate, fmtUptime } from './format';
 
 describe('fmtBytes', () => {
   it('stops climbing units at the largest one it knows', () => {
@@ -15,6 +15,14 @@ describe('fmtBytes', () => {
 
   it('rounds rather than truncating', () => {
     expect(fmtBytes(1024 * 1.6)).toBe('2KB');
+  });
+});
+
+describe('fmtRate', () => {
+  it('reads as bytes over a second', () => {
+    expect(fmtRate(0)).toBe('0B/s');
+    expect(fmtRate(1024)).toBe('1KB/s');
+    expect(fmtRate(1024 ** 2 * 12)).toBe('12MB/s');
   });
 });
 

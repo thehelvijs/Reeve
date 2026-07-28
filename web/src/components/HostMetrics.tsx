@@ -4,7 +4,8 @@ import { useAuth } from '../auth';
 import { cssVar, useTheme } from '../lib/theme';
 import { Card, Section, Table, Td, Th, Tr } from './ui';
 import Chart, { type Series } from './Chart';
-import { fmtBytes } from '../lib/format';
+import { fmtBytes, fmtRate } from '../lib/format';
+import { perSecond } from '../lib/counters';
 import DiskList from './DiskList';
 import SearchBar from './SearchBar';
 import { matchesQuery } from '../lib/search';
@@ -132,8 +133,8 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
   const mem: Series[] = [{ label: 'Memory used', color: SOLO, data: points.map((p) => p.mem_used) }];
   const disk: Series[] = [{ label: 'Disk used', color: SOLO, data: points.map((p) => p.disk_used) }];
   const net: Series[] = [
-    { label: 'RX', color: PRIMARY, data: points.map((p) => p.net_rx) },
-    { label: 'TX', color: SECONDARY, data: points.map((p) => p.net_tx) },
+    { label: 'RX', color: PRIMARY, data: perSecond(points.map((p) => p.net_rx), xs) },
+    { label: 'TX', color: SECONDARY, data: perSecond(points.map((p) => p.net_tx), xs) },
   ];
 
   const sensors = Array.from(new Set(points.flatMap((p) => Object.keys(p.temps ?? {}))));
@@ -144,8 +145,8 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
   }));
 
   const diskio: Series[] = [
-    { label: 'read', color: PRIMARY, data: points.map((p) => p.disk_read) },
-    { label: 'write', color: SECONDARY, data: points.map((p) => p.disk_write) },
+    { label: 'read', color: PRIMARY, data: perSecond(points.map((p) => p.disk_read), xs) },
+    { label: 'write', color: SECONDARY, data: perSecond(points.map((p) => p.disk_write), xs) },
   ];
 
   const load: Series[] = [
@@ -240,7 +241,7 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
               <Chart xs={xs} series={disk} fmt={fmtBytes} />
             </MetricCard>
             <MetricCard title="Network">
-              <Chart xs={xs} series={net} fmt={fmtBytes} />
+              <Chart xs={xs} series={net} fmt={fmtRate} />
             </MetricCard>
             {sensors.length > 0 && (
               <MetricCard title="Temperature">
@@ -248,7 +249,7 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
               </MetricCard>
             )}
             <MetricCard title="Disk I/O">
-              <Chart xs={xs} series={diskio} fmt={fmtBytes} />
+              <Chart xs={xs} series={diskio} fmt={fmtRate} />
             </MetricCard>
             <MetricCard title="Load average">
               <Chart xs={xs} series={load} fmt={(v) => v.toFixed(2)} />

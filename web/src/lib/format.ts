@@ -8,6 +8,10 @@ export function fmtBytes(v: number): string {
   return `${v.toFixed(0)}${u[i]}`;
 }
 
+export function fmtRate(v: number): string {
+  return `${fmtBytes(v)}/s`;
+}
+
 export function fmtCount(n: number, singular: string): string {
   if (n === 1) {
     return `1 ${singular}`;
