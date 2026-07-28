@@ -23,16 +23,24 @@ function tileURL(theme: Theme): string {
 // whole globe. onPick fires with a clicked coordinate (location picker);
 // onPointClick fires when a marker is clicked. Tiles come from CARTO (the one
 // external dependency).
+//
+// recenter=false leaves the view alone when the markers change, which is what a
+// picker wants for a pin the operator just dropped: the pin moves, the map does
+// not. bright brightens the dark basemap for a map that is read closely.
 export default function LeafletMap({
   points = [],
   onPick,
   onPointClick,
   height = 460,
+  recenter = true,
+  bright = false,
 }: {
   points?: MapPoint[];
   onPick?: (lat: number, lon: number) => void;
   onPointClick?: (id: string) => void;
   height?: number | string;
+  recenter?: boolean;
+  bright?: boolean;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -47,6 +55,10 @@ export default function LeafletMap({
   pickRef.current = onPick;
   const pointClickRef = useRef(onPointClick);
   pointClickRef.current = onPointClick;
+  // Read through a ref, so turning recentering back on does not by itself move a
+  // view the operator has since panned.
+  const recenterRef = useRef(recenter);
+  recenterRef.current = recenter;
 
   useEffect(() => {
     if (!elRef.current || mapRef.current) {
@@ -103,6 +115,9 @@ export default function LeafletMap({
       }
       coords.push([p.lat, p.lon]);
     }
+    if (!recenterRef.current) {
+      return;
+    }
     if (coords.length === 1) {
       map.setView(coords[0], 11);
     } else if (coords.length > 1) {
@@ -110,5 +125,11 @@ export default function LeafletMap({
     }
   }, [points]);
 
-  return <div ref={elRef} style={{ height }} className="w-full overflow-hidden rounded-card border border-hairline" />;
+  return (
+    <div
+      ref={elRef}
+      style={{ height }}
+      className={`w-full overflow-hidden rounded-card border border-hairline${bright ? ' reeve-map-bright' : ''}`}
+    />
+  );
 }

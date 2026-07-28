@@ -41,6 +41,12 @@
 .leaflet-bar a:hover {
   background: var(--surface-2);
 }
+/* The location picker is read closely, street by street, and CARTO's dark
+   basemap is too dark for that against Reeve's canvas. The portal map, read as a
+   whole, keeps the plain tiles. */
+[data-theme='dark'] .reeve-map-bright .leaflet-tile {
+  filter: brightness(1.75) contrast(0.9);
+}
 .reeve-pin {
   display: block;
   width: 14px;

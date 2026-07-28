@@ -26,6 +26,15 @@ async function locationHost(page: Page) {
   return body.host.id as string;
 }
 
+// The zoom a tile was cut for is in its URL, which is the only handle the page
+// gives on the map's view.
+async function tileZoom(page: Page) {
+  const src = await page.locator('.leaflet-tile').first().getAttribute('src');
+  const z = src?.match(/\/(\d+)\/\d+\/\d+[@.]/);
+  expect(z, `no zoom in the tile URL: ${src}`).not.toBeNull();
+  return Number(z?.[1]);
+}
+
 test.describe('location picker', () => {
   test('suggests an address and autosaves the pick, with no save button', async ({ page }) => {
     await login(page);
@@ -96,6 +105,46 @@ test.describe('location picker', () => {
       longitude: null,
     });
     await expect(page.locator('text=Saved.')).toBeVisible();
+
+    expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
+  });
+
+  test('a chosen place moves the map, a dropped pin leaves it where it is', async ({ page }) => {
+    await login(page);
+    const id = await locationHost(page);
+    await page.route('**/api/admin/geocode**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HITS) }),
+    );
+
+    await page.goto(`/hosts/${id}?tab=settings`);
+    const field = page.locator('input[placeholder^="Search a city"]');
+    await expect(field).toBeVisible();
+    // The world view the map opens on.
+    await expect.poll(() => tileZoom(page)).toBe(2);
+
+    await field.fill('Brivibas iela 32');
+    await page.locator(`button:has-text("${ADDRESS.label}")`).click();
+    // A place chosen by name is worth flying to: the city fills the frame.
+    await expect.poll(() => tileZoom(page)).toBe(11);
+    await expect(page.locator('text=Saved.')).toBeVisible();
+
+    const map = page.locator('.leaflet-container');
+    await map.scrollIntoViewIfNeeded();
+    // Zoom past the fitted level, or a view that snapped back would land on the
+    // same number and this would prove nothing.
+    await page.locator('.leaflet-control-zoom-in').click();
+    await expect.poll(() => tileZoom(page)).toBe(12);
+    const box = (await map.boundingBox())!;
+    const dropped = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/hosts/${id}`) && r.request().method() === 'PATCH',
+    );
+    await map.click({ position: { x: box.width * 0.7, y: box.height * 0.3 } });
+    const patch = await dropped;
+    const body = patch.request().postDataJSON();
+    expect(body.latitude, 'the click dropped no pin').not.toBe(ADDRESS.lat);
+    expect(body.physical_location, 'the click rewrote the name').toBe(ADDRESS.label);
+    // What this test exists for: the pin moved and the view did not.
+    expect(await tileZoom(page)).toBe(12);
 
     expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
   });

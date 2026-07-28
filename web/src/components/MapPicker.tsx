@@ -28,6 +28,9 @@ export default function MapPicker({
   const [lat, setLat] = useState<number | null>(latitude ?? null);
   const [lon, setLon] = useState<number | null>(longitude ?? null);
   const [open, setOpen] = useState(false);
+  // The map follows a place the operator chose by name, and holds still for a pin
+  // they dropped by hand.
+  const [follow, setFollow] = useState(true);
   const [hits, setHits] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -99,10 +102,18 @@ export default function MapPicker({
     setLoc(p.label);
     setLat(p.lat);
     setLon(p.lon);
+    setFollow(true);
     setOpen(false);
   };
 
-  const points = lat != null && lon != null ? [{ lat, lon, accent: true }] : [];
+  // Memoised, or every unrelated re-render would count as a moved pin and the
+  // map would jump back to its fitted view mid-edit.
+  const points = useMemo(() => {
+    if (lat == null || lon == null) {
+      return [];
+    }
+    return [{ lat, lon }];
+  }, [lat, lon]);
 
   let status = '';
   if (busy) {
@@ -172,7 +183,10 @@ export default function MapPicker({
       <LeafletMap
         points={points}
         height={360}
+        recenter={follow}
+        bright
         onPick={(la, lo) => {
+          setFollow(false);
           setLat(la);
           setLon(lo);
         }}
