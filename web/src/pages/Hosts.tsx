@@ -47,7 +47,6 @@ export default function Hosts() {
     <div>
       <PageHeader
         title="Hosts"
-        subtitle="Machines running the agent."
         search={{ value: search, onChange: setSearch, placeholder: 'Search hosts…' }}
         action={
           user?.role === 'admin' && (

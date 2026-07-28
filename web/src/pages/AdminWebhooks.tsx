@@ -17,6 +17,36 @@ export default function AdminWebhooks() {
   const [minSeverity, setMinSeverity] = useState<Severity>('info');
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  // One result per row plus one for the form, keyed by webhook id and 'new' for
+  // the unsaved one, so testing a second channel does not clear the first verdict.
+  const [tested, setTested] = useState<Record<string, string>>({});
+  const [testing, setTesting] = useState<string | null>(null);
+
+  // A saved channel tests by id: its token is redacted in every read, so only the
+  // server can put the real one on the wire.
+  const test = async (key: string, body: Record<string, unknown>) => {
+    setTesting(key);
+    setTested((t) => ({ ...t, [key]: '' }));
+    try {
+      const out = await api.post<{ ok: boolean; error?: string }>('/api/admin/webhooks/test', body);
+      if (out.ok) {
+        setTested((t) => ({ ...t, [key]: 'delivered' }));
+      } else {
+        setTested((t) => ({ ...t, [key]: out.error || 'the receiver rejected it' }));
+      }
+    } catch (e) {
+      setTested((t) => ({ ...t, [key]: e instanceof Error ? e.message : 'test failed' }));
+    }
+    setTesting(null);
+  };
+
+  const testDraft = () => {
+    const config: Record<string, string> = {};
+    if (token.trim()) {
+      config.token = token.trim();
+    }
+    return test('new', { url: url.trim(), config });
+  };
 
   const load = () => api.get<Webhook[]>('/api/admin/webhooks').then((h) => setHooks(h ?? []));
   useEffect(() => {
@@ -60,7 +90,6 @@ export default function AdminWebhooks() {
     <div>
       <PageHeader
         title="Webhooks"
-        subtitle="Alerts POST a JSON payload to these URLs. Point them at any HTTP endpoint on your network."
         search={{ value: search, onChange: setSearch, placeholder: 'Search webhooks…' }}
       />
 
@@ -99,11 +128,22 @@ export default function AdminWebhooks() {
             </Field>
           </div>
 
-          <div className="mt-4 flex items-center justify-between">
+          <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-xs text-muted">The token is encrypted at rest and never shown again after saving.</p>
-            <Button type="submit" disabled={!url.trim()}>
-              Add webhook
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <TestResult result={tested.new} />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!url.trim() || testing === 'new'}
+                onClick={testDraft}
+              >
+                {testing === 'new' ? 'Testing…' : 'Test'}
+              </Button>
+              <Button type="submit" disabled={!url.trim()}>
+                Add webhook
+              </Button>
+            </div>
           </div>
           <ErrorText>{error}</ErrorText>
         </Form>
@@ -124,9 +164,19 @@ export default function AdminWebhooks() {
               </div>
               {h.url && <p className="mt-1 truncate font-mono text-xs text-muted">{h.url}</p>}
             </div>
-            <Button variant="danger" onClick={() => setConfirming(h)}>
-              Delete
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <TestResult result={tested[h.id]} />
+              <Button
+                variant="secondary"
+                disabled={testing === h.id}
+                onClick={() => test(h.id, { id: h.id })}
+              >
+                {testing === h.id ? 'Testing…' : 'Test'}
+              </Button>
+              <Button variant="danger" onClick={() => setConfirming(h)}>
+                Delete
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
@@ -142,4 +192,16 @@ export default function AdminWebhooks() {
       )}
     </div>
   );
+}
+
+// The verdict sits beside the button that produced it: a receiver that answers
+// badly is the common case, and its own words are more use than "failed".
+function TestResult({ result }: { result?: string }) {
+  if (!result) {
+    return null;
+  }
+  if (result === 'delivered') {
+    return <span className="text-xs text-up">Delivered</span>;
+  }
+  return <span className="max-w-64 truncate text-xs text-down" title={result}>{result}</span>;
 }

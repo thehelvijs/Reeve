@@ -40,7 +40,6 @@ export default function Requests() {
     <div>
       <PageHeader
         title="Access requests"
-        subtitle="Approve or track requests to reveal host credentials."
         search={{ value: search, onChange: setSearch, placeholder: 'Search requests…' }}
       />
       <div className="mt-6 flex gap-2">

@@ -53,7 +53,6 @@ export default function AdminGroups() {
     <div>
       <PageHeader
         title="User groups"
-        subtitle="Assign visibility and access to a set of users at once. For grouping services, use Collections."
         search={{ value: search, onChange: setSearch, placeholder: 'Search groups…' }}
         action={isAdmin ? <Button onClick={() => setCreating(true)}>New group</Button> : undefined}
       />

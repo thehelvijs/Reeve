@@ -53,7 +53,6 @@ export default function AdminAudit() {
     <div>
       <PageHeader
         title="Audit log"
-        subtitle="Who revealed what, and every grant or revoke."
         search={{ value: search, onChange: setSearch, placeholder: 'Search audit log…' }}
       />
 

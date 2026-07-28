@@ -84,7 +84,6 @@ export default function CredentialsSection({
     <Section
       title="Credentials"
       count={creds.length}
-      description="How to connect to this machine. Every reveal is recorded against the host."
       action={action}
     >
       {creds.length === 0 ? (

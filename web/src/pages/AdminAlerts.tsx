@@ -113,7 +113,6 @@ export default function AdminAlerts() {
     <div>
       <PageHeader
         title="Alerts"
-        subtitle="Fired alerts and webhook delivery status."
         search={{ value: search, onChange: setSearch, placeholder: 'Search alerts…' }}
       />
 

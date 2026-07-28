@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import SSHDeployModal from '../components/SSHDeployModal';
 import { needsConfirm, rowConfirmation } from '../lib/confirmText';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   api,
   type AutoUpdatePolicy,
@@ -155,7 +155,7 @@ export default function HostInventory() {
         title={host?.name ?? 'Host'}
         icon={<EntityIcon url={host?.icon_url} name={host?.name ?? 'Host'} size={36} />}
         badges={host && <Pill tone={hostTone(host.status)}>{host.status}</Pill>}
-        subtitle={hostSubtitle(host)}
+        subtitle={hostSubtitle(host, admin)}
         meta={id && <UptimeSummary path={`/api/hosts/${id}/uptime`} />}
       />
 
@@ -232,7 +232,7 @@ export default function HostInventory() {
         {tab === 'settings' && admin && (
           <>
             {id && (
-              <Section title="Icon" description="Shown beside this host everywhere it is listed.">
+              <Section title="Icon">
                 <Card className="p-4">
                   <IconUploader
                     url={host?.icon_url}
@@ -245,7 +245,7 @@ export default function HostInventory() {
             )}
 
             {id && (
-              <Section title="Thumbnail" description="A wider image, shown on this page and on the portal.">
+              <Section title="Thumbnail">
                 <Card className="p-4">
                   <ThumbnailUploader
                     url={host?.thumbnail_url}
@@ -257,7 +257,7 @@ export default function HostInventory() {
             )}
 
             {id && host && (
-              <Section title="Location" description="Where this host physically lives. Shown on the map view.">
+              <Section title="Location">
                 <Card className="p-4">
                   <MapPicker
                     hostId={id}
@@ -294,11 +294,13 @@ export default function HostInventory() {
 // hostSubtitle is the one line under the name: what the machine is and where it
 // answers from. Anything the host has not reported is left out rather than
 // printed as an em dash, so the line stays short on a host that just enrolled.
-function hostSubtitle(host: Host | null): string | undefined {
+// The location is a link to the tab that owns it, which is where an operator goes
+// after reading an address that is wrong.
+function hostSubtitle(host: Host | null, canEditLocation: boolean): ReactNode {
   if (!host) {
     return undefined;
   }
-  const parts: string[] = [];
+  const parts: ReactNode[] = [];
   if (host.os) {
     parts.push(host.os);
   }
@@ -306,12 +308,33 @@ function hostSubtitle(host: Host | null): string | undefined {
     parts.push(host.ip_address);
   }
   if (host.physical_location) {
-    parts.push(host.physical_location);
+    if (canEditLocation) {
+      parts.push(
+        <Link
+          key="location"
+          to={`/hosts/${host.id}?tab=settings`}
+          className="text-link underline underline-offset-2 hover:text-link-hover"
+        >
+          {host.physical_location}
+        </Link>,
+      );
+    } else {
+      parts.push(host.physical_location);
+    }
   }
   if (parts.length === 0) {
     return undefined;
   }
-  return parts.join(' · ');
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && ' · '}
+          {part}
+        </span>
+      ))}
+    </>
+  );
 }
 
 // RightNow answers the question the overview is for: what is this machine doing
@@ -332,7 +355,7 @@ function RightNow({ host }: { host: Host }) {
   }
 
   return (
-    <Section title="Right now" description="From the agent's latest push.">
+    <Section title="Right now">
       <Card className="p-4">
         {m ? (
           <div className="grid gap-4 sm:grid-cols-3">
@@ -417,7 +440,6 @@ function AgentSection({ host, onChanged }: { host: Host; onChanged: () => void }
   return (
     <Section
       title="Agent updates"
-      description="Whether this host takes new agent builds on its own, and where it is now."
       action={<Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>}
     >
       <Card className="p-4">
@@ -505,7 +527,6 @@ function HostThresholds({ hostId }: { hostId: string }) {
   return (
     <Section
       title="Alert thresholds"
-      description="Overrides the fleet default for this host only."
     >
       <Card className="p-4">
         <Form onSubmit={save}>

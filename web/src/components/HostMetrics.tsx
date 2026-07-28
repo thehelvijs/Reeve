@@ -213,7 +213,6 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
     <div className="space-y-6">
       <Section
         title="Charts"
-        description={`Every sample the server kept for the last ${range}.`}
         action={
           <>
             {ranges}

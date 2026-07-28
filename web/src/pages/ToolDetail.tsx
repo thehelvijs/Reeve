@@ -108,7 +108,7 @@ export default function ToolDetail() {
           />
         )}
 
-        <Section title="Address" description="Where this service answers.">
+        <Section title="Address">
           <Card className="p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
@@ -161,23 +161,6 @@ export default function ToolDetail() {
           </Card>
         </Section>
 
-        {tool.host_id && (
-          <Section title="Credentials">
-            <Card className="p-4">
-              <p className="text-xs text-muted">
-                Logins live on the machine, not the service.{' '}
-                <Link
-                  to={`/hosts/${tool.host_id}`}
-                  className="text-link underline underline-offset-2 hover:text-link-hover"
-                >
-                  View this host
-                </Link>{' '}
-                to see or request them.
-              </p>
-            </Card>
-          </Section>
-        )}
-
         <EventHistory path={`/api/tools/${tool.id}/events`} />
 
         {user?.role === 'admin' && tool.visibility === 'restricted' && (
@@ -221,7 +204,7 @@ function VisibilityManager({ toolId }: { toolId: string }) {
   };
 
   return (
-    <Section title="Who can see this service" description="Everyone else gets a 404, admins excepted.">
+    <Section title="Who can see this service">
       <Card className="p-4">
         <div className="flex flex-wrap gap-2">
           {grants.length === 0 && <span className="text-xs text-muted">Only the creator and admins.</span>}

@@ -10,7 +10,7 @@ export default function DiskList({ disks }: { disks: DiskUsage[] }) {
     return null;
   }
   return (
-    <Section title="Filesystems" count={disks.length} description="Fullest first.">
+    <Section title="Filesystems" count={disks.length}>
       <Card className="space-y-3 p-4">
         {sortDisks(disks).map((d) => (
           <MetricBar

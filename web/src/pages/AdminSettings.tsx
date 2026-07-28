@@ -37,7 +37,7 @@ export default function AdminSettings() {
   if (!settings) {
     return (
       <div>
-        <PageHeader title="Settings" subtitle="Instance-wide configuration." />
+        <PageHeader title="Settings" />
         <div className="mt-6">{error ? <ErrorText>{error}</ErrorText> : <p className="text-sm text-muted">Loading…</p>}</div>
       </div>
     );
@@ -45,7 +45,7 @@ export default function AdminSettings() {
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Instance-wide configuration." />
+      <PageHeader title="Settings" />
       <div className="mt-3">
         <ErrorText>{error}</ErrorText>
       </div>

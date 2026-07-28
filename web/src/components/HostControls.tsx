@@ -69,7 +69,6 @@ export default function HostControls({ hostId, host }: { hostId: string; host: H
   return (
     <Section
       title="Controls"
-      description="Run on the machine by its agent, collected on its next push (~15s). Every command records who asked."
     >
       <Card className="p-4">
         {reason && <p className="mb-4 text-xs text-muted">{reason}</p>}

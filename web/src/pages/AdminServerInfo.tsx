@@ -38,7 +38,7 @@ export default function AdminServerInfo() {
 
   return (
     <div>
-      <PageHeader title="Server" subtitle="The machine and process running Reeve." />
+      <PageHeader title="Server" />
 
       <Card className="mt-6 space-y-2 p-5">
         <MetricBar label="CPU" pct={info.host.cpu_pct} />
