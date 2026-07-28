@@ -37,7 +37,6 @@ export default function AdminUsers() {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Manage roles and access."
         search={{ value: search, onChange: setSearch, placeholder: 'Search users…' }}
       />
 

@@ -31,7 +31,6 @@ export default function Collections() {
     <div>
       <PageHeader
         title="Collections"
-        subtitle="Group services so the portal reads by team, not by machine."
         search={{ value: search, onChange: setSearch, placeholder: 'Search collections…' }}
         action={<Button onClick={() => setCreating(true)}>New collection</Button>}
       />
@@ -40,7 +39,7 @@ export default function Collections() {
         <div className="mt-6">
           <EmptyState
             title="No collections yet"
-            description="Create a collection to group services on the portal by team instead of by host."
+            description="Create a collection to group services on the portal."
             action={<Button onClick={() => setCreating(true)}>New collection</Button>}
           />
         </div>

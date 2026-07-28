@@ -100,7 +100,7 @@ export default function Profile() {
 
   return (
     <div>
-      <PageHeader title="Profile" subtitle="Your account, avatar, and password." />
+      <PageHeader title="Profile" />
 
       <div className="mt-6 space-y-4">
         <Card className="p-5">

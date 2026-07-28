@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Your whole infrastructure at a glance." />
+      <PageHeader title="Dashboard" />
 
       {loading && (
         <>

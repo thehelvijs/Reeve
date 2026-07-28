@@ -151,7 +151,6 @@ export default function ToolFormPage() {
       <div>
         <PageHeader
           title={editing ? 'Edit service' : 'Add for monitoring'}
-          subtitle="Track whether a service is up and control who can reach it."
         />
       </div>
 

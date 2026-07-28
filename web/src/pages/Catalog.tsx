@@ -72,7 +72,6 @@ export default function Catalog() {
     <div>
       <PageHeader
         title="Services"
-        subtitle="Every service, where it lives, and whether it's up."
         search={{ value: search, onChange: setSearch, placeholder: 'Search services…' }}
         action={
           <div className="flex gap-2">
@@ -175,7 +174,7 @@ export default function Catalog() {
               {tools.length === 0 ? (
                 <EmptyState
                   title="No services yet"
-                  description="Add a service to track whether it's up and control who can reach it."
+                  description="Add a service to track its state and set who can reach it."
                   action={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => navigate('/services/new')}>

@@ -39,7 +39,6 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-content">
             {mode === 'signup' ? 'Create your account' : 'Sign in'}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">Your infrastructure catalog, owned and secured locally.</p>
         </div>
         <form onSubmit={submit} className="space-y-4 rounded-card border border-hairline bg-surface-1 p-6">
           <Field label="Email">
