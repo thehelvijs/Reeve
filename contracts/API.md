@@ -318,6 +318,13 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
   so that is the floor on how finely a window can be sliced, and a week of it
   costs thousands of rows rather than millions. Kept for the 5m retention
   window; "Clear metrics" drops it with the rest.
+- `GET /admin/geocode?q=` turns typed text into location suggestions:
+  `[{label, lat, lon}]`, at most eight, empty for a query under three
+  characters. The server asks Photon (the OSM typeahead geocoder) and the page
+  asks the server, so the page keeps its `connect-src 'self'` policy and the
+  geocoder sees one caller instead of every browser. The host location picker
+  also matches the city list bundled in the page, which needs no request and
+  works with no internet.
 - Admin (`role=admin`): `/admin/users`, `/admin/groups`, `/admin/hosts`,
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
