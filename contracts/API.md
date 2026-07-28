@@ -177,6 +177,54 @@ It exposes display name, email and group name to **any** signed-in user, and
 nothing else. Any user can create a collection and grant access to it, so the
 admin-only `/admin/users` and `/admin/groups` are not a usable source.
 
+## Accounts and groups
+
+### `POST /api/admin/users`
+
+Admin. Invites an account: `{email, role, display_name}`, where `role` is
+`admin` or `basic` and defaults to `basic`. The server hashes random bytes
+nobody holds as the password, so the invite link is the only way in.
+
+```json
+{ "user": {"id": "…", "email": "…", "role": "basic", …},
+  "emailed": true, "invite_link": "https://…/reset?token=…" }
+```
+
+The link is a `password_resets` row that lives seven days, so an invite and a
+reset consume the same token endpoint (`POST /auth/reset`). With a mail relay
+configured the server sends the link and `emailed` is true. With no relay, or a
+relay that refuses the message, `invite_link` carries it back for the admin to
+hand over. The two fields are exclusive: the server never returns a link it
+mailed.
+
+### `GET /api/groups`
+
+Authenticated. Returns the groups the caller may manage: every group for an
+admin, the groups they moderate for anybody else. A member who moderates nothing
+reads an empty list.
+
+```json
+[{ "id": "…", "name": "ops",
+   "members": [{"user_id": "…", "email": "…", "display_name": "…",
+                "avatar_url": "…", "role": "moderator"}] }]
+```
+
+The membership carries the person's name, so a moderator reads their own group
+without also being handed `/admin/users`.
+
+### Group membership
+
+`POST /api/groups/{id}/members` takes `{email, role}` and adds an account that
+already exists. An unknown address is a 404, which is also what a moderator gets
+for an address outside their group: they never learn whether it has an account.
+`PATCH /api/groups/{id}/members/{userId}` takes `{role}`.
+`DELETE /api/groups/{id}/members/{userId}` removes one.
+
+All three answer 403 unless the caller is an admin or a moderator **of that
+group**. A moderator cannot demote or remove themselves (400 `self_lockout`),
+and cannot create accounts or groups. Membership spans as many groups as an
+account is put in, with a role in each.
+
 ### `GET /api/public/hosts` (no auth)
 
 Returns only hosts referenced by at least one public tool, trimmed to `id`,
