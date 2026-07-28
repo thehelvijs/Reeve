@@ -9,6 +9,29 @@ export interface Series {
   data: (number | null)[];
 }
 
+// autoAxisSize widens the y gutter to fit its widest label. uPlot reserves a
+// fixed 50px, which silently clips the left of anything longer: "231KB/s" drew
+// as ")1KB/s", and a big enough disk would lose a digit the same way.
+//
+// uPlot calls this repeatedly until the size settles, so it has to stop
+// converging or it would loop.
+const autoAxisSize: uPlot.Axis['size'] = (self, values, axisIdx, cycleNum) => {
+  const ax = self.axes[axisIdx] as uPlot.Axis & { _size?: number; font?: [string, number] };
+  if (cycleNum > 2) {
+    return ax._size ?? 50;
+  }
+  const ticks = typeof ax.ticks?.size === 'number' ? ax.ticks.size : 10;
+  const gap = typeof ax.gap === 'number' ? ax.gap : 5;
+  const longest = (values ?? []).reduce((acc, v) => (v.length > acc.length ? v : acc), '');
+  if (longest === '') {
+    return ticks + gap;
+  }
+  if (ax.font) {
+    self.ctx.font = ax.font[0];
+  }
+  return Math.ceil(ticks + gap + self.ctx.measureText(longest).width / devicePixelRatio);
+};
+
 // Chart renders a uPlot time-series sized to its container. It recreates the
 // plot when data or width changes; uPlot itself is imperative.
 export default function Chart({
@@ -58,6 +81,7 @@ export default function Chart({
           grid: { stroke: grid, width: 1 },
           ticks: { stroke: tick },
           values: fmt ? (_u, splits) => splits.map((v) => fmt(v)) : undefined,
+          size: autoAxisSize,
         },
       ],
       series: [
