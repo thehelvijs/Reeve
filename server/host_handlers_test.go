@@ -218,6 +218,56 @@ func TestUpdateHostLocation(t *testing.T) {
 	}
 }
 
+func TestUpdateHostPinColor(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "admin@example.com", "password123")
+
+	h, err := ts.app.db.CreateHost("pin-box", "linux", "", "tok", 60)
+	if err != nil {
+		t.Fatalf("create host: %v", err)
+	}
+	path := "/api/admin/hosts/" + h.ID
+
+	// A hex colour is stored and served back, to the admin list and to the
+	// anonymous portal, which is what draws the pin.
+	resp, data := ts.do(t, admin, http.MethodPatch, path,
+		map[string]any{"physical_location": "Riga", "latitude": 56.9, "longitude": 24.1, "pin_color": "#ff8800"}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("patch = %d: %s", resp.StatusCode, data)
+	}
+	if !bytes.Contains(data, []byte(`"pin_color":"#ff8800"`)) {
+		t.Errorf("response missing the colour: %s", data)
+	}
+	if _, list := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil); !bytes.Contains(list, []byte("#ff8800")) {
+		t.Errorf("host list missing the colour: %s", list)
+	}
+
+	// Anything that is not #rrggbb is refused here: the value is interpolated
+	// into the marker's inline style on the page.
+	for _, bad := range []string{"red", "#fff", "#ff8800; content: url(x)", "javascript:alert(1)", "#gggggg"} {
+		body := map[string]any{"physical_location": "Riga", "pin_color": bad}
+		if resp, data := ts.do(t, admin, http.MethodPatch, path, body, nil); resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("pin_color %q = %d, want 400: %s", bad, resp.StatusCode, data)
+		}
+	}
+
+	// The refusals left the stored colour alone.
+	_, after := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
+	if !bytes.Contains(after, []byte("#ff8800")) {
+		t.Errorf("a rejected colour overwrote the stored one: %s", after)
+	}
+
+	// Empty clears it back to the brand accent.
+	if resp, data := ts.do(t, admin, http.MethodPatch, path,
+		map[string]any{"physical_location": "Riga", "pin_color": ""}, nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("clearing the colour = %d: %s", resp.StatusCode, data)
+	}
+	if _, list := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil); bytes.Contains(list, []byte("#ff8800")) {
+		t.Errorf("colour survived being cleared: %s", list)
+	}
+}
+
 func TestClearHostMetricsAdminOnly(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)

@@ -355,6 +355,8 @@ export interface Host {
   thumbnail_url: string;
   latitude?: number;
   longitude?: number;
+  // #rrggbb for this host's map pin, absent for the brand accent.
+  pin_color?: string;
   auto_update: AutoUpdatePolicy;
   // The machine's own refusal (REEVE_AUTO_UPDATE=false). No server-side policy
   // or operator override outranks it: the agent ignores the ack.

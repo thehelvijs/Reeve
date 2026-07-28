@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS hosts (
     control_enabled    INTEGER NOT NULL DEFAULT 0,
     icon_path          TEXT NOT NULL DEFAULT '',
     thumbnail_path     TEXT NOT NULL DEFAULT '',
+    -- #rrggbb for this host's map pin, empty for the brand accent. Validated on
+    -- the way in: it is interpolated into the marker's inline style.
+    pin_color          TEXT NOT NULL DEFAULT '',
     created_at         TEXT NOT NULL
 );
 

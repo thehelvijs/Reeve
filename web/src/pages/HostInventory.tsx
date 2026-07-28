@@ -153,7 +153,6 @@ export default function HostInventory() {
     <div>
       <PageHeader
         title={host?.name ?? 'Host'}
-        back={{ to: '/hosts', label: 'Hosts' }}
         icon={<EntityIcon url={host?.icon_url} name={host?.name ?? 'Host'} size={36} />}
         badges={host && <Pill tone={hostTone(host.status)}>{host.status}</Pill>}
         subtitle={hostSubtitle(host)}
@@ -265,6 +264,7 @@ export default function HostInventory() {
                     location={host.physical_location ?? ''}
                     latitude={host.latitude}
                     longitude={host.longitude}
+                    pinColor={host.pin_color}
                     onSaved={load}
                   />
                 </Card>

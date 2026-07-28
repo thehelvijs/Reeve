@@ -2,12 +2,15 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme, type Theme } from '../lib/theme';
+import { pinSVG } from '../lib/pin';
 
 export interface MapPoint {
   id?: string;
   lat: number;
   lon: number;
   label?: string;
+  // #rrggbb for this point's pin; anything else draws the brand accent.
+  color?: string;
 }
 
 // CARTO ships a raster per theme, so the basemap is swapped, not recoloured; the
@@ -104,10 +107,16 @@ export default function LeafletMap({
     layer.clearLayers();
     const coords: L.LatLngTuple[] = [];
     for (const p of points) {
-      const icon = L.divIcon({ className: 'reeve-pin-wrap', html: '<span class="reeve-pin"></span>', iconSize: [16, 16], iconAnchor: [8, 8] });
+      const icon = L.divIcon({
+        className: 'reeve-pin-wrap',
+        html: pinSVG(p.color),
+        iconSize: [24, 32],
+        // The tip is the coordinate, so the pin sits above the point it marks.
+        iconAnchor: [12, 32],
+      });
       const m = L.marker([p.lat, p.lon], { icon }).addTo(layer);
       if (p.label) {
-        m.bindTooltip(p.label, { permanent: true, direction: 'right', offset: [8, 0], className: 'reeve-tip' });
+        m.bindTooltip(p.label, { permanent: true, direction: 'right', offset: [14, -12], className: 'reeve-tip' });
       }
       if (p.id && pointClickRef.current) {
         m.on('click', () => pointClickRef.current?.(p.id as string));

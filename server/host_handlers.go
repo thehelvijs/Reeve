@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +35,8 @@ type hostView struct {
 	ThumbnailURL   string           `json:"thumbnail_url"`
 	Latitude       *float64         `json:"latitude,omitempty"`
 	Longitude      *float64         `json:"longitude,omitempty"`
+	// PinColor is #rrggbb for this host's map pin, absent for the brand accent.
+	PinColor string `json:"pin_color,omitempty"`
 }
 
 // hostMetricsView is the host's most recent sample, for at-a-glance load on the
@@ -59,7 +62,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 		UpdateState: updateStateFor(h, uc, now), ControlEnabled: h.ControlEnabled,
 		Status: hostStatus(h, now), LastSeenAt: last,
 		IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath),
-		Latitude: h.Latitude, Longitude: h.Longitude,
+		Latitude: h.Latitude, Longitude: h.Longitude, PinColor: h.PinColor,
 	}
 }
 
@@ -84,6 +87,7 @@ type publicHostView struct {
 	ThumbnailURL string   `json:"thumbnail_url"`
 	Latitude     *float64 `json:"latitude,omitempty"`
 	Longitude    *float64 `json:"longitude,omitempty"`
+	PinColor     string   `json:"pin_color,omitempty"`
 }
 
 func (a *app) handleListHosts(w http.ResponseWriter, _ *http.Request) {
@@ -122,7 +126,7 @@ func (a *app) handleListPublicHosts(w http.ResponseWriter, _ *http.Request) {
 	now := time.Now().UTC()
 	out := make([]publicHostView, 0, len(hosts))
 	for _, h := range hosts {
-		out = append(out, publicHostView{ID: h.ID, Name: h.Name, Status: hostStatus(h, now), IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath), Latitude: h.Latitude, Longitude: h.Longitude})
+		out = append(out, publicHostView{ID: h.ID, Name: h.Name, Status: hostStatus(h, now), IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath), Latitude: h.Latitude, Longitude: h.Longitude, PinColor: h.PinColor})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -187,20 +191,30 @@ func (a *app) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleUpdateHostLocation sets a host's physical location and optional map
-// coordinates. Admin only.
+// hexColorRe is the only pin colour shape accepted. The value reaches the page
+// inside the marker's inline style, so anything else is refused here rather than
+// escaped somewhere downstream.
+var hexColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// handleUpdateHostLocation sets a host's physical location, optional map
+// coordinates and map pin colour. Admin only.
 func (a *app) handleUpdateHostLocation(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var in struct {
 		PhysicalLocation string   `json:"physical_location"`
 		Latitude         *float64 `json:"latitude"`
 		Longitude        *float64 `json:"longitude"`
+		PinColor         string   `json:"pin_color"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	if err := a.db.UpdateHostLocation(id, in.PhysicalLocation, in.Latitude, in.Longitude); err != nil {
+	if in.PinColor != "" && !hexColorRe.MatchString(in.PinColor) {
+		writeError(w, http.StatusBadRequest, "invalid_color", "pin_color must be #rrggbb")
+		return
+	}
+	if err := a.db.UpdateHostLocation(id, in.PhysicalLocation, in.Latitude, in.Longitude, in.PinColor); err != nil {
 		if err == store.ErrNotFound {
 			writeError(w, http.StatusNotFound, "not_found", "host not found")
 			return

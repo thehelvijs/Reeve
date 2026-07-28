@@ -17,9 +17,9 @@ interface City {
 const cities = citiesData as City[];
 
 // locationKey is what "already saved" means to the picker: the trimmed place
-// name and the pin. Autosave compares it against the last write.
-export function locationKey(loc: string, lat: number | null, lon: number | null): string {
-  return `${loc.trim()}|${lat ?? ''}|${lon ?? ''}`;
+// name, the pin and its colour. Autosave compares it against the last write.
+export function locationKey(loc: string, lat: number | null, lon: number | null, color = ''): string {
+  return `${loc.trim()}|${lat ?? ''}|${lon ?? ''}|${color}`;
 }
 
 // cityMatches answers from the bundled city list, so the first keystrokes get a

@@ -3,6 +3,7 @@ import { api, ApiError } from '../api';
 import { ErrorText, Form, Input } from './ui';
 import LeafletMap from './LeafletMap';
 import { cityMatches, locationKey, lookupAddress, mergePlaces, type Place } from '../lib/geocode';
+import { pinFill } from '../lib/pin';
 
 const SAVE_DELAY = 800;
 const SEARCH_DELAY = 250;
@@ -11,6 +12,7 @@ interface Saved {
   loc: string;
   lat: number | null;
   lon: number | null;
+  color: string;
 }
 
 // MapPicker edits a host's physical location: a search field that suggests
@@ -22,17 +24,20 @@ export default function MapPicker({
   location,
   latitude,
   longitude,
+  pinColor,
   onSaved,
 }: {
   hostId: string;
   location: string;
   latitude?: number;
   longitude?: number;
+  pinColor?: string;
   onSaved: () => void;
 }) {
   const [loc, setLoc] = useState(location);
   const [lat, setLat] = useState<number | null>(latitude ?? null);
   const [lon, setLon] = useState<number | null>(longitude ?? null);
+  const [color, setColor] = useState(pinColor ?? '');
   const [open, setOpen] = useState(false);
   // The map follows a place the operator chose by name, and holds still for a pin
   // they dropped by hand.
@@ -42,17 +47,17 @@ export default function MapPicker({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
-  const savedKey = useRef(locationKey(location, latitude ?? null, longitude ?? null));
+  const savedKey = useRef(locationKey(location, latitude ?? null, longitude ?? null, pinColor ?? ''));
   // One step of undo: what was stored before the write that just landed. A stray
   // click on the map is saved like any other edit, so it needs a way back.
   const [prev, setPrev] = useState<Saved | null>(null);
-  const stored = useRef<Saved>({ loc: location, lat: latitude ?? null, lon: longitude ?? null });
+  const stored = useRef<Saved>({ loc: location, lat: latitude ?? null, lon: longitude ?? null, color: pinColor ?? '' });
   const undoing = useRef(false);
 
   const suggestions = useMemo(() => mergePlaces(cityMatches(loc), hits), [loc, hits]);
 
   const save = async () => {
-    const key = locationKey(loc, lat, lon);
+    const key = locationKey(loc, lat, lon, color);
     setError('');
     setBusy(true);
     try {
@@ -60,6 +65,7 @@ export default function MapPicker({
         physical_location: loc.trim(),
         latitude: lat,
         longitude: lon,
+        pin_color: color,
       });
       savedKey.current = key;
       if (undoing.current) {
@@ -68,7 +74,7 @@ export default function MapPicker({
         setPrev(stored.current);
       }
       undoing.current = false;
-      stored.current = { loc: loc.trim(), lat, lon };
+      stored.current = { loc: loc.trim(), lat, lon, color };
       setSaved(true);
       onSaved();
     } catch (e) {
@@ -79,7 +85,7 @@ export default function MapPicker({
     }
   };
 
-  const dirty = locationKey(loc, lat, lon) !== savedKey.current;
+  const dirty = locationKey(loc, lat, lon, color) !== savedKey.current;
   const saveRef = useRef(save);
   saveRef.current = save;
 
@@ -92,7 +98,7 @@ export default function MapPicker({
     setSaved(false);
     const t = setTimeout(() => saveRef.current(), SAVE_DELAY);
     return () => clearTimeout(t);
-  }, [loc, lat, lon, dirty]);
+  }, [loc, lat, lon, color, dirty]);
 
   // Address typeahead, debounced so a held key is one request, not ten.
   useEffect(() => {
@@ -133,6 +139,7 @@ export default function MapPicker({
     setLoc(prev.loc);
     setLat(prev.lat);
     setLon(prev.lon);
+    setColor(prev.color);
     setFollow(true);
     setOpen(false);
   };
@@ -143,8 +150,8 @@ export default function MapPicker({
     if (lat == null || lon == null) {
       return [];
     }
-    return [{ lat, lon }];
-  }, [lat, lon]);
+    return [{ lat, lon, color }];
+  }, [lat, lon, color]);
 
   let status = '';
   if (busy) {
@@ -210,6 +217,24 @@ export default function MapPicker({
           </>
         )}
       </p>
+
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <label className="flex items-center gap-2" htmlFor="pin-color">
+          Pin colour
+          <input
+            id="pin-color"
+            type="color"
+            value={pinFill(color)}
+            onChange={(e) => setColor(e.target.value)}
+            className="h-6 w-10 cursor-pointer rounded-button border border-hairline bg-surface-2"
+          />
+        </label>
+        {color !== '' && (
+          <button type="button" className="underline hover:text-content" onClick={() => setColor('')}>
+            reset
+          </button>
+        )}
+      </div>
 
       <LeafletMap
         points={points}

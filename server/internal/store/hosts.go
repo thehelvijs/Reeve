@@ -46,6 +46,8 @@ type Host struct {
 	ThumbnailPath  string
 	Latitude       *float64
 	Longitude      *float64
+	// PinColor is #rrggbb for this host's map pin, empty for the brand accent.
+	PinColor string
 }
 
 // SetHostThumbnailPath sets (or clears, when empty) a host's thumbnail path.
@@ -53,11 +55,12 @@ func (db *DB) SetHostThumbnailPath(id, path string) error {
 	return db.exec1(`UPDATE hosts SET thumbnail_path = ? WHERE id = ?`, path, id)
 }
 
-// UpdateHostLocation sets a host's physical location text and optional map
-// coordinates (nil clears a coordinate).
-func (db *DB) UpdateHostLocation(id, location string, lat, lng *float64) error {
-	return db.exec1(`UPDATE hosts SET physical_location = ?, latitude = ?, longitude = ? WHERE id = ?`,
-		location, lat, lng, id)
+// UpdateHostLocation sets a host's physical location text, optional map
+// coordinates (nil clears a coordinate) and pin colour (empty for the default).
+func (db *DB) UpdateHostLocation(id, location string, lat, lng *float64, pinColor string) error {
+	return db.exec1(
+		`UPDATE hosts SET physical_location = ?, latitude = ?, longitude = ?, pin_color = ? WHERE id = ?`,
+		location, lat, lng, pinColor, id)
 }
 
 // SetHostIconPath sets (or clears, when empty) a host's stored icon path.
@@ -186,7 +189,7 @@ func (db *DB) DeleteHost(id string) error {
 	return db.exec1(`DELETE FROM hosts WHERE id = ?`, id)
 }
 
-const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, update_forced, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude FROM hosts`
+const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, update_forced, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude, pin_color FROM hosts`
 
 func (db *DB) scanHost(row scanner) (Host, error) {
 	var h Host
@@ -195,7 +198,7 @@ func (db *DB) scanHost(row scanner) (Host, error) {
 	var lat, lng sql.NullFloat64
 	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.IPAddress, &h.AgentVersion,
 		&h.AgentChecksum, &h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &h.UpdateForced, &lastSeen,
-		&h.OfflineAfterSecs, &h.ControlEnabled, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng); err != nil {
+		&h.OfflineAfterSecs, &h.ControlEnabled, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng, &h.PinColor); err != nil {
 		return Host{}, err
 	}
 	h.LastSeenAt = parseNullableTime(lastSeen)

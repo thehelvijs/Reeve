@@ -123,7 +123,13 @@ export default function Portal() {
     () =>
       hosts
         .filter((h) => h.latitude != null && h.longitude != null)
-        .map((h) => ({ id: h.id, lat: h.latitude as number, lon: h.longitude as number, label: h.name })),
+        .map((h) => ({
+          id: h.id,
+          lat: h.latitude as number,
+          lon: h.longitude as number,
+          label: h.name,
+          color: h.pin_color,
+        })),
     [hosts],
   );
 

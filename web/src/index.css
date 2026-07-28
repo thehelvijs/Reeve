@@ -46,16 +46,16 @@
 [data-theme='dark'] .leaflet-tile {
   filter: brightness(1.75) contrast(0.9);
 }
-.reeve-pin {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  background: var(--link);
-  /* The ring separates the pin from the tiles under it, so it takes the page's
-     own canvas rather than a fixed white. */
-  border: 2px solid var(--canvas);
-  box-shadow: 0 0 0 1px var(--border-strong);
+/* The teardrop is filled per host (lib/pin.ts). Its outline and the hole take the
+   page's own canvas, so the pin reads against any basemap without a fixed white,
+   and the drop shadow lifts it off the tiles. */
+.reeve-pin path {
+  stroke: var(--canvas);
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+.reeve-pin circle {
+  fill: var(--canvas);
 }
 .reeve-tip {
   background: var(--canvas) !important;

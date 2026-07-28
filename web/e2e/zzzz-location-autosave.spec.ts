@@ -154,6 +154,45 @@ test.describe('location picker', () => {
     expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
   });
 
+  test('a host pin is lime, and takes the colour the operator sets', async ({ page }) => {
+    await login(page);
+    const id = await locationHost(page);
+    await page.route('**/api/admin/geocode**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HITS) }),
+    );
+
+    await page.goto(`/hosts/${id}?tab=settings`);
+    await page.locator('input[placeholder^="Search a city"]').fill('Brivibas iela 32');
+    await page.locator(`button:has-text("${ADDRESS.label}")`).click();
+    await expect(page.locator('text=Saved.')).toBeVisible();
+
+    // Default: the brand accent, on a marker big enough to read it.
+    const pin = page.locator('.reeve-pin');
+    await expect(pin).toHaveAttribute('width', '24');
+    await expect(pin.locator('path')).toHaveAttribute('fill', '#e4f222');
+
+    const saved = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/hosts/${id}`) && r.request().method() === 'PATCH',
+    );
+    await page.locator('#pin-color').fill('#ff8800');
+    expect((await saved).request().postDataJSON().pin_color).toBe('#ff8800');
+    await expect(pin.locator('path')).toHaveAttribute('fill', '#ff8800');
+
+    // The portal map is what the colour is for, and it reads it while anonymous.
+    const host = await (await page.request.get(`/api/hosts`)).json();
+    expect(host.find((h: { id: string }) => h.id === id).pin_color).toBe('#ff8800');
+
+    // Reset puts the accent back.
+    const cleared = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/hosts/${id}`) && r.request().method() === 'PATCH',
+    );
+    await page.getByRole('button', { name: 'reset', exact: true }).click();
+    expect((await cleared).request().postDataJSON().pin_color).toBe('');
+    await expect(pin.locator('path')).toHaveAttribute('fill', '#e4f222');
+
+    expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
+  });
+
   test('a chosen place moves the map, a dropped pin leaves it where it is', async ({ page }) => {
     await login(page);
     const id = await locationHost(page);

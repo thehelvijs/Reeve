@@ -17,6 +17,11 @@ describe('locationKey', () => {
   it('changes when only the pin moves', () => {
     expect(locationKey('Riga', 1, 2)).not.toBe(locationKey('Riga', 1, 3));
   });
+
+  it('changes when only the pin colour changes', () => {
+    expect(locationKey('Riga', 1, 2, '#ff8800')).not.toBe(locationKey('Riga', 1, 2));
+    expect(locationKey('Riga', 1, 2, '')).toBe(locationKey('Riga', 1, 2));
+  });
 });
 
 describe('cityMatches', () => {
