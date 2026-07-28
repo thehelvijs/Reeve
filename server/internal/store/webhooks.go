@@ -70,6 +70,18 @@ func (db *DB) ListWebhooks() ([]Webhook, error) {
 	return db.queryWebhooks(`SELECT ` + webhookCols + ` FROM webhooks ORDER BY owner_type, created_at`)
 }
 
+// GetWebhook returns one channel by id, or ErrNotFound.
+func (db *DB) GetWebhook(id string) (Webhook, error) {
+	hooks, err := db.queryWebhooks(`SELECT `+webhookCols+` FROM webhooks WHERE id = ?`, id)
+	if err != nil {
+		return Webhook{}, err
+	}
+	if len(hooks) == 0 {
+		return Webhook{}, ErrNotFound
+	}
+	return hooks[0], nil
+}
+
 // DeleteWebhook removes a channel.
 func (db *DB) DeleteWebhook(id string) error {
 	return db.exec1(`DELETE FROM webhooks WHERE id = ?`, id)

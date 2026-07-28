@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
@@ -100,6 +102,58 @@ func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, a.channelToView(wh))
+}
+
+// handleTestWebhook delivers a probe so a wrong URL or a receiver that rejects
+// the payload surfaces at setup time, not the first time an alert fires. A saved
+// channel is named by id, because every read redacts its token; a channel the
+// form is still holding carries its URL and config instead.
+//
+// A receiver that answers badly is not an API failure: the response is 200 with
+// ok=false and the reason, which is what the page shows next to the row.
+func (a *app) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ID     string            `json:"id"`
+		URL    string            `json:"url"`
+		Config map[string]string `json:"config"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	ch := notifyChannel{URL: strings.TrimSpace(in.URL), Config: in.Config}
+	if in.ID != "" {
+		hook, err := a.db.GetWebhook(in.ID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "not_found", "webhook not found")
+			return
+		}
+		cfg, err := a.openConfig(hook.Config)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "channel config unreadable")
+			return
+		}
+		ch = notifyChannel{URL: hook.URL, Config: cfg}
+	}
+	if !strings.HasPrefix(ch.URL, "http://") && !strings.HasPrefix(ch.URL, "https://") {
+		writeError(w, http.StatusBadRequest, "invalid_url", "url must be http(s)")
+		return
+	}
+	send := a.send
+	if send == nil {
+		send = postWebhook
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"event":    "test",
+		"severity": "info",
+		"message":  "Test delivery from Reeve. This channel works.",
+		"sent_at":  time.Now().UTC().Format(time.RFC3339),
+	})
+	if err := send(ch, string(payload)); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (a *app) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {

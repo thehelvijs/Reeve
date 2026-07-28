@@ -242,6 +242,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("POST /api/admin/hosts/{id}/ssh-uninstall", admin(http.HandlerFunc(a.handleSSHUninstall)))
 	mux.Handle("DELETE /api/admin/hosts/{id}/metrics", admin(http.HandlerFunc(a.handleClearHostMetrics)))
 	mux.Handle("GET /api/admin/webhooks", admin(http.HandlerFunc(a.handleListWebhooks)))
+	mux.Handle("POST /api/admin/webhooks/test", admin(http.HandlerFunc(a.handleTestWebhook)))
 	mux.Handle("POST /api/admin/webhooks", admin(http.HandlerFunc(a.handleCreateWebhook)))
 	mux.Handle("DELETE /api/admin/webhooks/{id}", admin(http.HandlerFunc(a.handleDeleteWebhook)))
 	mux.Handle("GET /api/admin/alerts", admin(http.HandlerFunc(a.handleListAlertEvents)))

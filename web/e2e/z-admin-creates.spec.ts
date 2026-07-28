@@ -75,10 +75,25 @@ test('enter submits a modal', async ({ page }) => {
   await expect(page.locator('h2:has-text("e2e-enter-group")')).toBeVisible();
 });
 
-test('create a webhook', async ({ page }) => {
+test('create a webhook, and test it before and after saving', async ({ page }) => {
   await login(page);
   await page.goto('/admin/webhooks');
   await page.fill('input[placeholder="https://sink.example.com/hook"]', 'https://example.com/hook');
+
+  // Port 9 is discard: nothing listens, so the probe reports the dial error
+  // rather than a delivery. What is under test is that the receiver's own words
+  // come back to the row, not that this address answers.
+  await page.fill('input[placeholder="https://sink.example.com/hook"]', 'http://127.0.0.1:9/hook');
+  await page.click('button:has-text("Test")');
+  await expect(page.locator('.text-down').first()).toBeVisible();
+
+  await page.fill('input[placeholder="https://sink.example.com/hook"]', 'https://example.com/hook');
   await page.click('button:has-text("Add webhook")');
   await expect(page.locator('text=https://example.com/hook')).toBeVisible();
+
+  // The saved row carries its own Test, which goes by id because the row never
+  // holds the token.
+  const row = page.locator('div.rounded-card', { hasText: 'https://example.com/hook' }).first();
+  await row.locator('button:has-text("Test")').click();
+  await expect(row.locator('span:has-text("Delivered"), span.text-down').first()).toBeVisible();
 });
