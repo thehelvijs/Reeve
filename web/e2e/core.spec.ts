@@ -69,5 +69,5 @@ test('enroll a host and see it listed', async ({ page }) => {
   // The run command with the enrollment token is shown once.
   await expect(page.locator('pre:has-text("REEVE_AGENT_TOKEN")').first()).toBeVisible();
   await page.click('button:has-text("Done")');
-  await expect(page.locator('text=e2e-host')).toBeVisible();
+  await expect(page.locator('main').getByText('e2e-host')).toBeVisible();
 });

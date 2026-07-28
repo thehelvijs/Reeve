@@ -82,8 +82,10 @@ test('a restricted collection is hidden from anonymous, its services are not', a
 test('the catalog filters by collection', async ({ page }) => {
   await login(page);
   await page.goto('/services');
-  await expect(page.locator('text=PortalGrafana')).toBeVisible();
+  // Scoped to main: the sidebar lists every service by name, filter or no filter.
+  const list = page.locator('main');
+  await expect(list.getByText('PortalGrafana')).toBeVisible();
   await page.locator('select').first().selectOption({ label: 'Manufacturing' });
-  await expect(page.locator('text=Grafana').first()).toBeVisible();
-  await expect(page.locator('text=PortalGrafana')).toHaveCount(0);
+  await expect(list.getByText('Grafana').first()).toBeVisible();
+  await expect(list.getByText('PortalGrafana')).toHaveCount(0);
 });

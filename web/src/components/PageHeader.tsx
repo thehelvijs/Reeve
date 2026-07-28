@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import SearchBar from './SearchBar';
-import BackLink from './BackLink';
 
-// Every page opens with this: an optional way back, a title with the record's
-// icon and current state beside it, an optional subtitle, an optional search
-// that filters the page's own list, and one right-aligned primary action, closed
-// by a rule that separates the heading from the page's content.
+// Every page opens with this: a title with the record's icon and current state
+// beside it, an optional subtitle, an optional search that filters the page's own
+// list, and one right-aligned primary action, closed by a rule that separates the
+// heading from the page's content. Navigation is the sidebar's job; a detail page
+// carries no trail back to the list it came from.
 //
 // A detail page takes the same header as a list page rather than growing its own.
 // The two had drifted: a detail page ran a larger, tighter title with no rule
@@ -13,7 +13,6 @@ import BackLink from './BackLink';
 export default function PageHeader({
   title,
   subtitle,
-  back,
   icon,
   badges,
   meta,
@@ -22,7 +21,6 @@ export default function PageHeader({
 }: {
   title: string;
   subtitle?: string;
-  back?: { to: string; label: string };
   icon?: ReactNode;
   badges?: ReactNode;
   meta?: ReactNode;
@@ -31,11 +29,6 @@ export default function PageHeader({
 }) {
   return (
     <div className="border-b border-hairline pb-4">
-      {back && (
-        <div className="mb-3">
-          <BackLink to={back.to}>{back.label}</BackLink>
-        </div>
-      )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {icon}

@@ -131,6 +131,14 @@ async function login(page: Page) {
   await expect(page).toHaveURL('/');
 }
 
+// The sidebar lists the first few services, collections and hosts, and those
+// arrive after the first paint. Without this the shot is a coin toss between a
+// sidebar with the lists and one without, which is a whole column of difference.
+async function navReady(page: Page) {
+  await expect(page.locator('nav a[href^="/hosts/"]').first()).toBeVisible();
+  await expect(page.locator('nav a[href^="/services/"]').first()).toBeVisible();
+}
+
 for (const theme of THEMES) {
   test.describe(`${theme} theme`, () => {
     test.describe('portal, anonymous', () => {
@@ -220,6 +228,7 @@ for (const theme of THEMES) {
       test.beforeEach(async ({ page }) => {
         await stubBasemap(page);
         await forceTheme(page, theme);
+        // No navReady here: login lands on the portal, which has no sidebar.
         await login(page);
       });
 
@@ -245,6 +254,7 @@ for (const theme of THEMES) {
         test(name, async ({ page }) => {
           await page.goto(path);
           await expect(page.locator('main')).toBeVisible();
+          await navReady(page);
           await settle(page);
           await expect(page).toHaveScreenshot(`app-${name}-${theme}.png`, {
             fullPage: true,
@@ -263,6 +273,7 @@ for (const theme of THEMES) {
         await alertsSettled(page);
         await page.goto('/admin/alerts');
         await expect(page.locator('main')).toBeVisible();
+        await navReady(page);
         await settle(page);
         await expect(page).toHaveScreenshot(`app-admin-alerts-${theme}.png`, {
           fullPage: true,
@@ -281,6 +292,7 @@ for (const theme of THEMES) {
         await page.goto('/hosts');
         await expect(page.locator('main')).toBeVisible();
         await expect(page.getByText('Rollout paused')).toHaveCount(0);
+        await navReady(page);
         await settle(page);
         await expect(page).toHaveScreenshot(`app-hosts-${theme}.png`, {
           fullPage: true,

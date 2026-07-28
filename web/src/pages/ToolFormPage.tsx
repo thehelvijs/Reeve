@@ -3,7 +3,6 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Collection, type Tool } from '../api';
 import { Button, ErrorText, Field, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
-import BackLink from '../components/BackLink';
 import EntityIcon from '../components/EntityIcon';
 import IconUploader from '../components/IconUploader';
 import ThumbnailUploader from '../components/ThumbnailUploader';
@@ -139,8 +138,7 @@ export default function ToolFormPage() {
   if (loadErr) {
     return (
       <div>
-        <BackLink to="/services">Services</BackLink>
-        <p className="mt-4 text-sm text-muted">{loadErr}</p>
+        <p className="text-sm text-muted">{loadErr}</p>
       </div>
     );
   }
@@ -150,8 +148,7 @@ export default function ToolFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <BackLink to="/services">Services</BackLink>
-      <div className="mt-3">
+      <div>
         <PageHeader
           title={editing ? 'Edit service' : 'Add for monitoring'}
           subtitle="Track whether a service is up and control who can reach it."

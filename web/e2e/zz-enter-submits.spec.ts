@@ -63,6 +63,9 @@ test('enter confirms a portal info modal', async ({ page }) => {
 test('enter saves settings sections', async ({ page }) => {
   await loginAdmin(page);
   await page.goto('/admin/settings');
+  // Every section re-syncs its draft from the settings response, so typing before
+  // the page has finished loading is typing into a field about to be overwritten.
+  await page.waitForLoadState('networkidle');
 
   // Each section saves through the same PUT, so wait for it rather than racing
   // the reload against an in-flight request.

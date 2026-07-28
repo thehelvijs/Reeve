@@ -66,7 +66,6 @@ export default function ToolDetail() {
     <div>
       <PageHeader
         title={tool.name}
-        back={{ to: '/services', label: 'Services' }}
         icon={<EntityIcon url={tool.icon_url} name={tool.name} size={36} />}
         badges={
           <>

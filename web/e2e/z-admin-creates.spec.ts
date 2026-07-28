@@ -19,7 +19,7 @@ test('dashboard shows KPI strip and a per-host card', async ({ page }) => {
   await expect(page.locator('text=Hosts online')).toBeVisible();
   await expect(page.locator('text=To review')).toBeVisible();
   // Host card for the host core.spec enrolled (no samples -> placeholder).
-  await expect(page.locator('text=e2e-host')).toBeVisible();
+  await expect(page.locator('main').getByText('e2e-host')).toBeVisible();
   await expect(page.locator('text=No metrics yet').first()).toBeVisible();
 });
 

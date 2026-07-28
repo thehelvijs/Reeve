@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, endpointString, type CollectionDetail as Detail, type Tool } from '../api';
 import { useAuth } from '../auth';
 import { Button, Pill } from '../components/ui';
-import BackLink from '../components/BackLink';
 import Chevron from '../components/Chevron';
 import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
@@ -56,9 +55,7 @@ export default function CollectionDetail() {
 
   return (
     <div>
-      <BackLink to="/collections">Collections</BackLink>
-
-      <div className="mt-3 flex items-start justify-between">
+      <div className="flex items-start justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <EntityIcon url={collection.icon_url} name={collection.name} size={48} />
           <div className="min-w-0">
