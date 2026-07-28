@@ -36,6 +36,20 @@ async function tileZoom(page: Page) {
 }
 
 test.describe('location picker', () => {
+  // The address under the host's name is where an operator notices it is wrong,
+  // so it is the way into the tab that owns it.
+  test('the address under the name opens the settings tab', async ({ page }) => {
+    await login(page);
+    const id = await locationHost(page);
+    await page.request.patch(`/api/admin/hosts/${id}`, {
+      data: { physical_location: 'Somewhere, Riga, Latvia' },
+    });
+    await page.goto(`/hosts/${id}`);
+    await page.click('text=Somewhere, Riga, Latvia');
+    await expect(page).toHaveURL(new RegExp(`/hosts/${id}\\?tab=settings`));
+    await expect(page.locator('input[placeholder^="Search a city"]')).toBeVisible();
+  });
+
   test('suggests an address and autosaves the pick, with no save button', async ({ page }) => {
     await login(page);
     const id = await locationHost(page);

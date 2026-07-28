@@ -20,7 +20,7 @@ export default function PageHeader({
   action,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   icon?: ReactNode;
   badges?: ReactNode;
   meta?: ReactNode;
