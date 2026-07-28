@@ -15,9 +15,10 @@ legible. Nothing here is atmosphere.
   axe sweep and the pixel sweep run every view twice. A token without a value in
   one map is invisible in exactly one theme, so nothing hardcodes a color that a
   theme should own.
-- **Two colors do two jobs.** Blue (`--link`) carries every interactive state:
-  links, focus rings, bars, chart lines. Acid-lime (`--accent`) is the brand. It
-  appears on the wordmark and on the primary button of a form, and never as text.
+- **One hue, two jobs.** Acid-lime (`--accent`) is the brand: the wordmark, the
+  primary button of a form, and the bar that marks a selected item. `--link`
+  carries the same hue as text and focus rings, as the accent in dark and an ink
+  of it in light. Bars and chart lines take `--data-primary`.
 - **Every column has a name.** A list of records is a table with a header row. A
   bar, a pill, or a button in a row must be readable without a guess about what
   it measures.
@@ -53,17 +54,21 @@ visible rather than implied. The inky version that came before was hard to read.
 Brand, the same in both themes because it is only ever a fill:
 - `--accent` `#e4f222` acid-lime, `--on-accent` `#1f1e24` for text on top of it.
 
-Interaction. `--link` carries links, focus rings, neutral bars and chart lines:
-- dark `#63a6e9`, light `#1068bf`.
+Interaction. `--link` carries links and focus rings. It is the accent hue on
+whatever canvas it sits on:
+- dark `#e4f222`, the accent itself; light `#5c6600`, an ink of it that clears
+  the contrast bar where lime reads as nothing. Neutral bars and chart lines take
+  `--data-primary`, which stays blue in the light theme.
 
 Status. Each state has four steps in each theme: a text-safe tone, a solid fill
 for a dot or a bar, and a soft/line pair for a badge. Read the values from
 `theme/theme.css`; the shape is `--up`, `--up-solid`, `--up-soft`, `--up-line`,
 and the same for `down`, `warn` and `idle`.
 
-Never put the accent on text, a chart line, or a status. It clears no
-text-contrast bar on either canvas, so it disappears. Use `--link` or a status
-tone instead.
+Never put raw `#e4f222` on text, a chart line, or a status: it clears no
+contrast bar on the light canvas, where it disappears. Text that carries the
+accent goes through `--link`, which is the accent in dark and an ink of it in
+light. A status keeps its own tone.
 
 One border is the exception: the 2px bar that marks a selected item. The open
 sidebar section and the active tab both use it. Weight 600 and `--text` carry
@@ -126,10 +131,10 @@ that state too, so the bar never has to read as text.
   underline and weight 600, the same marker the sidebar gives its open section.
   Each tab carries its count.
 - **Pill:** a status badge in the soft/line/text steps of its tone.
-- **Input:** `--canvas` fill, `--border-strong` edge, blue focus ring.
-- **Focus state:** always visible, always the blue ring. Never removed.
-- **Inline link:** blue and underlined. Color alone does not mark a link inside
-  a sentence.
+- **Input:** `--canvas` fill, `--border-strong` edge, `--link` focus ring.
+- **Focus state:** always visible, always the `--link` ring. Never removed.
+- **Inline link:** `--link` and underlined. Color alone does not mark a link
+  inside a sentence.
 - **Theme toggle:** one control, in the app sidebar and in the portal header, so
   an anonymous visitor can switch too. It names what it will do, not what is on.
 - **Charts:** a card per measure, its current reading in the header, and the plot
@@ -138,8 +143,8 @@ that state too, so the bar never has to read as text.
   Fewer than two samples is a sentence, not a plot: one point draws nothing and
   pads the time axis out to years.
   A plot with one line, and a resource bar, take `--data-primary`,
-  which is the brand lime on dark and the link blue on light. Lime reads 13.4:1 on
-  the dark canvas and 1.2:1 on white, so it carries data in exactly one theme.
+  which is the brand lime on dark and a blue on light. Lime reads 13.4:1 on the
+  dark canvas and 1.2:1 on white, so it carries data in exactly one theme.
   A plot with several lines takes slots instead, `--series-1` to `--series-8`,
   assigned in order and never by rank, so a series keeps its color when the drawn
   count changes. Each theme has its own eight steps, selected against its own canvas

@@ -30,17 +30,18 @@
   --text: #ececef;
   --text-muted: #bfbfc3;
 
-  /* Brand accent (acid-lime) — the wordmark and a form's primary action. It
-     clears no text-contrast bar on either canvas, so it is only ever a fill
-     with --on-accent text on top; --link carries interactive color. */
+  /* Brand accent (acid-lime) — the wordmark and a form's primary action, with
+     --on-accent text on top. --link is the same hue turned into something a
+     canvas can carry as text: the accent itself in dark, an ink of it in light,
+     where lime on near-white reads as nothing. */
   --accent: #e4f222;
   --accent-hover: #eef658;
   --on-accent: #1f1e24;
 
   /* Interaction */
-  --link: #63a6e9;
-  --link-hover: #8bc0f0;
-  --focus: #63a6e9;
+  --link: #e4f222;
+  --link-hover: #eef658;
+  --focus: #e4f222;
 
   /* Status. Each has a text-safe tone, a solid fill for dots and bars, and a
      soft/line pair for badges. */
@@ -131,9 +132,9 @@
 
   --accent-hover: #d5e300;
 
-  --link: #1068bf;
-  --link-hover: #0b5cad;
-  --focus: #1068bf;
+  --link: #5c6600;
+  --link-hover: #454d00;
+  --focus: #5c6600;
 
   --up: #24663b;
   --up-solid: #108548;
@@ -162,7 +163,7 @@
   --graph-dots: #dcdcde;
 
   /* Lime is 1.2:1 on white, so the light theme cannot borrow it: a lone series
-     and a bar take the same blue as the links instead. */
+     and a bar take their own blue. */
   --data-primary: #0b4f9e;
 
   /* Its own steps, validated against white — not a flip of the dark set. */
