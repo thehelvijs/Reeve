@@ -10,7 +10,8 @@ export interface MapPoint {
   label?: string;
 }
 
-// CARTO ships a raster per theme, so the basemap is swapped rather than filtered.
+// CARTO ships a raster per theme, so the basemap is swapped, not recoloured; the
+// dark one is brightened in index.css to match the canvas it sits on.
 function tileURL(theme: Theme): string {
   if (theme === 'light') {
     return 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
@@ -26,21 +27,19 @@ function tileURL(theme: Theme): string {
 //
 // recenter=false leaves the view alone when the markers change, which is what a
 // picker wants for a pin the operator just dropped: the pin moves, the map does
-// not. bright brightens the dark basemap for a map that is read closely.
+// not.
 export default function LeafletMap({
   points = [],
   onPick,
   onPointClick,
   height = 460,
   recenter = true,
-  bright = false,
 }: {
   points?: MapPoint[];
   onPick?: (lat: number, lon: number) => void;
   onPointClick?: (id: string) => void;
   height?: number | string;
   recenter?: boolean;
-  bright?: boolean;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -125,11 +124,5 @@ export default function LeafletMap({
     }
   }, [points]);
 
-  return (
-    <div
-      ref={elRef}
-      style={{ height }}
-      className={`w-full overflow-hidden rounded-card border border-hairline${bright ? ' reeve-map-bright' : ''}`}
-    />
-  );
+  return <div ref={elRef} style={{ height }} className="w-full overflow-hidden rounded-card border border-hairline" />;
 }

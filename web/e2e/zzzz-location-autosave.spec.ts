@@ -109,6 +109,51 @@ test.describe('location picker', () => {
     expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
   });
 
+  test('undo puts back what an accidental click overwrote', async ({ page }) => {
+    await login(page);
+    const id = await locationHost(page);
+    await page.route('**/api/admin/geocode**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HITS) }),
+    );
+
+    await page.goto(`/hosts/${id}?tab=settings`);
+    const field = page.locator('input[placeholder^="Search a city"]');
+    await field.fill('Brivibas iela 32');
+    await page.locator(`button:has-text("${ADDRESS.label}")`).click();
+    await expect(page.locator('text=Saved.')).toBeVisible();
+    // Nothing was stored before this, so undo offers the empty location back.
+    await expect(page.locator('button:has-text("Undo (no location)")')).toBeVisible();
+
+    // The accident: a click on the map, saved like any other edit.
+    const map = page.locator('.leaflet-container');
+    await map.scrollIntoViewIfNeeded();
+    const box = (await map.boundingBox())!;
+    const stray = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/hosts/${id}`) && r.request().method() === 'PATCH',
+    );
+    await map.click({ position: { x: box.width * 0.25, y: box.height * 0.75 } });
+    const strayBody = (await stray).request().postDataJSON();
+    expect(strayBody.latitude).not.toBe(ADDRESS.lat);
+
+    const back = page.waitForResponse(
+      (r) => r.url().includes(`/api/admin/hosts/${id}`) && r.request().method() === 'PATCH',
+    );
+    await page.locator(`button:has-text("Undo (back to ${ADDRESS.label})")`).click();
+    expect((await back).request().postDataJSON()).toMatchObject({
+      physical_location: ADDRESS.label,
+      latitude: ADDRESS.lat,
+      longitude: ADDRESS.lon,
+    });
+    await expect(page.locator(`text=${ADDRESS.lat.toFixed(3)}, ${ADDRESS.lon.toFixed(3)}`)).toBeVisible();
+    // One step only: the undone value is not offered back again.
+    await expect(page.locator('button:has-text("Undo")')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.locator('input[placeholder^="Search a city"]')).toHaveValue(ADDRESS.label);
+
+    expect((await page.request.delete(`/api/admin/hosts/${id}`)).ok()).toBe(true);
+  });
+
   test('a chosen place moves the map, a dropped pin leaves it where it is', async ({ page }) => {
     await login(page);
     const id = await locationHost(page);

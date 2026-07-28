@@ -7,6 +7,12 @@ import { cityMatches, locationKey, lookupAddress, mergePlaces, type Place } from
 const SAVE_DELAY = 800;
 const SEARCH_DELAY = 250;
 
+interface Saved {
+  loc: string;
+  lat: number | null;
+  lon: number | null;
+}
+
 // MapPicker edits a host's physical location: a search field that suggests
 // cities from the bundled list and addresses from the server's geocoder proxy,
 // plus a click-to-drop pin on the map. There is no save button — an edit that
@@ -37,6 +43,11 @@ export default function MapPicker({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const savedKey = useRef(locationKey(location, latitude ?? null, longitude ?? null));
+  // One step of undo: what was stored before the write that just landed. A stray
+  // click on the map is saved like any other edit, so it needs a way back.
+  const [prev, setPrev] = useState<Saved | null>(null);
+  const stored = useRef<Saved>({ loc: location, lat: latitude ?? null, lon: longitude ?? null });
+  const undoing = useRef(false);
 
   const suggestions = useMemo(() => mergePlaces(cityMatches(loc), hits), [loc, hits]);
 
@@ -51,9 +62,17 @@ export default function MapPicker({
         longitude: lon,
       });
       savedKey.current = key;
+      if (undoing.current) {
+        setPrev(null);
+      } else {
+        setPrev(stored.current);
+      }
+      undoing.current = false;
+      stored.current = { loc: loc.trim(), lat, lon };
       setSaved(true);
       onSaved();
     } catch (e) {
+      undoing.current = false;
       setError(e instanceof ApiError ? e.message : 'could not save');
     } finally {
       setBusy(false);
@@ -102,6 +121,18 @@ export default function MapPicker({
     setLoc(p.label);
     setLat(p.lat);
     setLon(p.lon);
+    setFollow(true);
+    setOpen(false);
+  };
+
+  const undo = () => {
+    if (!prev) {
+      return;
+    }
+    undoing.current = true;
+    setLoc(prev.loc);
+    setLat(prev.lat);
+    setLon(prev.lon);
     setFollow(true);
     setOpen(false);
   };
@@ -184,7 +215,6 @@ export default function MapPicker({
         points={points}
         height={360}
         recenter={follow}
-        bright
         onPick={(la, lo) => {
           setFollow(false);
           setLat(la);
@@ -194,6 +224,11 @@ export default function MapPicker({
 
       <div className="flex h-4 items-center gap-3 text-xs text-muted">
         <span>{status}</span>
+        {prev && (
+          <button type="button" className="underline hover:text-content" onClick={undo}>
+            Undo{prev.loc === '' ? ' (no location)' : ` (back to ${prev.loc})`}
+          </button>
+        )}
         {searching && <span>Searching addresses…</span>}
       </div>
       <ErrorText>{error}</ErrorText>
