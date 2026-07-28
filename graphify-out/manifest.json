@@ -355,13 +355,13 @@
     "semantic_hash": "66b95c5106f1489c29025978f21467ee"
   },
   "server/host_handlers.go": {
-    "mtime": 1785190601.386584,
-    "ast_hash": "7c64627be81d2aa86484f29e0d5c4c8a",
+    "mtime": 1785232281.0902865,
+    "ast_hash": "074407ca550f1fb0593e6933778b920e",
     "semantic_hash": ""
   },
   "server/host_handlers_test.go": {
-    "mtime": 1785187812.025192,
-    "ast_hash": "4e288c4774f2a1744833d943f54a3222",
+    "mtime": 1785232350.1700587,
+    "ast_hash": "815b9e162caa4701b7b7f275b39ac561",
     "semantic_hash": ""
   },
   "server/http.go": {
@@ -540,9 +540,9 @@
     "semantic_hash": "2971cd0b5724736cb25e8cbfc9c5e54a"
   },
   "server/internal/store/hosts.go": {
-    "mtime": 1785134374.2938335,
-    "ast_hash": "68669dc4e55aeea01ed8a7ba75921502",
-    "semantic_hash": "68669dc4e55aeea01ed8a7ba75921502"
+    "mtime": 1785232251.5998719,
+    "ast_hash": "0752c0b93af4b98e41fcfb707733c9a4",
+    "semantic_hash": ""
   },
   "server/internal/store/metrics.go": {
     "mtime": 1785190269.3304143,
@@ -585,8 +585,8 @@
     "semantic_hash": "1509938e2811b9f5ec51ceea70640a5c"
   },
   "server/internal/store/schema.sql": {
-    "mtime": 1785187812.026192,
-    "ast_hash": "d5f03a10758548156d799963a65b2f2e",
+    "mtime": 1785232251.5995708,
+    "ast_hash": "f7bbf25912743d0b232624fecbae8aff",
     "semantic_hash": ""
   },
   "server/internal/store/schema_test.go": {
@@ -810,8 +810,8 @@
     "semantic_hash": "721d1bd1bfebfa0213727f5a0ef8c1cb"
   },
   "web/e2e/core.spec.ts": {
-    "mtime": 1785175086.2460978,
-    "ast_hash": "3af4501150b1f174f613a8c0f21e6b13",
+    "mtime": 1785233085.4201915,
+    "ast_hash": "3e516342f1f0bbb88a3d8521a64193e0",
     "semantic_hash": ""
   },
   "web/e2e/portal.spec.ts": {
@@ -830,14 +830,14 @@
     "semantic_hash": "96a3a5b7cb3ea956122b295d9abdcf10"
   },
   "web/e2e/z-admin-creates.spec.ts": {
-    "mtime": 1785084783.545658,
-    "ast_hash": "38e6871f671b7f9cf945d859183e3da1",
-    "semantic_hash": "38e6871f671b7f9cf945d859183e3da1"
+    "mtime": 1785233085.4221404,
+    "ast_hash": "b4a262228ccd58408ae3affa8bd9570d",
+    "semantic_hash": ""
   },
   "web/e2e/z-collections.spec.ts": {
-    "mtime": 1785104044.4686472,
-    "ast_hash": "53553bd5cf92cef588a5845106a26aef",
-    "semantic_hash": "53553bd5cf92cef588a5845106a26aef"
+    "mtime": 1785233085.4227014,
+    "ast_hash": "7910734241c83a93a634b0063c52ea42",
+    "semantic_hash": ""
   },
   "web/e2e/zz-agent-updates.spec.ts": {
     "mtime": 1785191886.7170908,
@@ -845,8 +845,8 @@
     "semantic_hash": ""
   },
   "web/e2e/zz-enter-submits.spec.ts": {
-    "mtime": 1785218654.386474,
-    "ast_hash": "fbd6a4ae3fe0020139aa958265ed2089",
+    "mtime": 1785233694.0280256,
+    "ast_hash": "76eba3aa84c67ee576cf2a719d08616c",
     "semantic_hash": ""
   },
   "web/e2e/zz-profile.spec.ts": {
@@ -875,8 +875,8 @@
     "semantic_hash": "da55fbf38e6944c33b85bca8eab27726"
   },
   "web/e2e/zzz-visual.spec.ts": {
-    "mtime": 1785230444.7452097,
-    "ast_hash": "0b6ab0cd3696211d30774dd3359afe15",
+    "mtime": 1785255594.7545128,
+    "ast_hash": "cba086f51029804b3ac0d597fdeb5ba2",
     "semantic_hash": ""
   },
   "web/e2e/zzzz-confirm-visibility-disks.spec.ts": {
@@ -915,8 +915,8 @@
     "semantic_hash": "78bf54cb835dc256036f4e429b91bcbe"
   },
   "web/src/api.ts": {
-    "mtime": 1785190802.2204492,
-    "ast_hash": "248aa5a87a29ce1898cf28849a283d1e",
+    "mtime": 1785232416.1760702,
+    "ast_hash": "d7b4cb804525b347efd21273686204a5",
     "semantic_hash": ""
   },
   "web/src/assets/cities.json": {
@@ -943,11 +943,6 @@
     "mtime": 1784696115.0,
     "ast_hash": "613c818d8f2aa07d1cec39662a7d7ae4",
     "semantic_hash": "613c818d8f2aa07d1cec39662a7d7ae4"
-  },
-  "web/src/components/BackLink.tsx": {
-    "mtime": 1785150645.0288959,
-    "ast_hash": "af60d8bc7f734331b4f86dc06d42a228",
-    "semantic_hash": "af60d8bc7f734331b4f86dc06d42a228"
   },
   "web/src/components/Chart.tsx": {
     "mtime": 1785190875.79341,
@@ -1030,18 +1025,18 @@
     "semantic_hash": "5f81a52534bd373d39156c7f75ac5435"
   },
   "web/src/components/Layout.tsx": {
-    "mtime": 1785156354.835832,
-    "ast_hash": "5e816dd1f586da2ebf0f326d93586529",
-    "semantic_hash": "5e816dd1f586da2ebf0f326d93586529"
+    "mtime": 1785232159.9650967,
+    "ast_hash": "50747dd621fa3024ce92465ee5f66912",
+    "semantic_hash": ""
   },
   "web/src/components/LeafletMap.tsx": {
-    "mtime": 1785228036.295661,
-    "ast_hash": "ab0d5e6560eabf1f271e86860704731c",
+    "mtime": 1785232380.0668721,
+    "ast_hash": "d0a68b910486573a7c5beeeeca739f90",
     "semantic_hash": ""
   },
   "web/src/components/MapPicker.tsx": {
-    "mtime": 1785228080.9963748,
-    "ast_hash": "d354c4a3293b6894489c4dc045fee222",
+    "mtime": 1785232450.9771938,
+    "ast_hash": "514cd41fc9ae060f5e4a35ac44557698",
     "semantic_hash": ""
   },
   "web/src/components/MetricBar.tsx": {
@@ -1060,8 +1055,8 @@
     "semantic_hash": "98ef4d9a0f91e4e040c7bf9cd3da9802"
   },
   "web/src/components/PageHeader.tsx": {
-    "mtime": 1785190587.9115133,
-    "ast_hash": "e6202c7d0baf5ec8240145ce0d1e95e2",
+    "mtime": 1785232046.2032943,
+    "ast_hash": "bccd39a1f92c1eb88b118dadffa98e28",
     "semantic_hash": ""
   },
   "web/src/components/PortalGraph.tsx": {
@@ -1325,9 +1320,9 @@
     "semantic_hash": ""
   },
   "web/src/pages/CollectionDetail.tsx": {
-    "mtime": 1785104044.4672196,
-    "ast_hash": "9e85e1fb7261816829464b54e47274b7",
-    "semantic_hash": "9e85e1fb7261816829464b54e47274b7"
+    "mtime": 1785232065.5835185,
+    "ast_hash": "2b4a6db1844e2e802237b25db9844c3c",
+    "semantic_hash": ""
   },
   "web/src/pages/Collections.tsx": {
     "mtime": 1785169157.9805872,
@@ -1345,8 +1340,8 @@
     "semantic_hash": "345bbb7635f1ebf142eb3d0f1f4be1a2"
   },
   "web/src/pages/HostInventory.tsx": {
-    "mtime": 1785191874.6762838,
-    "ast_hash": "994ce594b8865a57aefe7c94d39790a3",
+    "mtime": 1785232440.1687062,
+    "ast_hash": "1a98090d75dc5dd86c7476bced21a9e7",
     "semantic_hash": ""
   },
   "web/src/pages/Hosts.tsx": {
@@ -1355,9 +1350,9 @@
     "semantic_hash": ""
   },
   "web/src/pages/Portal.tsx": {
-    "mtime": 1785155508.7071097,
-    "ast_hash": "affe13c548b0a4f44d891cc8b6961113",
-    "semantic_hash": "affe13c548b0a4f44d891cc8b6961113"
+    "mtime": 1785232416.1769202,
+    "ast_hash": "8b07cc8f237a84c54d181e7052c018f4",
+    "semantic_hash": ""
   },
   "web/src/pages/Profile.tsx": {
     "mtime": 1785151195.1548538,
@@ -1375,14 +1370,14 @@
     "semantic_hash": "8c805ccddab9c17dd6b589faeafc635d"
   },
   "web/src/pages/ToolDetail.tsx": {
-    "mtime": 1785191060.9922833,
-    "ast_hash": "7e5d21f04d6f2edfcaa00d36b3497cab",
+    "mtime": 1785232046.2034984,
+    "ast_hash": "afe34629c75177e13cfd529624c10820",
     "semantic_hash": ""
   },
   "web/src/pages/ToolFormPage.tsx": {
-    "mtime": 1785150960.7466495,
-    "ast_hash": "3b3239338bed21d9839cf9d0cc90cbb6",
-    "semantic_hash": "3b3239338bed21d9839cf9d0cc90cbb6"
+    "mtime": 1785232065.5832634,
+    "ast_hash": "6686f73965651032b9901ddd4ea02e2d",
+    "semantic_hash": ""
   },
   "web/src/version.ts": {
     "mtime": 1785011475.3636224,
@@ -1455,8 +1450,8 @@
     "semantic_hash": ""
   },
   "contracts/API.md": {
-    "mtime": 1785218057.6688106,
-    "ast_hash": "15ca3ff79c1f885c0ff5abcb2da47cdf",
+    "mtime": 1785232501.8131037,
+    "ast_hash": "1a0d7c9c60316dff1554669d6a809715",
     "semantic_hash": ""
   },
   "deploy/README.md": {
@@ -1530,18 +1525,28 @@
     "semantic_hash": ""
   },
   "web/e2e/zzzz-location-autosave.spec.ts": {
-    "mtime": 1785228110.5158117,
-    "ast_hash": "33ecfc3d13637e4d7e861bfb46d0ab22",
+    "mtime": 1785232618.6216173,
+    "ast_hash": "da000fbcbe5dd13ed4922ef577112bf6",
     "semantic_hash": ""
   },
   "web/src/lib/geocode.test.ts": {
-    "mtime": 1785218004.2189362,
-    "ast_hash": "6322b47aa9c7c3e4a01fd6db5ad04774",
+    "mtime": 1785232480.9078355,
+    "ast_hash": "d9faf165c0a55da200e5727084819c27",
     "semantic_hash": ""
   },
   "web/src/lib/geocode.ts": {
-    "mtime": 1785217986.8629773,
-    "ast_hash": "d01ec07f8aa85f4592b7c5de12e65136",
+    "mtime": 1785232440.1684341,
+    "ast_hash": "1fe76ebc328362bf0b0aba97684fc1c9",
+    "semantic_hash": ""
+  },
+  "web/src/lib/pin.test.ts": {
+    "mtime": 1785232474.0340788,
+    "ast_hash": "b9ce4c5f71b57a4ebd2009fceb266e16",
+    "semantic_hash": ""
+  },
+  "web/src/lib/pin.ts": {
+    "mtime": 1785232370.6968906,
+    "ast_hash": "69df25bb86c1e927284a6b235f7efa32",
     "semantic_hash": ""
   }
 }

@@ -1,37 +1,37 @@
 # Graph Report - Reeve  (2026-07-28)
 
 ## Corpus Check
-- 303 files · ~189,863 words
+- 304 files · ~191,323 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2756 nodes · 7063 edges · 173 communities (145 shown, 28 thin omitted)
-- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 1331 edges (avg confidence: 0.8)
+- 2762 nodes · 7076 edges · 169 communities (142 shown, 27 thin omitted)
+- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 1333 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f9aa3574`
+- Built from commit: `795ee8c1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - publishAgent
 - release.py
-- RevealModal.tsx
+- secretFields.ts
 - signing.go
 - Install
-- CommandResult
+- CollectionDetail.tsx
 - app
 - HostMetrics.tsx
 - Hosts.tsx
 - signup
 - google_test.go
 - adminClient
-- HostInventory.tsx
+- Catalog.tsx
 - app
-- Button
-- Dashboard.tsx
 - ui.tsx
+- Dashboard.tsx
+- Portal.tsx
 - schema.sql
 - run
 - Principal
@@ -43,7 +43,7 @@
 - newTestServer
 - procs_test.go
 - gather
-- .evaluateHostThresholds
+- DB
 - testServer
 - newUser
 - app
@@ -63,17 +63,17 @@
 - decodeJSON
 - control_test.go
 - DB
-- AdminAlerts.tsx
+- HostInventory.tsx
 - zzz-visual.spec.ts
-- .Sample
+- collect_test.go
 - .handlePutSettings
 - writeError
 - DB
 - DB
 - api.ts
-- collect_test.go
+- dbWithUser
 - DB
-- .handleLogin
+- crypto_test.go
 - devDependencies
 - HandlerFunc
 - shutdown_test.go
@@ -85,7 +85,7 @@
 - DB
 - dependencies
 - app
-- DB
+- .handleIngest
 - contracts.go
 - .handleCreateCommand
 - .loadEndpoint
@@ -105,7 +105,7 @@
 - DB
 - DB
 - TestPublicHostsNoAuth
-- ParseMounts
+- .handleCreateGroup
 - .handleGeocode
 - rbac.go
 - writeJSON
@@ -115,7 +115,7 @@
 - .checkSchemaDrift
 - MapPicker.tsx
 - .sendMail
-- ToolFormPage.tsx
+- App.tsx
 - mustUser
 - zz-agent-updates.spec.ts
 - zzzz-location-autosave.spec.ts
@@ -125,15 +125,15 @@
 - ssh_install_handlers_test.go
 - scripts
 - @playwright/test
-- docker.go
-- .handleRestoreUpload
+- effectiveThreshold
+- theme/tailwind.config.js
 - contracts_test.go
 - .dispatchDue
 - webhooks_test.go
 - package.json
 - DB
 - render
-- host_handlers_test.go
+- tailwindcss
 - principal_handlers.go
 - TestHostNetRate
 - zzz-button-alignment.spec.ts
@@ -158,20 +158,16 @@
 - Password change signs out everywhere
 - zz-header-search.spec.ts
 - Push
-- .handleForgotPassword
-- NewHostSampler
+- @types/react-dom
+- typescript
 - postcss
 - TestContainerStatsNameFallback
 - compressWriter
 - setPassword
-- ParseSystemctl
-- @axe-core/playwright
-- @typescript-eslint/eslint-plugin
-- @typescript-eslint/parser
 
 ## God Nodes (most connected - your core abstractions)
-1. `newTestServer()` - 230 edges
-2. `signup()` - 130 edges
+1. `newTestServer()` - 231 edges
+2. `signup()` - 131 edges
 3. `writeError()` - 123 edges
 4. `adminClient()` - 88 edges
 5. `openTemp()` - 80 edges
@@ -188,10 +184,10 @@
   README.md → contracts/contracts.go
 - `server users CLI` --references--> `VerifyPassword()`  [INFERRED]
   deploy/README.md → server/internal/auth/auth.go
+- `Signed agent releases` --references--> `releasePublicKey()`  [EXTRACTED]
+  SECURITY.md → agent/release_key.go
 - `Updates only move forward` --rationale_for--> `signedVersion()`  [EXTRACTED]
   SECURITY.md → agent/update.go
-- `Push monitoring` --references--> `Push`  [EXTRACTED]
-  README.md → contracts/contracts.go
 
 ## Import Cycles
 - None detected.
@@ -201,75 +197,75 @@
 - **Fleet update rollout** — contracts_api_update_state, contracts_api_rollout_pause, contracts_api_forced_slot, deploy_readme_checksum_not_version, security_agent_local_veto [EXTRACTED 0.95]
 - **Not leaking what you cannot see** — contracts_api_404_not_403, contracts_api_visibility, contracts_api_slug, security_single_tenant [INFERRED 0.85]
 
-## Communities (173 total, 28 thin omitted)
+## Communities (169 total, 27 thin omitted)
 
 ### Community 0 - "publishAgent"
-Cohesion: 0.07
-Nodes (55): Forced update sits outside the rollout, The host's local veto is absolute, effectiveAutoUpdate(), Duration, Host, app, Time, fetchRollup() (+47 more)
+Cohesion: 0.08
+Nodes (50): Forced update sits outside the rollout, The host's local veto is absolute, effectiveAutoUpdate(), Duration, Host, app, Time, fetchRollup() (+42 more)
 
 ### Community 1 - "release.py"
 Cohesion: 0.05
-Nodes (49): CI gate job, CI grants contents:read only, Rolling edge prerelease, Signing key scoped to steps, not the workflow, Tag-triggered versioned release, web-build and server-assets precede build, make gate / web-check / pytest before commit, Two-second pre-commit gate (+41 more)
+Nodes (51): CI gate job, CI grants contents:read only, Actions pinned by commit, not tag, Rolling edge prerelease, Signing key scoped to steps, not the workflow, Tag-triggered versioned release, web-build and server-assets precede build, make gate / web-check / pytest before commit (+43 more)
 
-### Community 2 - "RevealModal.tsx"
-Cohesion: 0.38
-Nodes (7): RevealedCredential, RevealModal(), SecretField(), isSensitiveField(), ORDER, orderedSecretFields(), SENSITIVE
+### Community 2 - "secretFields.ts"
+Cohesion: 0.39
+Nodes (6): RevealModal(), SecretField(), isSensitiveField(), ORDER, orderedSecretFields(), SENSITIVE
 
 ### Community 3 - "signing.go"
 Cohesion: 0.08
-Nodes (58): Actions pinned by commit, not tag, releasePublicKey(), fetchBody(), config, Client, isSHA256Hex(), needsUpdate(), olderThan() (+50 more)
+Nodes (56): releasePublicKey(), fetchBody(), config, Client, isSHA256Hex(), needsUpdate(), olderThan(), selfArch() (+48 more)
 
 ### Community 4 - "Install"
 Cohesion: 0.10
 Nodes (45): Builder, Channel, ClientConfig, clientConfig(), connect(), dial(), dialTCP(), envAssignments() (+37 more)
 
-### Community 5 - "CommandResult"
-Cohesion: 0.26
-Nodes (8): Mutex, controller, Ingest push contract, Commands ride the push ack, Command, CommandResult, IsPowerAction(), PushAck
+### Community 5 - "CollectionDetail.tsx"
+Cohesion: 0.14
+Nodes (14): HostInventory, InventoryItem, AddServiceModal(), Chevron(), DiskList(), DiskUsage, sortDisks(), usedPct() (+6 more)
 
 ### Community 6 - "app"
-Cohesion: 0.19
-Nodes (15): alwaysEditable(), Request, ResponseWriter, app, hostCanSee(), hostTarget(), toolCanEdit(), toolCanSee() (+7 more)
+Cohesion: 0.28
+Nodes (11): alwaysEditable(), Request, ResponseWriter, app, hostCanSee(), hostTarget(), toolCanEdit(), toolCanSee() (+3 more)
 
 ### Community 7 - "HostMetrics.tsx"
-Cohesion: 0.09
-Nodes (30): Colorblind-validated chart palette, DiskList(), ContainerPoint, fmtPct(), HostMetrics(), HostPoint, labelFor(), latest() (+22 more)
+Cohesion: 0.10
+Nodes (32): Colorblind-validated chart palette, Chart(), Series, ContainerPoint, fmtPct(), HostMetrics(), HostPoint, labelFor() (+24 more)
 
 ### Community 8 - "Hosts.tsx"
-Cohesion: 0.08
-Nodes (22): AgentUpdateRollup, CollectionRef, Host, UpdateState, PortalGraph(), ListSkeleton(), Skeleton(), showsVersionPill() (+14 more)
+Cohesion: 0.12
+Nodes (13): AgentUpdateRollup, UpdateState, Tabs(), showsVersionPill(), hostRowActions(), RowActions, HOST_FILTERS, HostFilter (+5 more)
 
 ### Community 9 - "signup"
 Cohesion: 0.13
-Nodes (35): T, TestServerInfoAdminOnly(), TestUpdateUserRoleAndActive(), fromIP(), Client, Response, T, login() (+27 more)
+Nodes (36): T, TestServerInfoAdminOnly(), TestUpdateUserRoleAndActive(), fromIP(), Client, Response, T, login() (+28 more)
 
 ### Community 10 - "google_test.go"
 Cohesion: 0.09
-Nodes (28): Config, Profile, Config, Request, ResponseWriter, app, User, HashPassword() (+20 more)
+Nodes (27): Config, Profile, Config, Request, ResponseWriter, app, User, DomainAllowed() (+19 more)
 
 ### Community 11 - "adminClient"
 Cohesion: 0.15
 Nodes (42): TestAuditListsAndFilters(), createCred(), Client, T, newHost(), revealSecret(), TestAccessRequestOnAnUnknownHost(), TestAdminCanRevealAndAudited() (+34 more)
 
-### Community 12 - "HostInventory.tsx"
-Cohesion: 0.11
-Nodes (24): AccessRequest, AlertEvent, AutoUpdatePolicy, HostCommand, EventHistory(), ACTION_LABEL, HostControls(), STATUS_TONE (+16 more)
+### Community 12 - "Catalog.tsx"
+Cohesion: 0.17
+Nodes (12): GrantAuditEntry, RevealAuditEntry, EmptyState(), Pill(), matchesQuery(), AdminAudit(), AdminGroups(), AdminWebhooks() (+4 more)
 
 ### Community 13 - "app"
 Cohesion: 0.09
 Nodes (31): clock, Throttle, throttleEntry, Int64, Once, Login throttle that cannot be held shut, REEVE_TRUST_PROXY is opt-in, DB (+23 more)
 
-### Community 14 - "Button"
-Cohesion: 0.08
-Nodes (40): Enter confirms every form, AdminUser, ApiError, GrantAuditEntry, Group, RevealAuditEntry, Severity, SSHTarget (+32 more)
+### Community 14 - "ui.tsx"
+Cohesion: 0.10
+Nodes (33): Enter confirms every form, api, Credential, CREDENTIAL_LABEL, Group, RevealedCredential, SSHTarget, uploadAvatar() (+25 more)
 
 ### Community 15 - "Dashboard.tsx"
-Cohesion: 0.13
-Nodes (22): Say what the state means, ToolStatus, HostData, HostNode(), nodeDot(), nodeTypes, SvcData, ServiceDots() (+14 more)
+Cohesion: 0.12
+Nodes (22): Say what the state means, AccessRequest, AlertEvent, ToolStatus, MetricBar(), ServiceDots(), ListSkeleton(), Skeleton() (+14 more)
 
-### Community 16 - "ui.tsx"
+### Community 16 - "Portal.tsx"
 Cohesion: 0.08
-Nodes (40): Test every trigger of a modal, api, Collection, CollectionDetail, endpointString(), goURL(), HostInventory, InventoryItem (+32 more)
+Nodes (31): Test every trigger of a modal, CollectionRef, endpointString(), goURL(), Host, Tool, CollectionInfoModal(), HostInfoModal() (+23 more)
 
 ### Community 17 - "schema.sql"
 Cohesion: 0.09
@@ -285,7 +281,7 @@ Nodes (18): Principal, CollectionRef, assetURL(), agentMonitored(), checkEndpoin
 
 ### Community 20 - "DB"
 Cohesion: 0.10
-Nodes (6): collectionVisibleArgs(), DB, Time, VisibilityGrant, scanCollection(), Collection
+Nodes (7): placeholders(), collectionVisibleArgs(), DB, Time, VisibilityGrant, scanCollection(), Collection
 
 ### Community 21 - "DB"
 Cohesion: 0.12
@@ -300,12 +296,12 @@ Cohesion: 0.17
 Nodes (29): Client, T, noRedirect(), pushIP(), TestEmptyReportedAddressKeepsTheLastKnownOne(), TestEndpointJSON(), TestGoHidesToolsTheCallerCannotSee(), TestGoRedirectFollowsTheHostAddress() (+21 more)
 
 ### Community 24 - "hostToView"
-Cohesion: 0.28
-Nodes (8): Host, Request, ResponseWriter, app, Time, hostStatus(), hostToView(), updateContext
+Cohesion: 0.19
+Nodes (13): Host, Request, ResponseWriter, app, Time, hostStatus(), hostToView(), hostMetricsView (+5 more)
 
 ### Community 25 - "newTestServer"
-Cohesion: 0.15
-Nodes (28): T, TestGeocodeProxiesAndLabels(), TestGeocodeRequiresAdmin(), TestGeocodeShortQuerySkipsUpstream(), TestGeocodeUpstreamFailureIsBadGateway(), newTestServer(), T, TestHostMetricsEndpointCarriesDisks() (+20 more)
+Cohesion: 0.18
+Nodes (23): T, TestGeocodeProxiesAndLabels(), TestGeocodeRequiresAdmin(), TestGeocodeShortQuerySkipsUpstream(), TestGeocodeUpstreamFailureIsBadGateway(), newTestServer(), T, TestHostMetricsEndpointCarriesDisks() (+15 more)
 
 ### Community 26 - "procs_test.go"
 Cohesion: 0.17
@@ -315,13 +311,13 @@ Nodes (24): ProcessSample, Time, NewProcSampler(), ParseCmdline(), ParsePasswd()
 Cohesion: 0.19
 Nodes (21): durationArg(), gather(), gatherCron(), gatherDockerLogErrors(), gatherLogErrors(), config, Duration, Time (+13 more)
 
-### Community 28 - ".evaluateHostThresholds"
-Cohesion: 0.15
-Nodes (14): fmtRate(), Duration, Host, app, Time, Webhook, hostMetricValues(), severityOrError() (+6 more)
+### Community 28 - "DB"
+Cohesion: 0.07
+Nodes (21): fmtRate(), Duration, Host, app, Time, Webhook, hostMetricValues(), severityOrError() (+13 more)
 
 ### Community 29 - "testServer"
 Cohesion: 0.15
-Nodes (35): TestUpdateNowRefusesAVetoedHost(), controllableHost(), Client, T, queue(), TestAResultFromTheWrongHostIsIgnored(), TestCommandsAreAdminOnly(), TestQueueAndDeliverACommand() (+27 more)
+Nodes (34): TestUpdateNowRefusesAVetoedHost(), controllableHost(), Client, T, queue(), TestAResultFromTheWrongHostIsIgnored(), TestCommandsAreAdminOnly(), TestQueueAndDeliverACommand() (+26 more)
 
 ### Community 30 - "newUser"
 Cohesion: 0.17
@@ -332,8 +328,8 @@ Cohesion: 0.18
 Nodes (10): AccessRequest, Request, ResponseWriter, app, validPrincipalType(), accessGrantView, requestView, Request (+2 more)
 
 ### Community 32 - "Layout.tsx"
-Cohesion: 0.09
-Nodes (20): UptimeSummary, Avatar(), initials(), adminNav, Layout(), primaryNav, IconName, paths (+12 more)
+Cohesion: 0.08
+Nodes (22): UptimeSummary, Avatar(), initials(), adminNav, Layout(), NavRecord, primaryNav, IconName (+14 more)
 
 ### Community 33 - "T"
 Cohesion: 0.26
@@ -360,8 +356,8 @@ Cohesion: 0.18
 Nodes (21): T, TestApplyPushStoresDisks(), TestDeleteHostMetricsDropsDisks(), TestHostDisksNilStoresEmptyList(), TestHostDisksRoundTripAndReplace(), TestLatestHostDisksUnknownHost(), T, TestApplyPushKeepsLastKnownChecksum() (+13 more)
 
 ### Community 39 - "New"
-Cohesion: 0.21
-Nodes (19): AEAD, Cipher, Compose refuses to start without the master key, Backup carries ciphertext, not the key, Credentials encrypted before they touch disk, Master-key custody, New(), NewFromEnv() (+11 more)
+Cohesion: 0.29
+Nodes (8): AEAD, Cipher, Compose refuses to start without the master key, Backup carries ciphertext, not the key, Credentials encrypted before they touch disk, Master-key custody, New(), NewFromEnv()
 
 ### Community 40 - "runOnce"
 Cohesion: 0.22
@@ -380,12 +376,12 @@ Cohesion: 0.21
 Nodes (18): Config, Message, stubSMTP, BuildMessage(), Time, hasCRLF(), Send(), atoi() (+10 more)
 
 ### Community 44 - "countRows"
-Cohesion: 0.35
-Nodes (13): countRows(), enrollHostWin(), Client, T, TestAgentOfflineAlert(), TestDispatchSendsAndRetries(), TestDownAlertDebounceFireResolve(), TestFlapSuppressed() (+5 more)
+Cohesion: 0.18
+Nodes (22): countRows(), enrollHostWin(), Client, T, TestAgentOfflineAlert(), TestDispatchSendsAndRetries(), TestDownAlertDebounceFireResolve(), TestFlapSuppressed() (+14 more)
 
 ### Community 45 - "decodeJSON"
-Cohesion: 0.16
-Nodes (10): errNoAgentBuild, errUnsupportedArch, decodeJSON(), Request, ResponseWriter, app, Request, ResponseWriter (+2 more)
+Cohesion: 0.11
+Nodes (16): errNoAgentBuild, errUnsupportedArch, Request, ResponseWriter, app, hashResetToken(), newResetToken(), reachableFromOtherHosts() (+8 more)
 
 ### Community 46 - "control_test.go"
 Cohesion: 0.29
@@ -395,25 +391,25 @@ Nodes (15): argvFor(), newController(), fakeRunner(), T, TestArgvForEveryAction(
 Cohesion: 0.20
 Nodes (7): channelAccepts(), filterBySeverity(), DB, Time, severityRank(), Delivery, Webhook
 
-### Community 48 - "AdminAlerts.tsx"
-Cohesion: 0.17
-Nodes (17): Delivery, ThresholdMetric, ThresholdsPayload, EMPTY_ROW, METRIC_KEYS, METRICS, ThresholdRow, ThresholdRows (+9 more)
+### Community 48 - "HostInventory.tsx"
+Cohesion: 0.10
+Nodes (29): AutoUpdatePolicy, Delivery, ThresholdMetric, ThresholdsPayload, HostControls(), unavailableReason(), EMPTY_ROW, METRIC_KEYS (+21 more)
 
 ### Community 49 - "zzz-visual.spec.ts"
 Cohesion: 0.09
 Nodes (9): CI Playwright e2e job, Frontend changes are reviewed in a browser, axe against WCAG 2 A/AA, Manual screenshot sweep after any frontend change, Pixel baselines for every page, TAGS, THEMES, GREY_TILE (+1 more)
 
-### Community 50 - ".Sample"
-Cohesion: 0.19
-Nodes (16): TestParseCPUStatAndPercent(), TestParseUptimeAndNetDev(), diskUsage(), DiskUsage, HostMetrics, sampleDisks(), sampleGPU(), CPUPercent() (+8 more)
+### Community 50 - "collect_test.go"
+Cohesion: 0.06
+Nodes (50): T, TestParseCPUStatAndPercent(), TestParseCrontabSystemForm(), TestParseCrontabUserForm(), TestParseDockerPS(), TestParseDockerStats(), TestParseLoadAvg(), TestParseMemInfo() (+42 more)
 
 ### Community 51 - ".handlePutSettings"
 Cohesion: 0.15
 Nodes (14): Agent update state machine, Checksum decides currency, not version, Retention, agentUpdateView, googleAuthView, googleInput, retentionView, Request (+6 more)
 
 ### Community 52 - "writeError"
-Cohesion: 0.25
-Nodes (7): Request, ResponseWriter, app, writeError(), Request, ResponseWriter, app
+Cohesion: 0.15
+Nodes (14): ReadCloser, Request, ResponseWriter, app, writeError(), Request, ResponseWriter, readImageUpload() (+6 more)
 
 ### Community 53 - "DB"
 Cohesion: 0.21
@@ -424,24 +420,24 @@ Cohesion: 0.15
 Nodes (3): DB, Time, Host
 
 ### Community 55 - "api.ts"
-Cohesion: 0.08
-Nodes (24): AgentUpdateSettings, ChannelKind, CommandStatus, Credential, CREDENTIAL_FIELDS, CREDENTIAL_LABEL, CredentialType, GoogleInput (+16 more)
+Cohesion: 0.07
+Nodes (29): AgentUpdateSettings, ChannelKind, Collection, CollectionDetail, CommandStatus, CREDENTIAL_FIELDS, CredentialType, GoogleInput (+21 more)
 
-### Community 56 - "collect_test.go"
-Cohesion: 0.25
-Nodes (12): T, TestParseCrontabSystemForm(), TestParseCrontabUserForm(), TestParseDockerPS(), TestParseDockerStats(), TestParseLoadAvg(), TestParseMemInfo(), TestParseNvidiaSMI() (+4 more)
+### Community 56 - "dbWithUser"
+Cohesion: 0.33
+Nodes (11): Stable slug and /go redirect, Slugify(), dbWithUser(), DB, T, TestCreateToolFallsBackWhenTheNameHasNoSlug(), TestGetToolBySlug(), TestSlugify() (+3 more)
 
 ### Community 57 - "DB"
 Cohesion: 0.23
 Nodes (5): NullString, DB, Time, parseNullTime(), HostCommand
 
-### Community 58 - ".handleLogin"
-Cohesion: 0.22
-Nodes (10): Request, ResponseWriter, app, User, User, HashToken(), NewAgentToken(), NewSessionToken() (+2 more)
+### Community 58 - "crypto_test.go"
+Cohesion: 0.45
+Nodes (11): T, mustKey(), testKey(), TestNewFromEnvMissingKeyFails(), TestNewFromEnvValid(), TestNewFromEnvWrongLengthFails(), TestOpenRejectsAnotherRowsAAD(), TestSealOpenRoundTrip() (+3 more)
 
 ### Community 59 - "devDependencies"
 Cohesion: 0.12
-Nodes (17): autoprefixer, eslint, eslint-plugin-react-hooks, tailwindcss, @types/leaflet, @types/react-dom, typescript, vitest (+9 more)
+Nodes (17): autoprefixer, @axe-core/playwright, eslint, eslint-plugin-react-hooks, @types/leaflet, @typescript-eslint/eslint-plugin, @typescript-eslint/parser, vitest (+9 more)
 
 ### Community 60 - "HandlerFunc"
 Cohesion: 0.26
@@ -452,8 +448,8 @@ Cohesion: 0.33
 Nodes (8): Conn, T, TestEveryStopsOnCancel(), TestProbeHealth(), TestProbeHealthFailsOnNon200(), TestServeDrainsInFlightRequest(), TestServeReturnsListenError(), waitForListener()
 
 ### Community 62 - "T"
-Cohesion: 0.24
-Nodes (13): captureLog(), Buffer, Client, Response, T, TestClientIPForwardedForOnlyWhenProxyTrusted(), TestHealthz(), TestLoginSetsTheReeveSessionCookie() (+5 more)
+Cohesion: 0.23
+Nodes (14): captureLog(), Buffer, Client, Response, T, newTestServerKey(), TestClientIPForwardedForOnlyWhenProxyTrusted(), TestHealthz() (+6 more)
 
 ### Community 63 - "Open"
 Cohesion: 0.22
@@ -476,20 +472,20 @@ Cohesion: 0.18
 Nodes (5): DB, Time, scanCredentialMeta(), AccessGrant, Credential
 
 ### Community 68 - "dependencies"
-Cohesion: 0.15
-Nodes (13): @fontsource-variable/inter, leaflet, react, react-dom, react-router-dom, dependencies, @fontsource-variable/inter, leaflet (+5 more)
+Cohesion: 0.13
+Nodes (15): @fontsource-variable/inter, leaflet, react, react-dom, react-router-dom, uplot, dependencies, @fontsource-variable/inter (+7 more)
 
 ### Community 69 - "app"
-Cohesion: 0.28
-Nodes (6): Writes must come from this origin, dynamicRequest(), Handler, Request, app, User
+Cohesion: 0.22
+Nodes (8): Writes must come from this origin, dynamicRequest(), Handler, Request, app, User, User, PrincipalFromUser()
 
-### Community 70 - "DB"
-Cohesion: 0.06
-Nodes (33): Host enrollment token, Stable slug and /go redirect, DCO sign-off, no CLA, Binds every interface by default, Docker NAT sits in front of ufw, Host networking for mDNS, SSH push install, Catalog of services (+25 more)
+### Community 70 - ".handleIngest"
+Cohesion: 0.12
+Nodes (15): Host enrollment token, DCO sign-off, no CLA, Binds every interface by default, Docker NAT sits in front of ufw, Host networking for mDNS, SSH push install, Catalog of services, Host and service controls (+7 more)
 
 ### Community 71 - "contracts.go"
-Cohesion: 0.14
-Nodes (15): Fixed action allowlist, no shell, Collections replace free-text category, Single error envelope, CollectionRef, CommandTargetKind, DiskUsage, DiskUsage, ErrorResponse (+7 more)
+Cohesion: 0.11
+Nodes (23): Mutex, controller, Fixed action allowlist, no shell, Collections replace free-text category, Single error envelope, Ingest push contract, Commands ride the push ack, CollectionRef (+15 more)
 
 ### Community 72 - ".handleCreateCommand"
 Cohesion: 0.29
@@ -508,16 +504,16 @@ Cohesion: 0.19
 Nodes (9): auditLink(), auditWhere(), DB, Time, NewID(), AuditChainResult, AuditFilter, GrantAudit (+1 more)
 
 ### Community 76 - "newCLIEnv"
-Cohesion: 0.23
-Nodes (21): server users CLI, cliEnv, T, TestAgentTokenPrefixIsReeveBranded(), TestHashSaltsDiffer(), TestHashVerifyPassword(), TestVerifyRejectsMalformed(), VerifyPassword() (+13 more)
+Cohesion: 0.12
+Nodes (30): server users CLI, Request, ResponseWriter, app, User, cliEnv, HashPassword(), HashToken() (+22 more)
 
 ### Community 77 - "test_build_config.py"
 Cohesion: 0.23
 Nodes (8): parametrize, dry_run(), job_commands(), test_actions_are_pinned_to_a_commit(), test_npm_target_installs_its_own_deps(), test_signing_key_is_never_workflow_or_job_scoped(), test_workflow_jobs_install_web_deps_before_running_npm_scripts(), test_workflows_grant_no_blanket_permissions()
 
 ### Community 78 - "ScanLogErrors"
-Cohesion: 0.21
-Nodes (13): Time, ScanLogErrors(), basename(), maskInline(), namesSecret(), redactSecrets(), T, TestParseCmdlineRedacts() (+5 more)
+Cohesion: 0.16
+Nodes (16): TestScanLogErrors(), isEnvAssignment(), ParseCrontab(), Time, ScanLogErrors(), basename(), maskInline(), namesSecret() (+8 more)
 
 ### Community 79 - "downloadBackup"
 Cohesion: 0.41
@@ -563,9 +559,9 @@ Nodes (3): DB, Time, Group
 Cohesion: 0.53
 Nodes (5): bearer(), T, TestAPIErrorEnvelope(), TestPublicEndpointsNoAuthExcludeRestricted(), TestPublicHostsNoAuth()
 
-### Community 90 - "ParseMounts"
-Cohesion: 0.32
-Nodes (10): ParseMounts(), T, TestParseMountsDecodesOctalEscapes(), TestParseMountsDedupesByDevice(), TestParseMountsIgnoresGarbage(), TestParseMountsKeepsRealFilesystems(), TestUnescapeMountLeavesMalformedEscapes(), unescapeMount() (+2 more)
+### Community 90 - ".handleCreateGroup"
+Cohesion: 0.50
+Nodes (3): Request, ResponseWriter, app
 
 ### Community 91 - ".handleGeocode"
 Cohesion: 0.31
@@ -576,12 +572,12 @@ Cohesion: 0.27
 Nodes (10): Session cookie auth, ctxKey, Single-tenant, admin sees everything, Context, Handler, ResponseWriter, RequireAdmin(), RequireAuth() (+2 more)
 
 ### Community 93 - "writeJSON"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (14): One Go binary serves UI and API, ResponseWriter, writeJSON(), Request, ResponseWriter, Request, ResponseWriter, app (+6 more)
 
 ### Community 94 - "AccessRequest"
-Cohesion: 0.27
-Nodes (5): DB, Time, placeholders(), scanRequest(), AccessRequest
+Cohesion: 0.35
+Nodes (4): DB, Time, scanRequest(), AccessRequest
 
 ### Community 95 - "processes_test.go"
 Cohesion: 0.33
@@ -596,16 +592,16 @@ Cohesion: 0.25
 Nodes (6): declaredColumns(), DB, T, TestDeclaredColumnsReadsTheSchema(), TestOpenAcceptsACurrentDatabase(), TestOpenRefusesADatabaseMissingAColumn()
 
 ### Community 98 - "MapPicker.tsx"
-Cohesion: 0.08
-Nodes (33): Light-only theme, Four-radius vocabulary, Two colors do two jobs, uplot, Blocking theme-boot script, uplot, Chart(), Series (+25 more)
+Cohesion: 0.17
+Nodes (18): LeafletMap(), MapPoint, tileURL(), MapPicker(), Saved, cities, City, cityMatches() (+10 more)
 
 ### Community 99 - ".sendMail"
 Cohesion: 0.29
 Nodes (4): Config, app, smtpInput, smtpView
 
-### Community 100 - "ToolFormPage.tsx"
-Cohesion: 0.15
-Nodes (10): uploadIcon(), BackLink(), IconUploader(), message(), message(), ThumbnailUploader(), EndpointMode, slugPreview() (+2 more)
+### Community 100 - "App.tsx"
+Cohesion: 0.09
+Nodes (24): AdminUser, ApiError, uploadIcon(), User, App(), Protected(), AuthContext, AuthProvider() (+16 more)
 
 ### Community 101 - "mustUser"
 Cohesion: 0.50
@@ -631,13 +627,13 @@ Nodes (11): createHostFor(), Client, T, sshBody(), TestAgentBinaryForUname(), Te
 Cohesion: 0.25
 Nodes (8): scripts, build, dev, e2e, lint, preview, test, typecheck
 
-### Community 110 - "docker.go"
-Cohesion: 0.33
-Nodes (8): healthFromStatus(), parseBytes(), ParseDockerPS(), ParseDockerStats(), parseMemUsage(), parsePercent(), dockerPSLine, dockerStatsLine
+### Community 110 - "effectiveThreshold"
+Cohesion: 0.62
+Nodes (6): effectiveThreshold(), T, TestHostThresholdsAdminGetSet(), TestHostThresholdsReset(), TestHostThresholdsUnknownHost(), TestThresholdsAdminGetSet()
 
-### Community 111 - ".handleRestoreUpload"
-Cohesion: 0.29
-Nodes (6): ReadCloser, Request, ResponseWriter, app, StagedRestorePath(), formFile()
+### Community 111 - "theme/tailwind.config.js"
+Cohesion: 0.33
+Nodes (4): Light-only theme, Four-radius vocabulary, Two colors do two jobs, Blocking theme-boot script
 
 ### Community 112 - "contracts_test.go"
 Cohesion: 0.53
@@ -654,10 +650,6 @@ Nodes (5): license, name, private, type, version
 ### Community 118 - "render"
 Cohesion: 0.67
 Nodes (3): Image, main(), render()
-
-### Community 119 - "host_handlers_test.go"
-Cohesion: 0.33
-Nodes (10): T, TestAgentCommandsFallBackToRequestHost(), TestAgentInstallCommandShape(), TestClearHostMetricsAdminOnly(), TestDeleteHostLeavesLinkedToolsListable(), TestDeleteHostTakesItsTelemetryWithIt(), TestListHostsIncludesLatestMetric(), TestNonAdminCannotSeeWhatAHostRuns() (+2 more)
 
 ### Community 120 - "principal_handlers.go"
 Cohesion: 0.83
@@ -683,14 +675,6 @@ Nodes (10): adminResetPassword(), Client, Response, T, TestAdminResetPasswordRej
 Cohesion: 0.24
 Nodes (8): HostMetrics, ProcessSample, Time, CronState, Push, T, realisticPush(), TestLoadIngest()
 
-### Community 163 - ".handleForgotPassword"
-Cohesion: 0.33
-Nodes (6): Request, ResponseWriter, app, hashResetToken(), newResetToken(), reachableFromOtherHosts()
-
-### Community 164 - "NewHostSampler"
-Cohesion: 0.38
-Nodes (5): NewHostSampler(), T, TestHostSamplerMeasuresCPUAcrossCalls(), TestSampleHostMetricsDoesNotPanicAndReportsMemory(), HostMetrics
-
 ### Community 166 - "TestContainerStatsNameFallback"
 Cohesion: 0.67
 Nodes (3): T, TestContainerStatsNameFallback(), TestContainerStatsRoundTrip()
@@ -710,9 +694,9 @@ Nodes (3): DB, resetPasswordCLI(), setPassword()
   DESIGN.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **159 isolated node(s):** `dockerPSLine`, `dockerStatsLine`, `config`, `DiskUsage`, `ProcessSample` (+154 more)
+- **160 isolated node(s):** `dockerPSLine`, `dockerStatsLine`, `config`, `DiskUsage`, `ProcessSample` (+155 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -721,13 +705,13 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `Light-only theme` and `Blocking theme-boot script`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `New()` connect `New` to `publishAgent`, `mustVerify`, `signing.go`, `Install`, `postWebhook`, `google_test.go`, `testServer`, `google_auth_test.go`, `Push`, `setPassword`, `Send`, `decodeJSON`, `control_test.go`, `.handlePutSettings`, `T`, `Open`, `users_cli.go`, `app`, `newPusher`, `app`, `.sendMail`, `.handleRestoreUpload`, `.dispatchDue`?**
-  _High betweenness centrality (0.297) - this node is a cross-community bridge._
-- **Why does `Public portal front door` connect `DB` to `ui.tsx`?**
-  _High betweenness centrality (0.290) - this node is a cross-community bridge._
-- **Are the 224 inferred relationships involving `newTestServer()` (e.g. with `TestAuditListsAndFilters()` and `TestServerInfoAdminOnly()`) actually correct?**
-  _`newTestServer()` has 224 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 111 inferred relationships involving `signup()` (e.g. with `TestAuditListsAndFilters()` and `TestServerInfoAdminOnly()`) actually correct?**
-  _`signup()` has 111 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `New()` connect `New` to `publishAgent`, `mustVerify`, `signing.go`, `Install`, `postWebhook`, `google_test.go`, `google_auth_test.go`, `Push`, `setPassword`, `Send`, `decodeJSON`, `control_test.go`, `.handlePutSettings`, `writeError`, `crypto_test.go`, `T`, `Open`, `users_cli.go`, `app`, `newPusher`, `app`, `.sendMail`, `.dispatchDue`?**
+  _High betweenness centrality (0.296) - this node is a cross-community bridge._
+- **Why does `Public portal front door` connect `.handleIngest` to `Portal.tsx`?**
+  _High betweenness centrality (0.288) - this node is a cross-community bridge._
+- **Are the 225 inferred relationships involving `newTestServer()` (e.g. with `TestAuditListsAndFilters()` and `TestServerInfoAdminOnly()`) actually correct?**
+  _`newTestServer()` has 225 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 112 inferred relationships involving `signup()` (e.g. with `TestAuditListsAndFilters()` and `TestServerInfoAdminOnly()`) actually correct?**
+  _`signup()` has 112 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 119 inferred relationships involving `writeError()` (e.g. with `validPrincipalType()` and `.applyCollectionIDs()`) actually correct?**
   _`writeError()` has 119 INFERRED edges - model-reasoned connections that need verification._
