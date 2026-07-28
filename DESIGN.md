@@ -92,10 +92,10 @@ that state too, so the bar never has to read as text.
 - **Spacing:** 8px base scale (4, 8, 12, 16, 24, 32, 48). Table cells stay tight
   at 8-12px. Cards take 16px.
 - **Radius vocabulary (the entire set):**
-  - button / input / badge: `4px`
+  - button / input: `4px`
   - card / panel / table: `8px`
   - large tile: `12px`
-  - pill / avatar: `9999px`
+  - pill / badge / avatar: `9999px`
 
 ## Elevation & motion
 
@@ -103,6 +103,14 @@ that state too, so the bar never has to read as text.
   dropdown, or a map tooltip, and nothing else.
 - Motion is fast: 120-200ms, ease-out, no bounce. Animate opacity and small
   transforms. Do not animate layout or color for decoration.
+- `--dur` and `--ease` are the defaults for every `transition-*` utility, so a
+  component carries no duration or easing class of its own. Name the properties
+  that move; never transition `all`.
+- A surface that arrives over the page gets one keyframe, because a transition
+  cannot animate a mount: the modal fades its backdrop and lifts the dialog 8px.
+  It leaves immediately, and it holds still under
+  `prefers-reduced-motion: reduce`. Nothing else in the chrome animates on
+  arrival.
 
 ## Components (defaults)
 
@@ -123,6 +131,8 @@ that state too, so the bar never has to read as text.
   `--surface-2` hover.
 - **Danger button:** `--canvas` fill, `--down-line` edge, `--down` label,
   `--down-soft` hover.
+- **Press state:** every button-shaped control scales to `0.96` while it is held.
+  That is the only transform in the chrome.
 - **Card:** `--canvas`, `--border` hairline, radius 8px.
 - **Table:** header row on `--surface-1` in eyebrow type, hairline row dividers,
   `--surface-1` row hover. The first cell links the record by name in `--link`.
@@ -135,6 +145,15 @@ that state too, so the bar never has to read as text.
 - **Focus state:** always visible, always the `--link` ring. Never removed.
 - **Inline link:** `--link` and underlined. Color alone does not mark a link
   inside a sentence.
+- **Icons:** one 16px line set, drawn in `currentColor` at stroke 1.5, with no
+  fill. Beside a weight-600 label, which is the open sidebar item, the stroke
+  goes to 2 so the icon reads as heavy as the text next to it. A state changes
+  the color, never the asset.
+- **Uploaded images:** an avatar or an entity icon takes a 1px `--image-outline`
+  drawn inside its edge: white at 10% in dark, black at 10% in light. A tinted
+  border picks up the surface behind it and reads as dirt on the edge of a photo.
+  The `dark:` variant is for what a token cannot carry, a filter or a blend mode,
+  and it follows `data-theme` rather than the operating system.
 - **Theme toggle:** one control, in the app sidebar and in the portal header, so
   an anonymous visitor can switch too. It names what it will do, not what is on.
 - **Charts:** a card per measure, its current reading in the header, and the plot

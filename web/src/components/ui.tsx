@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 // download link, say — occupies the same box instead of an approximation that
 // ends up a few pixels short of the button beside it.
 export const buttonBox =
-  'inline-flex items-center justify-center whitespace-nowrap rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm font-medium text-content transition-colors duration-150 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
+  'inline-flex items-center justify-center whitespace-nowrap rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm font-medium text-content transition-[color,background-color,border-color,transform] hover:bg-surface-2 active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 
 // Primary: the single accent action per view. Dark label on acid-lime.
 export function Button({
@@ -31,7 +31,7 @@ export function Button({
     danger: 'border-down-line bg-canvas text-down hover:border-down hover:bg-down-soft',
   }[variant];
   const base =
-    'inline-flex items-center justify-center whitespace-nowrap rounded-button border px-3 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-link disabled:opacity-50 disabled:pointer-events-none';
+    'inline-flex items-center justify-center whitespace-nowrap rounded-button border px-3 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-link disabled:opacity-50 disabled:pointer-events-none';
   return <button type={type} className={`${base} ${styles} ${className}`} {...props} />;
 }
 

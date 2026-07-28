@@ -99,11 +99,11 @@ const paths: Record<IconName, ReactElement> = {
 export default function NavIcon({ name }: { name: IconName }) {
   return (
     <svg
-      className="h-4 w-4 shrink-0"
+      className="h-4 w-4 shrink-0 [[aria-current=page]_&]:stroke-2"
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.4"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

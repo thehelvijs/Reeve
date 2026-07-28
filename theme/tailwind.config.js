@@ -62,6 +62,9 @@ module.exports = {
           line: 'var(--idle-line)',
         },
       },
+      outlineColor: {
+        image: 'var(--image-outline)',
+      },
       borderRadius: {
         button: 'var(--radius-button)',
         card: 'var(--radius-card)',
@@ -79,8 +82,13 @@ module.exports = {
         // The table/eyebrow label size, small caps by convention.
         eyebrow: ['11px', { lineHeight: '16px', letterSpacing: '0.05em' }],
       },
+      // The DEFAULT keys are what every bare `transition-*` utility emits, so the
+      // motion tokens apply app-wide without a duration or easing class per site.
       transitionTimingFunction: {
-        linear2: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        DEFAULT: 'var(--ease)',
+      },
+      transitionDuration: {
+        DEFAULT: 'var(--dur)',
       },
     },
   },

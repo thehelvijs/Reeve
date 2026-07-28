@@ -26,6 +26,10 @@
   --border: #434248;
   --border-strong: #535158;
 
+  /* The ring on an uploaded image. Pure white here and pure black in light: a
+     tinted edge picks up the surface behind it and reads as dirt on a photo. */
+  --image-outline: rgba(255, 255, 255, 0.1);
+
   /* Text */
   --text: #ececef;
   --text-muted: #bfbfc3;
@@ -126,6 +130,7 @@
 
   --border: #dcdcde;
   --border-strong: #bfbfc3;
+  --image-outline: rgba(0, 0, 0, 0.1);
 
   --text: #1f1e24;
   --text-muted: #626168;

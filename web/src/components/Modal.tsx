@@ -58,14 +58,14 @@ export default function Modal({
   const width = size === 'md' ? 'max-w-md' : 'max-w-lg';
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4"
+      className="reeve-veil fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
         ref={dialog}
         tabIndex={-1}
-        className={`w-full ${width} rounded-card border border-hairline bg-canvas p-6 shadow-pop focus:outline-none`}
+        className={`reeve-pop w-full ${width} rounded-card border border-hairline bg-canvas p-6 shadow-pop focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

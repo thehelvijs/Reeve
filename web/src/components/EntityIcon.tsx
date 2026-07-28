@@ -12,7 +12,12 @@ export default function EntityIcon({
   const dim = { width: size, height: size };
   if (url) {
     return (
-      <img src={url} alt="" style={dim} className="shrink-0 rounded-button border border-hairline object-cover" />
+      <img
+        src={url}
+        alt=""
+        style={dim}
+        className="shrink-0 rounded-button object-cover outline outline-1 -outline-offset-1 outline-image"
+      />
     );
   }
   return (

@@ -5,6 +5,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* A modal arriving over the page is the one entrance worth animating, and it runs
+   once, so it is a keyframe rather than a transition. Exits stay immediate. */
+@keyframes reeve-veil {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes reeve-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .reeve-veil {
+    animation: reeve-veil 120ms var(--ease);
+  }
+  .reeve-pop {
+    animation: reeve-pop var(--dur) var(--ease);
+  }
+}
+
 /* uPlot's legend names the lines of a multi-series plot and reads out the value
    under the cursor. Its own stylesheet sets 12px bold, which competed with the
    card's title; this is the eyebrow scale the rest of the chrome uses. */

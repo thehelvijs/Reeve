@@ -28,7 +28,7 @@ export default function Avatar({
         src={url}
         alt=""
         style={dim}
-        className="shrink-0 rounded-full border border-hairline object-cover"
+        className="shrink-0 rounded-full object-cover outline outline-1 -outline-offset-1 outline-image"
       />
     );
   }
