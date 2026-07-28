@@ -37,7 +37,7 @@ type Mount struct {
 func ParseMounts(content string) []Mount {
 	seen := map[string]bool{}
 	var out []Mount
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.Lines(content) {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue

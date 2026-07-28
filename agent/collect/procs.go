@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"sort"
@@ -72,15 +73,22 @@ func ParseProcStatus(content string) (uid string, rssBytes uint64) {
 	return uid, rssBytes
 }
 
-// ParsePasswd maps uid to username from /etc/passwd content.
+// ParsePasswd maps uid to username from /etc/passwd content. Each line is cut
+// at its colons rather than split into fields, so one line costs no allocation
+// unless it parses.
 func ParsePasswd(content string) map[string]string {
 	names := map[string]string{}
-	for _, line := range strings.Split(content, "\n") {
-		fields := strings.Split(line, ":")
-		if len(fields) < 3 {
+	for line := range strings.Lines(content) {
+		name, rest, ok := strings.Cut(line, ":")
+		if !ok {
 			continue
 		}
-		names[fields[2]] = fields[0]
+		_, uid, ok := strings.Cut(rest, ":")
+		if !ok {
+			continue
+		}
+		uid, _, _ = strings.Cut(uid, ":")
+		names[uid] = name
 	}
 	return names
 }
@@ -102,32 +110,42 @@ func truncate(s string, n int) string {
 }
 
 // TopProcs returns the union of the n heaviest processes by CPU and the n
-// heaviest by memory, CPU-descending. It does not mutate procs.
+// heaviest by memory, CPU-descending. It does not mutate procs: the rankings
+// are index orders, so the input slice is never rearranged to find them.
 func TopProcs(procs []contracts.ProcessSample, n int) []contracts.ProcessSample {
 	if n <= 0 || len(procs) == 0 {
 		return nil
 	}
-	byCPU := make([]contracts.ProcessSample, len(procs))
-	copy(byCPU, procs)
-	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].CPUPct > byCPU[j].CPUPct })
+	byCPU := rankBy(procs, func(p *contracts.ProcessSample) float64 { return p.CPUPct })
+	byMem := rankBy(procs, func(p *contracts.ProcessSample) uint64 { return p.MemRSS })
 
-	byMem := make([]contracts.ProcessSample, len(procs))
-	copy(byMem, procs)
-	sort.Slice(byMem, func(i, j int) bool { return byMem[i].MemRSS > byMem[j].MemRSS })
-
-	seen := map[int]bool{}
+	seen := make(map[int]struct{}, 2*n)
 	out := make([]contracts.ProcessSample, 0, 2*n)
-	for _, list := range [][]contracts.ProcessSample{byCPU, byMem} {
-		for i := 0; i < n && i < len(list); i++ {
-			if seen[list[i].PID] {
+	for _, rank := range [][]int{byCPU, byMem} {
+		for i := 0; i < n && i < len(rank); i++ {
+			p := procs[rank[i]]
+			if _, dup := seen[p.PID]; dup {
 				continue
 			}
-			seen[list[i].PID] = true
-			out = append(out, list[i])
+			seen[p.PID] = struct{}{}
+			out = append(out, p)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CPUPct > out[j].CPUPct })
 	return out
+}
+
+// rankBy returns the indexes of procs ordered by key descending, cheapest
+// first. Sorting indexes rather than samples keeps one ProcessSample copy out
+// of every swap, and the ordering work is sized by the input rather than
+// allocated twice over.
+func rankBy[T cmp.Ordered](procs []contracts.ProcessSample, key func(*contracts.ProcessSample) T) []int {
+	rank := make([]int, len(procs))
+	for i := range rank {
+		rank[i] = i
+	}
+	sort.Slice(rank, func(a, b int) bool { return key(&procs[rank[a]]) > key(&procs[rank[b]]) })
+	return rank
 }
 
 // ProcSampler reads per-process usage from a /proc tree, deriving CPU percent
@@ -154,10 +172,7 @@ func (s *ProcSampler) Sample(now time.Time) []contracts.ProcessSample {
 	if err != nil {
 		return nil
 	}
-	users := map[string]string{}
-	if content, err := os.ReadFile("/etc/passwd"); err == nil {
-		users = ParsePasswd(string(content))
-	}
+	users := passwdUsers()
 
 	elapsed := now.Sub(s.prevAt).Seconds()
 	cur := make(map[int]uint64, len(entries))
@@ -202,6 +217,37 @@ func (s *ProcSampler) Sample(now time.Time) []contracts.ProcessSample {
 	s.prev = cur
 	s.prevAt = now
 	return out
+}
+
+// passwdUsers maps uid to username, reparsed only when /etc/passwd changes.
+// Login churn on a monitored host is near zero, so re-reading and re-splitting
+// the file on every 15-second tick is almost always work repeated for an
+// identical answer.
+var passwdUsers = cachedFile("/etc/passwd", ParsePasswd)
+
+// cachedFile reuses a parsed file until its mtime or size changes, and keeps the
+// last good value when the file cannot be read. Not safe for concurrent use, and
+// a rewrite inside one mtime tick is invisible to it.
+func cachedFile[T any](path string, parse func(string) T) func() T {
+	var mod time.Time
+	var size int64
+	var parsed T
+	return func() T {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return parsed
+		}
+		if fi.ModTime().Equal(mod) && fi.Size() == size {
+			return parsed
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return parsed
+		}
+		mod, size = fi.ModTime(), fi.Size()
+		parsed = parse(string(content))
+		return parsed
+	}
 }
 
 // cpuPercent converts a jiffy delta into percent of one core. A process with no

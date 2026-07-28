@@ -13,7 +13,7 @@ import (
 // is not derivable from a crontab and is left unset.
 func ParseCrontab(content string, systemForm bool) []contracts.CronState {
 	var out []contracts.CronState
-	for _, raw := range strings.Split(content, "\n") {
+	for raw := range strings.Lines(content) {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

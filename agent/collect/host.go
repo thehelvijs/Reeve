@@ -20,8 +20,10 @@ import (
 //
 // Not safe for concurrent use: one sampler belongs to one serial tick loop.
 type HostSampler struct {
-	prev CPUSample
-	seen bool
+	prev     CPUSample
+	seen     bool
+	gpuTried bool
+	gpuPath  string
 }
 
 // NewHostSampler returns a sampler with no previous CPU reading.
@@ -49,7 +51,7 @@ func (s *HostSampler) Sample() contracts.HostMetrics {
 	m.CPUPct = s.cpuPercent()
 	m.DiskUsed, m.DiskTotal = diskUsage("/")
 	m.Disks = sampleDisks()
-	sampleGPU(&m)
+	s.sampleGPU(&m)
 	return m
 }
 
@@ -76,14 +78,19 @@ func sampleDisks() []contracts.DiskUsage {
 	return out
 }
 
-// sampleGPU fills the GPU fields via nvidia-smi when present; a missing
-// binary or execution error leaves the fields at zero (no GPU).
-func sampleGPU(m *contracts.HostMetrics) {
-	path, err := exec.LookPath("nvidia-smi")
-	if err != nil {
+// sampleGPU fills the GPU fields via nvidia-smi when present; a missing binary
+// or execution error leaves the fields at zero (no GPU). The binary is located
+// once per sampler rather than searched out of PATH every tick, which a driver
+// installed after the agent started does not see until the next restart.
+func (s *HostSampler) sampleGPU(m *contracts.HostMetrics) {
+	if !s.gpuTried {
+		s.gpuTried = true
+		s.gpuPath, _ = exec.LookPath("nvidia-smi")
+	}
+	if s.gpuPath == "" {
 		return
 	}
-	out, err := exec.Command(path, "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits").Output()
+	out, err := exec.Command(s.gpuPath, "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits").Output()
 	if err != nil {
 		return
 	}

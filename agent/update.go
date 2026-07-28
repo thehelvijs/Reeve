@@ -132,11 +132,15 @@ func isSHA256Hex(s string) bool {
 	return true
 }
 
+// exePath is the running binary's path, resolved once. The update path
+// replaces the file and exits, so it cannot change under a live process.
+var exePath = sync.OnceValues(os.Executable)
+
 // selfChecksum is the sha256 of the running binary, hashed once. The update
 // path replaces the file and exits, so it cannot change under a live process.
 // Empty when it cannot be read, which the server reads as "cannot judge".
 var selfChecksum = sync.OnceValue(func() string {
-	exe, err := os.Executable()
+	exe, err := exePath()
 	if err != nil {
 		return ""
 	}
@@ -201,13 +205,15 @@ func (c config) checkAndUpdate() error {
 	if err != nil {
 		return fmt.Errorf("self-update: %w", err)
 	}
-	exe, err := os.Executable()
+	exe, err := exePath()
 	if err != nil {
 		return fmt.Errorf("self-update: locate executable: %w", err)
 	}
-	localSum, err := sha256File(exe)
-	if err != nil {
-		return fmt.Errorf("self-update: hash running binary: %w", err)
+	// The push loop already hashed this exact file once; a live process's
+	// binary cannot change underneath it, so that hash is still this one.
+	localSum := selfChecksum()
+	if localSum == "" {
+		return errors.New("self-update: cannot hash running binary")
 	}
 
 	if buildArch == "" && runtime.GOARCH == "arm" {
@@ -265,11 +271,10 @@ func (c config) checkAndUpdate() error {
 		return fmt.Errorf("self-update: close temp file: %w", closeErr)
 	}
 
-	downloadedSum, err := sha256File(tmpPath)
-	if err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("self-update: hash downloaded binary: %w", err)
-	}
+	// These are the bytes just written, so the check costs no second read of a
+	// file that is tens of megabytes.
+	sum := sha256.Sum256(binBody)
+	downloadedSum := hex.EncodeToString(sum[:])
 	if downloadedSum != remoteSum {
 		os.Remove(tmpPath)
 		return fmt.Errorf("self-update: downloaded binary checksum %s does not match published %s", downloadedSum, remoteSum)
