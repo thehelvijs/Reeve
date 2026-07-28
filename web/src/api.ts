@@ -162,7 +162,23 @@ export async function uploadIcon(path: string, file: File): Promise<string> {
 export interface Group {
   id: string;
   name: string;
-  members: string[];
+  members: GroupMember[];
+}
+
+// A membership carries the person's name, so a moderator can read their own group
+// without being handed the instance's user list.
+export interface GroupMember {
+  user_id: string;
+  email: string;
+  display_name: string;
+  avatar_url: string;
+  role: 'moderator' | 'member';
+}
+
+export interface Invite {
+  user: AdminUser;
+  emailed: boolean;
+  invite_link?: string;
 }
 
 // The compact collection shape embedded in a tool payload.

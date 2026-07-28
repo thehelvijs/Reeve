@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
-import { api, type Collection, type Host, type Tool } from '../api';
+import { api, type Collection, type Group, type Host, type Tool } from '../api';
 import { useAuth } from '../auth';
 import { Button } from './ui';
 import Avatar from './Avatar';
@@ -43,6 +43,10 @@ export default function Layout() {
   const tools = useResource<Tool[]>('/api/tools', () => api.get<Tool[]>('/api/tools')).data ?? [];
   const collections = useResource<Collection[]>('/api/collections', () => api.get<Collection[]>('/api/collections')).data ?? [];
   const hosts = useResource<Host[]>('/api/hosts', () => api.get<Host[]>('/api/hosts')).data ?? [];
+  // Scoped to the caller, so for a basic account a non-empty list means they
+  // moderate something and the groups page is theirs to open.
+  const groups = useResource<Group[]>('/api/groups', () => api.get<Group[]>('/api/groups')).data ?? [];
+  const moderates = user?.role !== 'admin' && groups.length > 0;
 
   const records: Record<string, { to: string; label: string }[]> = {
     '/services': tools.map((t) => ({ to: `/services/${t.id}`, label: t.name })),
@@ -67,6 +71,7 @@ export default function Layout() {
           {primaryNav.map((item) => (
             <NavSection key={item.to} item={item} records={records[item.to] ?? []} />
           ))}
+          {moderates && <NavItem to="/admin/groups" label="User groups" icon="groups" end={false} />}
           {user?.role === 'admin' && (
             <>
               <p className="px-2 pb-1 pt-5 text-eyebrow font-semibold uppercase text-muted">Admin</p>

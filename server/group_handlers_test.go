@@ -36,7 +36,7 @@ func TestGroupCRUDAndMembership(t *testing.T) {
 	_, data = ts.do(t, admin, http.MethodGet, "/api/admin/groups", nil, nil)
 	var groups []groupView
 	json.Unmarshal(data, &groups)
-	if len(groups) != 1 || len(groups[0].Members) != 1 || groups[0].Members[0] != dev.ID {
+	if len(groups) != 1 || len(groups[0].Members) != 1 || groups[0].Members[0].UserID != dev.ID {
 		t.Fatalf("membership not reflected: %+v", groups)
 	}
 
@@ -93,7 +93,7 @@ func TestRenameGroup(t *testing.T) {
 	if renamed.Name != "platform" {
 		t.Errorf("name = %q, want the trimmed %q", renamed.Name, "platform")
 	}
-	if len(renamed.Members) != 1 || renamed.Members[0] != dev.ID {
+	if len(renamed.Members) != 1 || renamed.Members[0].UserID != dev.ID {
 		t.Errorf("rename dropped the membership: %+v", renamed.Members)
 	}
 

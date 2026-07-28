@@ -45,9 +45,13 @@ CREATE TABLE IF NOT EXISTS groups (
     created_at TEXT NOT NULL
 );
 
+-- A moderator manages their own group's membership without being an instance
+-- admin. The role lives on the membership row, so a moderator is always a member
+-- of the group they moderate and there is one place to read either fact from.
 CREATE TABLE IF NOT EXISTS group_members (
     group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role     TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('moderator', 'member')),
     PRIMARY KEY (group_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);

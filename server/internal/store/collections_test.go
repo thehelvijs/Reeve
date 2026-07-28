@@ -70,7 +70,7 @@ func TestCollectionVisibility(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 	member := mustUser(t, db, "member@example.com")
-	if err := db.AddGroupMember(grp.ID, member); err != nil {
+	if err := db.AddGroupMember(grp.ID, member, GroupRoleMember); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestCollectionEditRights(t *testing.T) {
 	stranger := mustUser(t, db, "stranger@example.com")
 	grp, _ := db.CreateGroup("leads")
 	lead := mustUser(t, db, "lead@example.com")
-	if err := db.AddGroupMember(grp.ID, lead); err != nil {
+	if err := db.AddGroupMember(grp.ID, lead, GroupRoleMember); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
 

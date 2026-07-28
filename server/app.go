@@ -162,6 +162,14 @@ func (a *app) routes() http.Handler {
 	mux.Handle("DELETE /api/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionVisibility)))
 	mux.Handle("GET /api/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
 
+	// Groups a moderator manages. The list is scoped to the caller, and every
+	// membership write is gated on admin-or-moderator-of-that-group inside the
+	// handler, which is why these sit outside /api/admin.
+	mux.Handle("GET /api/groups", authed(http.HandlerFunc(a.handleListGroups)))
+	mux.Handle("POST /api/groups/{id}/members", authed(http.HandlerFunc(a.handleAddGroupMemberByEmail)))
+	mux.Handle("PATCH /api/groups/{id}/members/{userId}", authed(http.HandlerFunc(a.handleSetGroupMemberRole)))
+	mux.Handle("DELETE /api/groups/{id}/members/{userId}", authed(http.HandlerFunc(a.handleRemoveGroupMember)))
+
 	// Credentials.
 	// Credentials belong to hosts: anyone signed in can see one exists and ask
 	// for it, only an admin can add, rotate or delete it.
@@ -201,6 +209,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("PATCH /api/admin/users/{id}", admin(http.HandlerFunc(a.handleUpdateUser)))
 	mux.Handle("DELETE /api/admin/users/{id}", admin(http.HandlerFunc(a.handleDeleteUser)))
 	mux.Handle("POST /api/admin/users/{id}/password", admin(http.HandlerFunc(a.handleAdminResetPassword)))
+	mux.Handle("POST /api/admin/users", admin(http.HandlerFunc(a.handleInviteUser)))
 	mux.Handle("GET /api/admin/groups", admin(http.HandlerFunc(a.handleListGroups)))
 	mux.Handle("POST /api/admin/groups", admin(http.HandlerFunc(a.handleCreateGroup)))
 	mux.Handle("PATCH /api/admin/groups/{id}", admin(http.HandlerFunc(a.handleRenameGroup)))

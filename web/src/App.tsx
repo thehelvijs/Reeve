@@ -89,14 +89,9 @@ export default function App() {
             </Protected>
           }
         />
-        <Route
-          path="/admin/groups"
-          element={
-            <Protected admin>
-              <AdminGroups />
-            </Protected>
-          }
-        />
+        {/* Not admin-gated: a group's moderator manages its members from this page,
+            and the API scopes both the list and every write to what they may touch. */}
+        <Route path="/admin/groups" element={<AdminGroups />} />
         <Route
           path="/admin/webhooks"
           element={
