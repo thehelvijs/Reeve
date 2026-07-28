@@ -190,7 +190,12 @@ test('enter picks a city and then saves the host location', async ({ page }) => 
   await page.locator('#host-list a', { hasText: 'enter-key-host' }).first().click();
   await page.getByRole('tab', { name: 'Settings' }).click();
 
-  const city = page.getByPlaceholder('Search a city, e.g. Riga');
+  // The address geocoder is stubbed out: what is under test is Enter, and the
+  // bundled city list answers "Riga" without leaving the machine.
+  await page.route('**/api/admin/geocode**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  );
+  const city = page.getByPlaceholder(/^Search a city or address/);
   await city.fill('Riga');
   await city.press('Enter');
   await expect(city).toHaveValue(/^Riga, /);
