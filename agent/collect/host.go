@@ -45,6 +45,9 @@ func (s *HostSampler) Sample() contracts.HostMetrics {
 	if c, err := os.ReadFile("/proc/net/dev"); err == nil {
 		m.NetRx, m.NetTx = ParseNetDev(string(c))
 	}
+	if c, err := os.ReadFile("/proc/diskstats"); err == nil {
+		m.DiskRead, m.DiskWrite = ParseDiskStats(string(c))
+	}
 	if c, err := os.ReadFile("/proc/loadavg"); err == nil {
 		m.Load1, m.Load5, m.Load15 = ParseLoadAvg(string(c))
 	}
