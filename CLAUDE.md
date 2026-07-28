@@ -69,8 +69,9 @@ and small, one logical change each, and the working tree builds and passes
 tests at every commit. Commit messages are short and imperative. Speculative
 or "might need" features are left out.
 
-Every change ships with tests in the same commit. A bug fix includes the test
-that would have caught it.
+Tests and a browser review come when I ask for them. Until then, ship the
+change. A test the change breaks still gets fixed, and the pre-commit hook
+still has to pass; neither is the same as adding new coverage.
 
 ## UI style
 
@@ -81,9 +82,6 @@ dark text on the accent for contrast), hairline borders and a surface ladder
 instead of drop shadows, Inter with `cv01`/`ss03` features and tight display
 tracking, and a three-radius vocabulary (6 / 12 / 9999px). New components match
 `DESIGN.md`; when it and a request conflict, ask.
-
-Frontend changes are reviewed in a browser, not just by a passing typecheck.
-Screenshot the views you touched, and the ones you did not.
 
 ## Branches & environments
 
