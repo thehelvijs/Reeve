@@ -249,7 +249,7 @@ export function Tabs<T extends string>({
           const selected = t.key === active;
           let tone = 'border-transparent text-muted hover:border-hairline-strong hover:text-content';
           if (selected) {
-            tone = 'border-link font-semibold text-content';
+            tone = 'border-accent font-semibold text-content';
           }
           return (
             <button

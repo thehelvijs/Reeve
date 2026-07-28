@@ -61,9 +61,13 @@ for a dot or a bar, and a soft/line pair for a badge. Read the values from
 `theme/theme.css`; the shape is `--up`, `--up-solid`, `--up-soft`, `--up-line`,
 and the same for `down`, `warn` and `idle`.
 
-Never put the accent on text, a border, a chart line, or a status. It clears no
+Never put the accent on text, a chart line, or a status. It clears no
 text-contrast bar on either canvas, so it disappears. Use `--link` or a status
 tone instead.
+
+One border is the exception: the 2px bar that marks a selected item. The open
+sidebar section and the active tab both use it. Weight 600 and `--text` carry
+that state too, so the bar never has to read as text.
 
 ## Typography
 
@@ -118,8 +122,9 @@ tone instead.
 - **Table:** header row on `--surface-1` in eyebrow type, hairline row dividers,
   `--surface-1` row hover. The first cell links the record by name in `--link`.
   Actions go in a right-aligned last column.
-- **Tabs:** a filter over the list below. The active tab takes a 2px `--link`
-  underline and weight 600. Each tab carries its count.
+- **Tabs:** a filter over the list below. The active tab takes a 2px `--accent`
+  underline and weight 600, the same marker the sidebar gives its open section.
+  Each tab carries its count.
 - **Pill:** a status badge in the soft/line/text steps of its tone.
 - **Input:** `--canvas` fill, `--border-strong` edge, blue focus ring.
 - **Focus state:** always visible, always the blue ring. Never removed.
