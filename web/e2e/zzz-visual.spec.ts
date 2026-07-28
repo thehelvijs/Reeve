@@ -46,15 +46,46 @@ function volatile(page: Page) {
   ];
 }
 
+// A 1x1 mid-grey PNG. Leaflet stretches it over each tile, so the basemap
+// becomes one flat colour the CSS treatment then acts on.
+const GREY_TILE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mNoaGgAAAMEAYF1LgG8AAAAAElFTkSuQmCC',
+  'base64',
+);
+
 // The basemap raster comes from basemaps.cartocdn.com (LeafletMap.tsx), so a
-// snapshot including it would depend on a third party's tiles and on having a
-// network at all. Blocked: what is under test is our own chrome, pins, controls
-// and stacking order over the map, not someone else's imagery.
+// snapshot of the real tiles would depend on a third party's imagery and on
+// having a network at all. A flat stand-in keeps the suite offline and still
+// photographs what is ours: the chrome, pins, controls and stacking order over
+// the map, and the brightness the dark basemap is served through (index.css).
+// Aborting instead would leave an empty box, which no tile treatment can change.
 // A regex, not a glob: the tile URLs are a.basemaps.cartocdn.com through
 // d.basemaps.cartocdn.com, and a `**/host/**` glob needs a slash before the
 // host, so it silently matches nothing.
-async function blockBasemap(page: Page) {
-  await page.route(/basemaps\.cartocdn\.com/, (route) => route.abort());
+async function stubBasemap(page: Page) {
+  await page.route(/basemaps\.cartocdn\.com/, (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: GREY_TILE }),
+  );
+}
+
+// An agent_offline alert fires 60s after a host's last push, one tick of the
+// evaluator later (server/main.go). Hosts the earlier specs pushed for cross that
+// line while this spec runs, and a list that grows a row moves everything below
+// it — which no mask can absorb. So the alerts page is photographed only once
+// every host that ever pushed has its alert, the state the fleet settles into.
+async function alertsSettled(page: Page) {
+  const hosts = await (await page.request.get('/api/hosts')).json();
+  const pushed = hosts.filter((h: { last_seen_at?: string }) => h.last_seen_at).length;
+  await expect
+    .poll(
+      async () => {
+        const events = await (await page.request.get('/api/admin/alerts')).json();
+        const offline = events.filter((e: { type: string }) => e.type === 'agent_offline');
+        return new Set(offline.map((e: { host_id: string }) => e.host_id)).size;
+      },
+      { message: `only some of the ${pushed} pushed hosts are offline yet`, timeout: 90_000 },
+    )
+    .toBe(pushed);
 }
 
 const THEMES = ['dark', 'light'] as const;
@@ -105,7 +136,7 @@ for (const theme of THEMES) {
     test.describe('portal, anonymous', () => {
       test.beforeEach(async ({ context, page }) => {
         await context.clearCookies();
-        await blockBasemap(page);
+        await stubBasemap(page);
         await forceTheme(page, theme);
       });
 
@@ -153,7 +184,7 @@ for (const theme of THEMES) {
     // is nothing to click, and the test would skip while looking like coverage.
     test.describe('portal map, anonymous', () => {
       test.beforeEach(async ({ page, context }) => {
-        await blockBasemap(page);
+        await stubBasemap(page);
         await forceTheme(page, theme);
         // The pin has to come from a host the anonymous portal can see, which is
         // /api/public/hosts — a host with no public tool never appears there, so
@@ -187,7 +218,7 @@ for (const theme of THEMES) {
 
     test.describe('authed app', () => {
       test.beforeEach(async ({ page }) => {
-        await blockBasemap(page);
+        await stubBasemap(page);
         await forceTheme(page, theme);
         await login(page);
       });
@@ -202,7 +233,6 @@ for (const theme of THEMES) {
         'admin-users': '/admin/users',
         'admin-groups': '/admin/groups',
         'admin-webhooks': '/admin/webhooks',
-        'admin-alerts': '/admin/alerts',
         'admin-audit': '/admin/audit',
         'admin-settings': '/admin/settings',
         // /admin/server is deliberately absent: it is a live readout of the machine
@@ -222,6 +252,23 @@ for (const theme of THEMES) {
           });
         });
       }
+
+      // Alerts is snapshotted apart from the loop for the same reason as hosts: its
+      // two lists grow rows as the fleet goes quiet, and a delivery is retried with
+      // backoff, so the attempt count and the last error keep moving.
+      test('admin-alerts', async ({ page }) => {
+        // Waiting out the last host's 60s offline window, plus a 20s tick, is most
+        // of this test; the default 30s budget covers neither.
+        test.setTimeout(150_000);
+        await alertsSettled(page);
+        await page.goto('/admin/alerts');
+        await expect(page.locator('main')).toBeVisible();
+        await settle(page);
+        await expect(page).toHaveScreenshot(`app-admin-alerts-${theme}.png`, {
+          fullPage: true,
+          mask: [...volatile(page), page.getByText(/^attempts: \d+$/), page.locator('.text-down')],
+        });
+      });
 
       // Hosts is snapshotted apart from the loop because the rollup banner above the
       // table grows a paragraph while a rollout is paused, which moves every row
