@@ -37,6 +37,10 @@ export default function Dashboard() {
   const count = (s: ToolStatus) => tools.filter((t) => t.status === s).length;
   const total = tools.length;
   const hostsOnline = hosts.filter((h) => h.status === 'online').length;
+  // A card whose count is zero is telling you nothing is wrong, which is what
+  // the whole section already says by being absent.
+  const hostsQuiet = hosts.length > 0 && hostsOnline < hosts.length;
+  const attention = hostsQuiet || reviewCount > 0 || alertCount > 0;
   const toolsFor = (id: string) => tools.filter((t) => t.host_id === id);
   const unassigned = tools.filter((t) => !t.host_id);
 
@@ -94,33 +98,42 @@ export default function Dashboard() {
             />
           </div>
 
-          <div className="mt-6">
-            <Eyebrow>Needs attention</Eyebrow>
-          </div>
-          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Tile
-              label="Hosts online"
-              value={hosts.length > 0 ? `${hostsOnline} of ${hosts.length}` : '0'}
-              meaning="Sending telemetry right now."
-              tone="muted"
-            />
-            <Tile
-              label="To review"
-              value={reviewCount}
-              meaning="Access requests waiting on you."
-              tone={reviewCount > 0 ? 'link' : 'muted'}
-              to="/requests"
-            />
-            {isAdmin && (
-              <Tile
-                label="Alerts firing"
-                value={alertCount}
-                meaning="Unresolved since they fired."
-                tone={alertCount > 0 ? 'down' : 'muted'}
-                to="/admin/alerts"
-              />
-            )}
-          </div>
+          {attention && (
+            <>
+              <div className="mt-6">
+                <Eyebrow>Needs attention</Eyebrow>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {hostsQuiet && (
+                  <Tile
+                    label="Hosts online"
+                    value={`${hostsOnline} of ${hosts.length}`}
+                    meaning="The rest are not sending telemetry."
+                    tone="warn"
+                    to="/hosts"
+                  />
+                )}
+                {reviewCount > 0 && (
+                  <Tile
+                    label="To review"
+                    value={reviewCount}
+                    meaning="Access requests waiting on you."
+                    tone="link"
+                    to="/requests"
+                  />
+                )}
+                {isAdmin && alertCount > 0 && (
+                  <Tile
+                    label="Alerts firing"
+                    value={alertCount}
+                    meaning="Unresolved since they fired."
+                    tone="down"
+                    to="/admin/alerts"
+                  />
+                )}
+              </div>
+            </>
+          )}
 
           <h2 className="mt-8 text-sm font-semibold text-content">Hosts</h2>
           {hosts.length === 0 ? (
