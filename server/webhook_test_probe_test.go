@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -100,4 +102,54 @@ func mustSeal(t *testing.T, ts *testServer, token string) string {
 		t.Fatal(err)
 	}
 	return sealed
+}
+
+// The probe has to put on the wire exactly what an alert would, or a green Test
+// proves nothing. This drives the real route into a real listener and reads the
+// bytes back, which is the one seam the shaper's own tests do not cross.
+func TestWebhookProbePutsTheShapedBodyOnTheWire(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	type got struct {
+		contentType string
+		auth        string
+		body        string
+	}
+	var seen got
+	sink := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		seen = got{r.Header.Get("Content-Type"), r.Header.Get("Authorization"), string(b)}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer sink.Close()
+
+	saved, err := ts.app.db.CreateWebhook("global", "", sink.URL, fmtDiscord, mustSeal(t, ts, "tok123"), "info")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks/test", map[string]string{"id": saved.ID}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("probe = %d: %s", resp.StatusCode, data)
+	}
+	var out struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+	}
+	json.Unmarshal(data, &out)
+	if !out.OK {
+		t.Fatalf("probe verdict = %+v", out)
+	}
+	var body map[string]string
+	if err := json.Unmarshal([]byte(seen.body), &body); err != nil {
+		t.Fatalf("wire body is not JSON: %v (%s)", err, seen.body)
+	}
+	if body["content"] != "[info] Test delivery from Reeve. This channel works." {
+		t.Errorf("content = %q, want the probe message in discord's field", body["content"])
+	}
+	if len(body) != 1 {
+		t.Errorf("discord got extra fields it rejects: %v", body)
+	}
+	if seen.contentType != "application/json" || seen.auth != "Bearer tok123" {
+		t.Errorf("headers = %q / %q", seen.contentType, seen.auth)
+	}
 }

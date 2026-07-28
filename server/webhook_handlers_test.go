@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,80 @@ func TestWebhookCRUDOverHTTP(t *testing.T) {
 	}
 }
 
+// A channel's receiver and its template are edited after the fact: an operator
+// who learns a Discord hook needed a different shape must not have to delete and
+// recreate it, and losing the stored token to a blank field is the same loss.
+func TestWebhookUpdateEditsFormatAndKeepsTheToken(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "boss@example.com", "password123")
+
+	_, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks", map[string]any{
+		"owner_type": "global", "url": "https://sink.invalid/hook", "format": "auto",
+		"config": map[string]string{"token": "s3cret"}, "min_severity": "info",
+	}, nil)
+	var created channelView
+	json.Unmarshal(data, &created)
+
+	resp, data := ts.do(t, admin, http.MethodPatch, "/api/admin/webhooks/"+created.ID, map[string]any{
+		"url": "https://chat.example.com/hooks/abc", "format": "mattermost",
+		"min_severity": "warning", "enabled": true,
+		"config": map[string]string{"token": ""},
+	}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("patch = %d: %s", resp.StatusCode, data)
+	}
+	var updated channelView
+	json.Unmarshal(data, &updated)
+	if updated.Format != "mattermost" || updated.MinSeverity != "warning" {
+		t.Fatalf("updated = %+v", updated)
+	}
+
+	hook, err := ts.app.db.GetWebhook(created.ID)
+	if err != nil {
+		t.Fatalf("GetWebhook: %v", err)
+	}
+	cfg, err := ts.app.openConfig(hook.Config)
+	if err != nil {
+		t.Fatalf("openConfig: %v", err)
+	}
+	if cfg["token"] != "s3cret" {
+		t.Errorf("token = %q, want the stored one kept by a blank field", cfg["token"])
+	}
+
+	// A custom format with no template is refused here, not at the first delivery.
+	resp, _ = ts.do(t, admin, http.MethodPatch, "/api/admin/webhooks/"+created.ID, map[string]any{
+		"url": hook.URL, "format": "custom", "min_severity": "info", "enabled": true,
+	}, nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("custom with no template = %d, want 400", resp.StatusCode)
+	}
+}
+
+// The form's receiver list and its template variables come from the server, so
+// the two cannot drift from the shaper that reads them.
+func TestChannelFormatsEndpoint(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "boss@example.com", "password123")
+	_, data := ts.do(t, admin, http.MethodGet, "/api/admin/webhook-formats", nil, nil)
+	var out struct {
+		Formats   []string `json:"formats"`
+		Variables []string `json:"variables"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v (%s)", err, data)
+	}
+	if len(out.Formats) != len(channelFormats) || out.Formats[0] != fmtAuto {
+		t.Errorf("formats = %v", out.Formats)
+	}
+	for _, want := range []string{"severity", "message", "tool", "host"} {
+		if !slices.Contains(out.Variables, want) {
+			t.Errorf("variables missing %q: %v", want, out.Variables)
+		}
+	}
+}
+
 func TestWebhookRoutesAreAdminOnly(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)
@@ -67,7 +142,9 @@ func TestWebhookRoutesAreAdminOnly(t *testing.T) {
 	for _, tc := range []struct{ method, path string }{
 		{http.MethodGet, "/api/admin/webhooks"},
 		{http.MethodPost, "/api/admin/webhooks"},
+		{http.MethodPatch, "/api/admin/webhooks/" + hook.ID},
 		{http.MethodDelete, "/api/admin/webhooks/" + hook.ID},
+		{http.MethodGet, "/api/admin/webhook-formats"},
 		{http.MethodGet, "/api/admin/alerts"},
 		{http.MethodGet, "/api/admin/deliveries"},
 	} {

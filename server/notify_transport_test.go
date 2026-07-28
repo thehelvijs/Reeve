@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
@@ -43,57 +42,6 @@ func TestPostWebhookBearerToken(t *testing.T) {
 	}
 	if gotAuth != "Bearer tok123" {
 		t.Errorf("auth = %q, want Bearer tok123", gotAuth)
-	}
-}
-
-// Discord and Slack answer 400 to a body without their own text field, so the
-// URL decides the shape. Every other receiver keeps getting Reeve's JSON.
-func TestChatPayloadShapePerReceiver(t *testing.T) {
-	const alert = `{"event":"fired","severity":"error","tool":"postgres","host":"db-1","message":"cpu 97%"}`
-	const line = "[error] postgres on db-1: cpu 97%"
-	for _, tc := range []struct{ name, url, want string }{
-		{"discord", "https://discord.com/api/webhooks/1/abc", `{"content":"` + line + `"}`},
-		{"discordapp", "https://discordapp.com/api/webhooks/1/abc", `{"content":"` + line + `"}`},
-		{"slack", "https://hooks.slack.com/services/T/B/x", `{"text":"` + line + `"}`},
-		{"google chat", "https://chat.googleapis.com/v1/spaces/x/messages?key=k", `{"text":"` + line + `"}`},
-		{"generic sink", "https://sink.example.com/hook", alert},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := alert
-			if field := chatPayloadField(tc.url); field != "" {
-				got = asChatMessage(field, alert)
-			}
-			if got != tc.want {
-				t.Errorf("body = %s, want %s", got, tc.want)
-			}
-		})
-	}
-}
-
-// A payload with no message must not vanish into an empty chat post, which is
-// exactly the 400 Discord answers with.
-func TestChatMessageKeepsAPayloadWithNoMessage(t *testing.T) {
-	if got := asChatMessage("content", `{"x":1}`); got != `{"content":"{\"x\":1}"}` {
-		t.Errorf("messageless payload = %s, want the raw JSON in the field", got)
-	}
-	if got := asChatMessage("content", "not json"); got != "not json" {
-		t.Errorf("unparseable payload = %s, want it through untouched", got)
-	}
-}
-
-// "webhook returned 400" alone told nobody which field the receiver wanted.
-func TestPostWebhookErrorCarriesResponseBody(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"message":"Cannot send an empty message","code":50006}`))
-	}))
-	defer srv.Close()
-	err := postWebhook(notifyChannel{URL: srv.URL}, `{"x":1}`)
-	if err == nil {
-		t.Fatal("postWebhook on a 400 returned nil, want an error")
-	}
-	if !strings.Contains(err.Error(), "Cannot send an empty message") {
-		t.Errorf("error = %q, want the receiver's reason", err)
 	}
 }
 

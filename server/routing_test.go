@@ -78,7 +78,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 
 	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks", map[string]any{
 		"owner_type":   "global",
-		"format":       "webhook",
+		"format":       "slack",
 		"url":          "http://sink.invalid",
 		"min_severity": "warning",
 		"config":       map[string]string{"token": "supersecret"},
@@ -88,7 +88,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 	}
 
 	var raw string
-	if err := ts.app.db.SQL().QueryRow(`SELECT config FROM webhooks WHERE format='webhook'`).Scan(&raw); err != nil {
+	if err := ts.app.db.SQL().QueryRow(`SELECT config FROM webhooks WHERE format='slack'`).Scan(&raw); err != nil {
 		t.Fatalf("read raw config: %v", err)
 	}
 	if raw == "" || raw == "{}" {
@@ -105,7 +105,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 	}
 	var found bool
 	for _, v := range views {
-		if v.Format == "webhook" {
+		if v.Format == "slack" {
 			found = true
 			if v.Config["token"] == "supersecret" {
 				t.Fatalf("token leaked on read: %v", v.Config)
@@ -116,7 +116,7 @@ func TestChannelConfigEncryptedAndRedacted(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("webhook channel not in list: %s", data)
+		t.Fatalf("slack channel not in list: %s", data)
 	}
 }
 
@@ -143,7 +143,7 @@ func TestCreateRejectsMissingURLForHTTPKind(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	resp, _ := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks",
-		map[string]any{"owner_type": "global", "format": "webhook", "url": ""}, nil)
+		map[string]any{"owner_type": "global", "format": "slack", "url": ""}, nil)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("missing url status = %d, want 400", resp.StatusCode)
 	}

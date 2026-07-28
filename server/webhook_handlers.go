@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -9,16 +10,11 @@ import (
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
-// channelKinds is the single source of the allowed channel-kind vocabulary,
-// shared by create-validation and the notifier registry.
-var channelKinds = map[string]bool{
-	"generic": true, "webhook": true,
-}
-
 var channelSeverities = map[string]bool{"info": true, "warning": true, "error": true}
 
 // channelView is the API shape of a channel: config secrets are redacted and it
-// carries the min_severity gate.
+// carries the min_severity gate. Detected reports which receiver an "auto"
+// channel resolves to, so the form can name it without repeating the sniffing.
 type channelView struct {
 	ID          string            `json:"id"`
 	OwnerType   string            `json:"owner_type"`
@@ -26,8 +22,18 @@ type channelView struct {
 	URL         string            `json:"url"`
 	Enabled     bool              `json:"enabled"`
 	Format      string            `json:"format"`
+	Detected    string            `json:"detected"`
 	Config      map[string]string `json:"config"`
 	MinSeverity string            `json:"min_severity"`
+}
+
+// handleChannelFormats hands the form the receiver vocabulary and the template
+// placeholders, so the two lists cannot drift from the shaper that reads them.
+func (a *app) handleChannelFormats(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"formats":   channelFormats,
+		"variables": templateVariables,
+	})
 }
 
 func (a *app) channelToView(w store.Webhook) channelView {
@@ -35,9 +41,14 @@ func (a *app) channelToView(w store.Webhook) channelView {
 	if err != nil {
 		cfg = map[string]string{}
 	}
+	format := w.Format
+	if !knownFormats[format] {
+		format = fmtAuto
+	}
 	return channelView{
 		ID: w.ID, OwnerType: w.OwnerType, OwnerID: w.OwnerID, URL: w.URL,
-		Enabled: w.Enabled, Format: w.Format, Config: redactConfig(cfg), MinSeverity: w.MinSeverity,
+		Enabled: w.Enabled, Format: format, Detected: detectFormat(w.URL),
+		Config: redactConfig(cfg), MinSeverity: w.MinSeverity,
 	}
 }
 
@@ -52,6 +63,93 @@ func (a *app) handleListWebhooks(w http.ResponseWriter, _ *http.Request) {
 		out = append(out, a.channelToView(h))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// validateChannelShape defaults an empty format to auto and rejects a shape the
+// shaper would only fail on at delivery time: an unknown receiver, a custom
+// format with no template, or a template that is not JSON once its placeholders
+// are filled in. A rejected save is worth more than a dead delivery an hour later.
+func validateChannelShape(format *string, cfg map[string]string) error {
+	if *format == "" {
+		*format = fmtAuto
+	}
+	if !knownFormats[*format] {
+		return errors.New("unknown channel format")
+	}
+	tmpl := strings.TrimSpace(cfg["template"])
+	if *format != fmtCustom {
+		return nil
+	}
+	if tmpl == "" {
+		return errors.New("a custom format needs a template")
+	}
+	probe := make(map[string]string, len(templateVariables))
+	for _, v := range templateVariables {
+		probe[v] = "x"
+	}
+	if !json.Valid([]byte(renderTemplate(tmpl, probe))) {
+		return errors.New("the template is not valid JSON once its variables are filled in")
+	}
+	return nil
+}
+
+// handleUpdateWebhook edits a saved channel in place. A blank token leaves the
+// stored one alone, because every read redacts it and the form never holds it.
+func (a *app) handleUpdateWebhook(w http.ResponseWriter, r *http.Request) {
+	hook, err := a.db.GetWebhook(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "webhook not found")
+		return
+	}
+	cfg, err := a.openConfig(hook.Config)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "channel config unreadable")
+		return
+	}
+	in := struct {
+		URL         string            `json:"url"`
+		Format      string            `json:"format"`
+		Config      map[string]string `json:"config"`
+		MinSeverity string            `json:"min_severity"`
+		Enabled     bool              `json:"enabled"`
+	}{URL: hook.URL, Format: hook.Format, MinSeverity: hook.MinSeverity, Enabled: hook.Enabled}
+	if err := decodeJSON(r, &in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	for k, v := range in.Config {
+		if secretConfigKeys[k] && v == "" {
+			continue
+		}
+		cfg[k] = v
+	}
+	if err := validateChannelShape(&in.Format, cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_format", err.Error())
+		return
+	}
+	if !strings.HasPrefix(in.URL, "http://") && !strings.HasPrefix(in.URL, "https://") {
+		writeError(w, http.StatusBadRequest, "invalid_url", "url must be http(s)")
+		return
+	}
+	if !channelSeverities[in.MinSeverity] {
+		writeError(w, http.StatusBadRequest, "invalid_severity", "min_severity must be info, warning, or error")
+		return
+	}
+	sealed, err := a.sealConfig(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt channel config")
+		return
+	}
+	if err := a.db.UpdateWebhook(hook.ID, in.URL, in.Format, sealed, in.MinSeverity, in.Enabled); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not update webhook")
+		return
+	}
+	updated, err := a.db.GetWebhook(hook.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not read the webhook back")
+		return
+	}
+	writeJSON(w, http.StatusOK, a.channelToView(updated))
 }
 
 func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
@@ -73,11 +171,8 @@ func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_owner", "owner_type must be tool, group, or global")
 		return
 	}
-	if in.Format == "" {
-		in.Format = "generic"
-	}
-	if !channelKinds[in.Format] {
-		writeError(w, http.StatusBadRequest, "invalid_format", "unknown channel kind")
+	if err := validateChannelShape(&in.Format, in.Config); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_format", err.Error())
 		return
 	}
 	if !strings.HasPrefix(in.URL, "http://") && !strings.HasPrefix(in.URL, "https://") {
@@ -115,13 +210,14 @@ func (a *app) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		ID     string            `json:"id"`
 		URL    string            `json:"url"`
+		Format string            `json:"format"`
 		Config map[string]string `json:"config"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	ch := notifyChannel{URL: strings.TrimSpace(in.URL), Config: in.Config}
+	ch := notifyChannel{URL: strings.TrimSpace(in.URL), Format: in.Format, Config: in.Config}
 	if in.ID != "" {
 		hook, err := a.db.GetWebhook(in.ID)
 		if err != nil {
@@ -133,7 +229,7 @@ func (a *app) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "internal", "channel config unreadable")
 			return
 		}
-		ch = notifyChannel{URL: hook.URL, Config: cfg}
+		ch = notifyChannel{URL: hook.URL, Format: hook.Format, Config: cfg}
 	}
 	if !strings.HasPrefix(ch.URL, "http://") && !strings.HasPrefix(ch.URL, "https://") {
 		writeError(w, http.StatusBadRequest, "invalid_url", "url must be http(s)")

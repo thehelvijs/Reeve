@@ -236,7 +236,30 @@ export interface Tool {
   thumbnail_url: string;
 }
 
-export type ChannelKind = 'generic' | 'webhook';
+// The receiver a channel posts to. 'auto' reads it off the URL, 'generic' sends
+// Reeve's own JSON, 'custom' renders the channel's template. The server owns this
+// vocabulary; /api/admin/webhook-formats is the list the form offers.
+export type ChannelKind =
+  | 'auto'
+  | 'discord'
+  | 'slack'
+  | 'mattermost'
+  | 'rocketchat'
+  | 'googlechat'
+  | 'teams'
+  | 'teamsflow'
+  | 'webex'
+  | 'ntfy'
+  | 'gotify'
+  | 'telegram'
+  | 'pagerduty'
+  | 'generic'
+  | 'custom';
+
+export interface ChannelFormats {
+  formats: ChannelKind[];
+  variables: string[];
+}
 
 export type Severity = 'info' | 'warning' | 'error';
 
@@ -247,6 +270,7 @@ export interface Webhook {
   url: string;
   enabled: boolean;
   format: ChannelKind;
+  detected: ChannelKind;
   config: Record<string, string>;
   min_severity: Severity;
 }

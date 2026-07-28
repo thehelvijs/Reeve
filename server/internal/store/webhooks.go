@@ -65,6 +65,15 @@ func (db *DB) CreateWebhook(ownerType, ownerID, url, format, config, minSeverity
 	return w, nil
 }
 
+// UpdateWebhook replaces the editable fields of a channel: where it posts, the
+// receiver shape, the severity gate and the sealed config that carries a token
+// and a custom template. config is already sealed by the caller.
+func (db *DB) UpdateWebhook(id, url, format, config, minSeverity string, enabled bool) error {
+	return db.exec1(
+		`UPDATE webhooks SET url=?, format=?, config=?, min_severity=?, enabled=? WHERE id = ?`,
+		url, format, config, minSeverity, boolToInt(enabled), id)
+}
+
 // ListWebhooks returns all channels.
 func (db *DB) ListWebhooks() ([]Webhook, error) {
 	return db.queryWebhooks(`SELECT ` + webhookCols + ` FROM webhooks ORDER BY owner_type, created_at`)

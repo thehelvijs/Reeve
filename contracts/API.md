@@ -333,6 +333,40 @@ host may hold a slot before it's considered stalled and pauses the rollout.
 `PUT` validates both bounds and returns `400 invalid_agent_update` on failure;
 like the other settings sections, omitting `agent_update` leaves it unchanged.
 
+## Notification channels (admin)
+
+`GET/POST /admin/webhooks`, `PATCH/DELETE /admin/webhooks/{id}`,
+`POST /admin/webhooks/test`. A channel is a URL, a `format`, a `min_severity`
+gate and an encrypted `config`. Every read redacts `token` and `routing_key`;
+sending either as an empty string on a `PATCH` keeps the stored value.
+
+`format` names the receiver, because each one rejects a body that is not its
+own: Discord needs `content`, Slack needs `text`, Webex needs `markdown`.
+Reeve's own payload reaches none of them, so it is rewritten on the way out.
+
+- `auto` (the default) reads the receiver off the URL. Discord, Slack, Google
+  Chat, Teams (both the retired connector and a Power Automate flow), Webex,
+  ntfy, Telegram, PagerDuty and Opsgenie are recognised.
+- A name overrides the URL: `discord`, `slack`, `mattermost`, `rocketchat`,
+  `googlechat`, `teams`, `teamsflow`, `webex`, `ntfy`, `gotify`, `telegram`,
+  `pagerduty`. Mattermost and Rocket.Chat run on the operator's own
+  domain under a path a private sink could also use, so they are never guessed.
+- `generic` sends Reeve's JSON untouched, which is what a sink of your own wants.
+- `custom` posts `config.template`: JSON with `{{name}}` placeholders, replaced
+  by that field of the payload and escaped for the string they sit in. A name
+  the payload does not carry is left standing, so a typo shows up in the
+  delivery. `GET /admin/webhook-formats` returns the format list and the
+  placeholder names, which is what the form offers.
+
+Two receivers need a value no URL carries: Telegram takes `config.chat_id` and
+PagerDuty takes `config.routing_key`. Without it the delivery fails naming the
+missing field rather than passing on the receiver's own rejection.
+
+`POST /admin/webhooks/test` delivers a probe. A saved channel is named by `id`;
+a channel the form is still holding sends its `url`, `format` and `config`. A
+receiver that answers badly is not an API failure: the response is `200` with
+`{"ok": false, "error": "…"}` carrying the receiver's own words.
+
 ## Other endpoints (used by the web UI)
 
 - Auth: `POST /auth/signup`, `/auth/login`, `/auth/logout`; `GET /me`.

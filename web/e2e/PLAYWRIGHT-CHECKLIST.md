@@ -61,6 +61,15 @@ instance may already hold.
 ## Forms
 - [ ] Add-for-monitoring page: endpoint toggle (host&port / URL), save → tool detail.
 
+## Notification channels
+- [ ] Webhooks page: Receiver defaults to "Detect from URL"; a saved row names
+      what the URL resolved to.
+- [ ] Picking Telegram or PagerDuty reveals the id/key field; picking Custom
+      template reveals the body editor and the variable list.
+- [ ] Edit on a row opens the same fields, saves, and keeps the stored token when
+      the token field is left blank.
+- [ ] Test reports the receiver's own words on a rejection, not "failed".
+
 ## Agent updates
 - [ ] Hosts page: no banner above the table unless the rollout is paused.
 - [ ] Hosts row: outdated shows an amber pill, stalled a red one, up-to-date no pill.
