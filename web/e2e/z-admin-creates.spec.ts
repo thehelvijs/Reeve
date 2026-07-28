@@ -15,10 +15,9 @@ async function login(page: import('@playwright/test').Page) {
 test('dashboard shows KPI strip and a per-host card', async ({ page }) => {
   await login(page);
   await page.goto('/dashboard');
-  // The services strip is always there; the attention strip carries only what is
-  // actually wrong. core.spec's host has never pushed, so it is the one card, and
-  // no access request has been raised yet.
-  await expect(page.locator('text=Not monitored')).toBeVisible();
+  // Every card on this page earns its place: core.spec's host has never pushed,
+  // so the hosts card is there, and no access request has been raised yet, so the
+  // review card is not.
   await expect(page.locator('text=Hosts online')).toBeVisible();
   await expect(page.locator('text=To review')).toHaveCount(0);
   // Host card for the host core.spec enrolled (no samples -> placeholder).

@@ -70,33 +70,43 @@ export default function Dashboard() {
 
       {!loading && (
         <>
-          <Eyebrow>Services</Eyebrow>
-          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Tile
-              label="Up"
-              value={total > 0 ? `${count('up')} of ${total}` : '0'}
-              meaning="Running as expected."
-              tone="up"
-            />
-            <Tile
-              label="Down"
-              value={count('down')}
-              meaning="The agent reports it stopped."
-              tone="down"
-            />
-            <Tile
-              label="Unreachable"
-              value={count('agent_offline')}
-              meaning="Host offline, so its last state is unknown."
-              tone="warn"
-            />
-            <Tile
-              label="Not monitored"
-              value={count('unknown')}
-              meaning="No agent source to check."
-              tone="muted"
-            />
-          </div>
+          {total > 0 && (
+            <>
+              <Eyebrow>Services</Eyebrow>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Tile
+                  label="Up"
+                  value={`${count('up')} of ${total}`}
+                  meaning="Running as expected."
+                  tone="up"
+                />
+                {count('down') > 0 && (
+                  <Tile
+                    label="Down"
+                    value={count('down')}
+                    meaning="The agent reports it stopped."
+                    tone="down"
+                  />
+                )}
+                {count('agent_offline') > 0 && (
+                  <Tile
+                    label="Unreachable"
+                    value={count('agent_offline')}
+                    meaning="Host offline, so its last state is unknown."
+                    tone="warn"
+                  />
+                )}
+                {count('unknown') > 0 && (
+                  <Tile
+                    label="Not monitored"
+                    value={count('unknown')}
+                    meaning="No agent source to check."
+                    tone="muted"
+                  />
+                )}
+              </div>
+            </>
+          )}
 
           {attention && (
             <>
