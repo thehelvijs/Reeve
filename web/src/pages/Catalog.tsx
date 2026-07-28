@@ -124,7 +124,7 @@ export default function Catalog() {
               }
             >
               {shown.map((t) => (
-                <Tr key={t.id}>
+                <Tr key={t.id} to={`/services/${t.id}`}>
                   <Td>
                     <div className="flex min-w-0 items-center gap-2.5">
                       <EntityIcon url={t.icon_url} name={t.name} size={28} />

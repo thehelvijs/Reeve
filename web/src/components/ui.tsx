@@ -1,10 +1,12 @@
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
+  MouseEvent,
   ReactNode,
   SelectHTMLAttributes,
   TdHTMLAttributes,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // buttonBox is the geometry every button-shaped control shares: padding, radius,
 // type scale and a border. Exported so a control that cannot be a <button> — a
@@ -211,9 +213,42 @@ export function Th({ children, className = '' }: { children?: ReactNode; classNa
   );
 }
 
-export function Tr({ children, className = '' }: { children: ReactNode; className?: string }) {
+// A row that names a record takes `to`, and then the whole row opens it, not just
+// the link in the first cell. The name stays a real link so the keyboard and
+// middle-click still work; a click that lands on any other control is that
+// control's, which is why the row asks the event where it came from instead of
+// making every button inside stop propagation.
+export function Tr({
+  children,
+  className = '',
+  to,
+}: {
+  children: ReactNode;
+  className?: string;
+  to?: string;
+}) {
+  const navigate = useNavigate();
+  if (!to) {
+    return (
+      <tr className={`border-b border-hairline last:border-0 hover:bg-surface-1 ${className}`}>
+        {children}
+      </tr>
+    );
+  }
+  const open = (e: MouseEvent<HTMLTableRowElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    if ((e.target as HTMLElement).closest('a,button,input,select,textarea,label')) {
+      return;
+    }
+    navigate(to);
+  };
   return (
-    <tr className={`border-b border-hairline last:border-0 hover:bg-surface-1 ${className}`}>
+    <tr
+      onClick={open}
+      className={`cursor-pointer border-b border-hairline last:border-0 hover:bg-surface-1 ${className}`}
+    >
       {children}
     </tr>
   );

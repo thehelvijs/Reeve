@@ -103,7 +103,7 @@ export default function Hosts() {
               }
             >
               {shown.map((h) => (
-                <Tr key={h.id}>
+                <Tr key={h.id} to={`/hosts/${h.id}`}>
                   <Td>
                     <div className="flex min-w-0 items-center gap-2.5">
                       <EntityIcon url={h.icon_url} name={h.name} size={28} />
