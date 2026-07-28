@@ -84,7 +84,10 @@ test('the catalog filters by collection', async ({ page }) => {
   await page.goto('/services');
   // Scoped to main: the sidebar lists every service by name, filter or no filter.
   const list = page.locator('main');
-  await expect(list.getByText('PortalGrafana')).toBeVisible();
+  // The catalog shows a skeleton until /api/tools lands, and its rows are what
+  // the filter is being read from.
+  await expect(list.getByRole('link', { name: /Grafana/ }).first()).toBeVisible();
+  await expect(list.getByText('PortalGrafana').first()).toBeVisible();
   await page.locator('select').first().selectOption({ label: 'Manufacturing' });
   await expect(list.getByText('Grafana').first()).toBeVisible();
   await expect(list.getByText('PortalGrafana')).toHaveCount(0);
