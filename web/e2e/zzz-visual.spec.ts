@@ -285,11 +285,11 @@ for (const theme of THEMES) {
         });
       });
 
-      // Hosts is snapshotted apart from the loop because the rollup banner above the
-      // table grows a paragraph while a rollout is paused, which moves every row
-      // below it. A mask paints over text but cannot absorb a height change, so the
-      // pause is cleared first and the baseline describes the settled fleet. The
-      // paused banner itself is asserted in zz-agent-updates.spec.ts.
+      // Hosts is snapshotted apart from the loop because a paused rollout adds a
+      // banner above the table, which moves every row below it. A mask paints over
+      // text but cannot absorb a height change, so the pause is cleared first and
+      // the baseline describes the settled fleet. The paused banner itself is
+      // asserted in zz-agent-updates.spec.ts.
       test('hosts', async ({ page }) => {
         const res = await page.request.post('/api/admin/agent-updates/resume', { data: {} });
         expect(res.ok(), 'could not clear a paused rollout').toBe(true);

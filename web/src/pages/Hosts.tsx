@@ -217,7 +217,8 @@ function AgentRollup() {
     15000,
   );
   const [error, setError] = useState('');
-  if (!data) {
+  // Only a paused rollout is worth a banner: a fleet-wide version tally told nobody anything the rows do not.
+  if (!data?.paused) {
     return null;
   }
 
@@ -231,26 +232,10 @@ function AgentRollup() {
     }
   };
 
-  const parts: string[] = [`server on ${data.server_version}`];
-  for (const state of ['up_to_date', 'outdated', 'updating', 'stalled', 'disabled', 'unknown'] as const) {
-    const n = data.counts[state];
-    if (n > 0) {
-      parts.push(`${n} ${UPDATE_LABEL[state]}`);
-    }
-  }
-
   return (
     <Card className="mt-4 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted">{parts.join(' · ')}</p>
-        {data.paused && (
-          <Button variant="secondary" onClick={resume}>
-            Resume rollout
-          </Button>
-        )}
-      </div>
-      {data.paused && (
-        <p className="mt-2 text-xs text-muted">
+        <p className="text-xs text-muted">
           Rollout paused:{' '}
           {data.stalled.map((h, i) => (
             <span key={h.id}>
@@ -264,7 +249,10 @@ function AgentRollup() {
           hands the same host the slot again, so if it cannot update at all, open it and set
           Auto-update to Off to take it out of the rollout for good.
         </p>
-      )}
+        <Button variant="secondary" onClick={resume}>
+          Resume rollout
+        </Button>
+      </div>
       <ErrorText>{error}</ErrorText>
     </Card>
   );

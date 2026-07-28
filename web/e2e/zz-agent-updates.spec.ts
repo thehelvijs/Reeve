@@ -99,7 +99,6 @@ test('a current agent reads as up to date and an old one as outdated', async ({ 
   await expect(behindRow.getByText('updating', { exact: true })).toBeVisible();
   await expect(currentRow.getByText('updating', { exact: true })).toHaveCount(0);
   await expect(currentRow.getByText('outdated', { exact: true })).toHaveCount(0);
-  await expect(page.locator('text=server on 9.9.9')).toBeVisible();
 
   // Release the slot the outdated push claimed so it doesn't count against a later test's tighter concurrency cap.
   await push(req, behind.token, current_sum);

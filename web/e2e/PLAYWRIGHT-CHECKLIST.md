@@ -62,7 +62,7 @@ instance may already hold.
 - [ ] Add-for-monitoring page: endpoint toggle (host&port / URL), save → tool detail.
 
 ## Agent updates
-- [ ] Hosts page: rollup line shows the server version and per-state counts.
+- [ ] Hosts page: no banner above the table unless the rollout is paused.
 - [ ] Hosts row: outdated shows an amber pill, stalled a red one, up-to-date no pill.
 - [ ] Host detail → Overview: Agent card shows version, state pill, policy select, Update now.
 - [ ] Host detail → Overview: a vetoed host explains that the machine refuses updates.
