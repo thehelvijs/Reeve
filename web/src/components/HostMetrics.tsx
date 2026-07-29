@@ -77,6 +77,8 @@ function palette(): string[] {
 }
 
 const fmtPct = (v: number) => `${v.toFixed(0)}%`;
+const fmtTemp = (v: number) => `${v.toFixed(0)}°C`;
+const fmtLoad = (v: number) => v.toFixed(2);
 
 // segmented is the shared look of a small set of exclusive choices — a range, a
 // window. Every one of them was its own class string, and two of them had no
@@ -145,8 +147,8 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
   }));
 
   const diskio: Series[] = [
-    { label: 'read', color: PRIMARY, data: perSecond(points.map((p) => p.disk_read), xs) },
-    { label: 'write', color: SECONDARY, data: perSecond(points.map((p) => p.disk_write), xs) },
+    { label: 'Read', color: PRIMARY, data: perSecond(points.map((p) => p.disk_read), xs) },
+    { label: 'Write', color: SECONDARY, data: perSecond(points.map((p) => p.disk_write), xs) },
   ];
 
   const load: Series[] = [
@@ -239,20 +241,20 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
             <MetricCard title="Disk" value={fmtBytes(latest(disk))}>
               <Chart xs={xs} series={disk} fmt={fmtBytes} />
             </MetricCard>
-            <MetricCard title="Network">
-              <Chart xs={xs} series={net} fmt={fmtRate} />
-            </MetricCard>
-            {sensors.length > 0 && (
-              <MetricCard title="Temperature">
-                <Chart xs={xs} series={temp} fmt={(v) => `${v.toFixed(0)}°C`} />
-              </MetricCard>
-            )}
-            <MetricCard title="Disk I/O">
+            <MetricCard title="Disk I/O" value={fmtRate(latestTotal(diskio))}>
               <Chart xs={xs} series={diskio} fmt={fmtRate} />
             </MetricCard>
-            <MetricCard title="Load average">
-              <Chart xs={xs} series={load} fmt={(v) => v.toFixed(2)} />
+            <MetricCard title="Network" value={fmtRate(latestTotal(net))}>
+              <Chart xs={xs} series={net} fmt={fmtRate} />
             </MetricCard>
+            <MetricCard title="Load average" value={fmtLoad(latest(load))}>
+              <Chart xs={xs} series={load} fmt={fmtLoad} />
+            </MetricCard>
+            {sensors.length > 0 && (
+              <MetricCard title="Temperature" value={fmtTemp(latestPeak(temp))}>
+                <Chart xs={xs} series={temp} fmt={fmtTemp} />
+              </MetricCard>
+            )}
             {hasGPU && (
               <MetricCard title="GPU" value={fmtPct(latest(gpuUtil))}>
                 <Chart xs={xs} series={gpuUtil} fmt={fmtPct} />
@@ -264,12 +266,12 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
               </MetricCard>
             )}
             {containerCpu.length > 0 && (
-              <MetricCard title="Container CPU">
+              <MetricCard title="Container CPU" value={fmtPct(latestTotal(containerCpu))}>
                 <Chart xs={xs} series={containerCpu} fmt={fmtPct} />
               </MetricCard>
             )}
             {containerMem.length > 0 && (
-              <MetricCard title="Container memory">
+              <MetricCard title="Container memory" value={fmtBytes(latestTotal(containerMem))}>
                 <Chart xs={xs} series={containerMem} fmt={fmtBytes} />
               </MetricCard>
             )}
@@ -284,17 +286,33 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
   );
 }
 
-// latest is the newest non-null reading of a single-series chart, which is the
-// number an operator actually came for; the plot is the context around it.
-function latest(series: Series[]): number {
-  const data = series[0]?.data ?? [];
+// newest is the last reading a line actually carries. A rate series is null at
+// its first point and across a counter reset, so the end of the array is not
+// necessarily a number.
+function newest(data: (number | null)[]): number | null {
   for (let i = data.length - 1; i >= 0; i -= 1) {
     const v = data[i];
     if (v != null) {
       return v;
     }
   }
-  return 0;
+  return null;
+}
+
+// latest, latestTotal and latestPeak are the three shapes of the current reading
+// DESIGN.md puts in every chart card header. Which one a card takes depends on
+// what its lines mean together: one line speaks for itself, two directions of
+// traffic add up, and a set of thermal probes does not.
+function latest(series: Series[]): number {
+  return newest(series[0]?.data ?? []) ?? 0;
+}
+
+function latestTotal(series: Series[]): number {
+  return series.reduce((sum, s) => sum + (newest(s.data) ?? 0), 0);
+}
+
+function latestPeak(series: Series[]): number {
+  return series.reduce((peak, s) => Math.max(peak, newest(s.data) ?? 0), 0);
 }
 
 // ProcessTable answers two different questions from one card: what is running
