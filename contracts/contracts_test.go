@@ -11,14 +11,14 @@ func TestPushRoundTrip(t *testing.T) {
 	exit := 0
 	last := time.Unix(1_700_000_000, 0).UTC()
 	in := Push{
-		AgentVersion:    "0.1.0",
-		SentAt:          last,
-		Services:        []ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
-		Containers:      []ContainerState{{ID: "abc", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
-		CronJobs:        []CronState{{Name: "backup", Schedule: "0 3 * * *", LastRunAt: &last, LastExit: &exit}},
-		Metrics:         HostMetrics{CPUPct: 12.5, MemUsed: 100, MemTotal: 200, UptimeSecs: 3600, Temps: map[string]float64{"cpu": 45}},
-		ContainerStats:  []ContainerSample{{ContainerID: "abc", CPUPct: 3.2, MemUsed: 50, MemLimit: 100}},
-		LogEvents:       []LogEvent{{Source: "web", Level: "error", Message: "boom", At: last}},
+		AgentVersion:   "0.1.0",
+		SentAt:         last,
+		Services:       []ServiceState{{Unit: "nginx.service", ActiveState: "active", SubState: "running"}},
+		Containers:     []ContainerState{{ID: "abc", Name: "web", Image: "nginx", State: "running", Health: "healthy"}},
+		CronJobs:       []CronState{{Name: "backup", Schedule: "0 3 * * *", LastRunAt: &last, LastExit: &exit}},
+		Metrics:        HostMetrics{CPUPct: 12.5, MemUsed: 100, MemTotal: 200, UptimeSecs: 3600, Temps: map[string]float64{"cpu": 45}},
+		ContainerStats: []ContainerSample{{ContainerID: "abc", CPUPct: 3.2, MemUsed: 50, MemLimit: 100}},
+		LogEvents:      []LogEvent{{Source: "web", Level: "error", Message: "boom", At: last}},
 	}
 
 	raw, err := json.Marshal(in)
