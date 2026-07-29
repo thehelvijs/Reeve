@@ -24,16 +24,16 @@ export const FORMAT_LABEL: Record<string, string> = {
 // makes the operator guess what actually fires. A type with no entry here still
 // renders, under its own name.
 export const EVENT_LABEL: Record<string, string> = {
-  down: 'Service is down',
-  log_error: 'Service is logging errors',
-  agent_offline: 'Agent is offline',
-  cpu_high: 'CPU over its threshold',
-  mem_high: 'Memory over its threshold',
-  disk_high: 'Disk over its threshold',
-  temp_high: 'Temperature over its threshold',
-  load_high: 'Load over its threshold',
-  net_high: 'Network over its threshold',
-  access_request: 'Somebody asks for credentials',
+  down: 'Service down',
+  log_error: 'Service logging errors',
+  agent_offline: 'Agent offline',
+  cpu_high: 'CPU over threshold',
+  mem_high: 'Memory over threshold',
+  disk_high: 'Disk over threshold',
+  temp_high: 'Temperature over threshold',
+  load_high: 'Load over threshold',
+  net_high: 'Network over threshold',
+  access_request: 'Credential request',
 };
 
 // extraConfigKey names the one config field a receiver needs in the body that no

@@ -242,6 +242,9 @@ export default function AdminWebhooks() {
                   <span className="text-xs text-muted">{receiverLabel(h)}</span>
                 </div>
                 {h.url && <p className="mt-1 truncate font-mono text-xs text-muted">{h.url}</p>}
+                <p className="mt-1 truncate text-xs text-muted" title={triggerLine(h)}>
+                  {triggerLine(h)}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <TestResult result={tested[h.id]} />
@@ -297,6 +300,16 @@ function scopeLabel(h: Webhook, targets: ScopeTargets): string {
   }
   const name = targetsFor(h.owner_type, targets).find((t) => t.id === h.owner_id)?.name;
   return `${h.owner_type}: ${name ?? h.owner_id}`;
+}
+
+// triggerLine says what actually reaches this channel. The scope and severity
+// pills say who and how loud; this says what, which is the part an operator
+// otherwise has to open the editor to find out.
+function triggerLine(h: Webhook): string {
+  if (h.events.length === 0) {
+    return 'Triggers on every event.';
+  }
+  return `Triggers on ${h.events.map((e) => EVENT_LABEL[e] ?? e).join(', ')}.`;
 }
 
 // receiverLabel says what the payload will be shaped as. An 'auto' channel names
@@ -418,9 +431,8 @@ function ChannelFields({
 
       {draft.format === 'auto' && (
         <p className="mt-1.5 text-xs text-muted">
-          Read from the URL. Discord, Slack, Google Chat, Teams, Webex, ntfy, Telegram and PagerDuty
-          are recognised. A Mattermost or Rocket.Chat server runs on your own domain, so pick it by
-          name.
+          Detected from the URL. A self-hosted receiver (Mattermost, Rocket.Chat, Gotify) looks like
+          any other sink, so pick it by name.
         </p>
       )}
 
