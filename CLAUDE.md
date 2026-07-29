@@ -31,27 +31,18 @@ them. `make dist` produces the full release set.
   every open. A schema change edits it in place; keep every statement
   idempotent (`IF NOT EXISTS`, `INSERT OR IGNORE`). There are no migrations,
   no version table and no data to migrate.
+- Any change under `agent/` bumps the patch in `VERSION` in the same commit.
+  The agent self-updates, so an operator reading the version has to be able to
+  tell one deployed build from another.
 
 ## Implementation discipline
 
-Work proceeds one task at a time, committed separately. Commits are frequent
-and small, one logical change each, and the working tree builds and passes
-tests at every commit. Commit messages are short and imperative. Speculative
-or "might need" features are left out.
-
-Tests and a browser review come when I ask for them. Until then, ship the
-change. A test the change breaks still gets fixed, and the pre-commit hook
-still has to pass; neither is the same as adding new coverage.
+The working tree builds and passes tests at every commit.
 
 ## UI style
 
-All user-facing UI follows `DESIGN.md` — a Linear-inspired system: dark-first
-near-black canvas (never pure black), a single acid-lime accent (`#e4f222`)
-used only for the brand, focus rings, and one primary action per view (with
-dark text on the accent for contrast), hairline borders and a surface ladder
-instead of drop shadows, Inter with `cv01`/`ss03` features and tight display
-tracking, and a three-radius vocabulary (6 / 12 / 9999px). New components match
-`DESIGN.md`; when it and a request conflict, ask.
+All user-facing UI follows `DESIGN.md`. New components match it; when it and a
+request conflict, ask.
 
 ## Branches & environments
 
