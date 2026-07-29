@@ -56,6 +56,11 @@ type app struct {
 	send         func(notifyChannel, string) error
 	throttleOnce sync.Once
 	throttle     *auth.Throttle
+	// seenOrigin is the last address an admin's browser reached this server on,
+	// so an alert sent by the dispatcher can link back without a request to read
+	// the host from. REEVE_PUBLIC_URL wins when set; this is what makes the link
+	// work on a LAN where nobody configured one.
+	seenOrigin atomic.Value
 	// googleEndpoints redirects the OAuth legs at a stub provider in tests.
 	googleEndpoints *oauthEndpoints
 }
@@ -261,5 +266,5 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/admin/agent-updates", admin(http.HandlerFunc(a.handleGetAgentUpdates)))
 	mux.Handle("POST /api/admin/agent-updates/resume", admin(http.HandlerFunc(a.handleResumeAgentUpdates)))
 
-	return securityHeaders(a.resolvePrincipal(a.requireSameOrigin(a.logRequests(gzipResponses(mux)))))
+	return securityHeaders(a.resolvePrincipal(a.rememberOrigin(a.requireSameOrigin(a.logRequests(gzipResponses(mux))))))
 }

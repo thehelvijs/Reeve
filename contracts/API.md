@@ -384,9 +384,12 @@ Every shaped message carries the severity and the subject in the emphasis its
 receiver understands: markdown for Discord, Mattermost, Rocket.Chat, Teams and
 Webex, its own syntax for Slack and Google Chat, and no emphasis for ntfy,
 Gotify and Telegram. Below the message is a link to the page that shows what
-fired, PagerDuty gets it in `links` instead. The link needs `REEVE_PUBLIC_URL`,
-because a link to localhost helps nobody reading it in Discord. Without it the
-message carries no link.
+fired, PagerDuty gets it in `links` instead. An alert is sent by a background
+tick with no request to read the host from, so the link comes from
+`REEVE_PUBLIC_URL` when it is set, and otherwise from the last address an admin
+reached the UI on. A loopback address never counts, because a link to localhost
+helps nobody reading it in Discord. Until one of the two is known the message
+carries no link.
 
 Two receivers need a value no URL carries: Telegram takes `config.chat_id` and
 PagerDuty takes `config.routing_key`. Without it the delivery fails naming the

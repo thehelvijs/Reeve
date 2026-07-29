@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"github.com/thehelvijs/Reeve/server/internal/store"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 // The probe answers 200 with a verdict rather than an HTTP error, because a

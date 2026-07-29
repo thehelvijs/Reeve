@@ -38,11 +38,30 @@ func (a *app) baseURL(r *http.Request) string {
 	if a.cfg.PublicURL != "" {
 		return strings.TrimSuffix(a.cfg.PublicURL, "/")
 	}
+	return requestOrigin(r)
+}
+
+// requestOrigin is the address this request was sent to, as the caller spelled
+// it. That is the address that host can reach the server on, which is why it is
+// the default when nobody configured a public URL.
+func requestOrigin(r *http.Request) string {
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+// publicBase is the origin for work with no request of its own to read, such as
+// an alert the dispatcher sends: the configured public URL, else the last
+// address an admin's browser actually reached this server on. Empty until one of
+// the two is known, and a message with no link beats one pointing at localhost.
+func (a *app) publicBase() string {
+	if a.cfg.PublicURL != "" {
+		return strings.TrimSuffix(a.cfg.PublicURL, "/")
+	}
+	origin, _ := a.seenOrigin.Load().(string)
+	return origin
 }
 
 // reachableFromOtherHosts reports whether an agent on another machine could dial

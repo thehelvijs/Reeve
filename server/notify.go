@@ -160,7 +160,7 @@ func (a *app) dispatchDue(now time.Time) int {
 			a.db.MarkDeliveryFailed(d.ID, "channel config unreadable", d.Attempts, now)
 			continue
 		}
-		if err := send(notifyChannel{URL: d.URL, Format: d.Kind, Config: cfg, BaseURL: a.cfg.PublicURL}, d.Payload); err != nil {
+		if err := send(notifyChannel{URL: d.URL, Format: d.Kind, Config: cfg, BaseURL: a.publicBase()}, d.Payload); err != nil {
 			a.db.MarkDeliveryFailed(d.ID, err.Error(), d.Attempts, now)
 			continue
 		}

@@ -156,6 +156,24 @@ func (a *app) resolvePrincipal(next http.Handler) http.Handler {
 	})
 }
 
+// rememberOrigin records the address an admin reached this server on, so the
+// alert dispatcher can link back to it with no request of its own. Only an
+// address another machine could dial is kept: a link to localhost in a Discord
+// message helps nobody. Admin-only because the Host header is the client's to
+// write, and this value ends up in a message operators are meant to trust.
+func (a *app) rememberOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.cfg.PublicURL == "" {
+			if p, ok := rbac.FromContext(r.Context()); ok && p.IsAdmin() {
+				if origin := requestOrigin(r); reachableFromOtherHosts(origin) {
+					a.seenOrigin.Store(origin)
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (a *app) principalFromRequest(r *http.Request) (auth.Principal, bool) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		sess, err := a.db.GetSession(auth.HashToken(c.Value))

@@ -2,11 +2,14 @@ package main
 
 import (
 	"errors"
-	"github.com/thehelvijs/Reeve/server/internal/store"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/thehelvijs/Reeve/server/internal/auth"
+	"github.com/thehelvijs/Reeve/server/internal/rbac"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 func TestPostWebhookSendsPayload(t *testing.T) {
@@ -120,4 +123,57 @@ func TestDueDeliveriesReturnsKindConfig(t *testing.T) {
 	if cfg["host"] != "mx" || cfg["password"] != "secret" {
 		t.Errorf("decrypted config = %v", cfg)
 	}
+}
+
+// An alert fires from a ticker, so there is no request to read the host from,
+// and REEVE_PUBLIC_URL is empty by default. Without a fallback every LAN
+// install would send links-free alerts, so the last address an admin reached
+// the server on is what the dispatcher uses.
+func TestDispatchLinksToTheAddressAdminsUse(t *testing.T) {
+	ts := newTestServer(t)
+	var seen notifyChannel
+	ts.app.send = func(ch notifyChannel, _ string) error {
+		seen = ch
+		return nil
+	}
+	hook, _ := ts.app.db.CreateWebhook(store.Webhook{
+		OwnerType: "global", URL: "http://sink.invalid", Format: fmtDiscord})
+	now := time.Now().UTC()
+
+	// Nothing seen yet: no link is better than one nobody can follow.
+	ts.app.db.EnqueueDelivery(hook.ID, `{"severity":"error","message":"boom"}`, now)
+	ts.app.dispatchDue(now)
+	if seen.BaseURL != "" {
+		t.Errorf("base url = %q before any admin request, want empty", seen.BaseURL)
+	}
+
+	// A loopback origin is the admin on the box itself; it must not be kept.
+	ts.app.rememberOrigin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).
+		ServeHTTP(httptest.NewRecorder(), adminRequest(t, "http://localhost:8080/api/hosts"))
+	if got := ts.app.publicBase(); got != "" {
+		t.Errorf("base url = %q after a localhost request, want empty", got)
+	}
+
+	ts.app.rememberOrigin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).
+		ServeHTTP(httptest.NewRecorder(), adminRequest(t, "http://192.168.1.50:8080/api/hosts"))
+	ts.app.db.EnqueueDelivery(hook.ID, `{"severity":"error","message":"boom","host_id":"h1"}`, now)
+	ts.app.dispatchDue(now)
+	if seen.BaseURL != "http://192.168.1.50:8080" {
+		t.Errorf("base url = %q, want the LAN address the admin used", seen.BaseURL)
+	}
+
+	// A configured public URL always wins over whatever a browser reported.
+	ts.app.cfg.PublicURL = "https://reeve.example.com/"
+	if got := ts.app.publicBase(); got != "https://reeve.example.com" {
+		t.Errorf("base url = %q, want the configured public url", got)
+	}
+}
+
+// adminRequest is a request already carrying an admin principal, which is the
+// only kind rememberOrigin trusts.
+func adminRequest(t *testing.T, url string) *http.Request {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, url, nil)
+	return r.WithContext(rbac.WithPrincipal(r.Context(),
+		auth.Principal{UserID: "u1", Email: "boss@example.com", Role: store.RoleAdmin}))
 }
