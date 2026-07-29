@@ -361,7 +361,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_container_stats_lookup ON container_stats(
 
 CREATE TABLE IF NOT EXISTS webhooks (
     id           TEXT PRIMARY KEY,
-    owner_type   TEXT NOT NULL CHECK (owner_type IN ('tool', 'group', 'global')),
+    owner_type   TEXT NOT NULL CHECK (owner_type IN ('tool', 'host', 'group', 'global')),
     owner_id     TEXT NOT NULL DEFAULT '',
     url          TEXT NOT NULL,
     format       TEXT NOT NULL DEFAULT 'generic',

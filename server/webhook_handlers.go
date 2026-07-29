@@ -166,9 +166,15 @@ func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch in.OwnerType {
-	case "tool", "group", "global":
+	case "global":
+		in.OwnerID = ""
+	case "tool", "host", "group":
+		if strings.TrimSpace(in.OwnerID) == "" {
+			writeError(w, http.StatusBadRequest, "invalid_owner", "a "+in.OwnerType+" channel needs a "+in.OwnerType+" to watch")
+			return
+		}
 	default:
-		writeError(w, http.StatusBadRequest, "invalid_owner", "owner_type must be tool, group, or global")
+		writeError(w, http.StatusBadRequest, "invalid_owner", "owner_type must be global, tool, host, or group")
 		return
 	}
 	if err := validateChannelShape(&in.Format, in.Config); err != nil {

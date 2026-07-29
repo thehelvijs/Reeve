@@ -223,21 +223,10 @@ func (a *app) enqueue(s alertSubject, phase string, now time.Time) {
 		"message":   s.message,
 		"timestamp": now.UTC().Format(time.RFC3339),
 	})
-	hooks := a.resolveChannels(s, severity)
+	hooks, _ := a.db.ResolveChannels(s.toolID, s.hostID, severity)
 	for _, h := range hooks {
 		a.db.EnqueueDelivery(h.ID, string(generic), now)
 	}
-}
-
-// resolveChannels picks the channels for a subject: tool-scoped for tool alerts,
-// global for host alerts, both gated by severity.
-func (a *app) resolveChannels(s alertSubject, severity string) []store.Webhook {
-	if s.toolID != "" {
-		hooks, _ := a.db.ResolveChannelsForTool(s.toolID, severity)
-		return hooks
-	}
-	hooks, _ := a.db.GlobalChannels(severity)
-	return hooks
 }
 
 // severityOrError defaults an unset severity to error so no alert is silently

@@ -167,11 +167,11 @@ func (a *app) dispatchDue(now time.Time) int {
 	return len(deliveries)
 }
 
-// notifyToolEvent enqueues an informational payload (e.g. access request) to a
-// tool's resolved channels. Informational events route at info severity.
-// Best-effort; delivery is handled by the dispatcher.
-func (a *app) notifyToolEvent(toolID string, payload map[string]any, now time.Time) {
-	hooks, err := a.db.ResolveChannelsForTool(toolID, "info")
+// notifyEvent enqueues an informational payload (e.g. an access request) to the
+// channels that cover the tool or host it is about. Informational events route
+// at info severity. Best-effort; delivery is handled by the dispatcher.
+func (a *app) notifyEvent(toolID, hostID string, payload map[string]any, now time.Time) {
+	hooks, err := a.db.ResolveChannels(toolID, hostID, "info")
 	if err != nil {
 		return
 	}

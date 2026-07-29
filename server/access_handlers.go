@@ -53,9 +53,9 @@ func (a *app) handleCreateAccessRequest(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "internal", "could not create request")
 		return
 	}
-	// In-app notification is the inbox; webhook ownership has no host kind, so
-	// an empty owner resolves the global channels and nothing tool-scoped.
-	a.notifyToolEvent("", map[string]any{
+	// The in-app notification is the inbox; this reaches whoever watches the
+	// host a request is against, plus every global channel.
+	a.notifyEvent("", h.ID, map[string]any{
 		"event": "access_request", "host": h.Name, "host_id": h.ID,
 		"requester": p.Email, "note": req.Note,
 		"timestamp": req.CreatedAt.UTC().Format(time.RFC3339),

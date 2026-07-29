@@ -263,9 +263,12 @@ export interface ChannelFormats {
 
 export type Severity = 'info' | 'warning' | 'error';
 
+// What a channel watches. Global receives everything; the rest add to it.
+export type ChannelScope = 'global' | 'host' | 'tool' | 'group';
+
 export interface Webhook {
   id: string;
-  owner_type: 'tool' | 'group' | 'global';
+  owner_type: ChannelScope;
   owner_id: string;
   url: string;
   enabled: boolean;

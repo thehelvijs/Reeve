@@ -96,67 +96,45 @@ func (db *DB) DeleteWebhook(id string) error {
 	return db.exec1(`DELETE FROM webhooks WHERE id = ?`, id)
 }
 
-// GlobalWebhooks returns enabled global channels.
-func (db *DB) GlobalWebhooks() ([]Webhook, error) {
-	return db.queryWebhooks(`SELECT ` + webhookCols + ` FROM webhooks WHERE owner_type='global' AND enabled=1`)
-}
-
-// GlobalChannels returns enabled global channels that accept the given severity.
-func (db *DB) GlobalChannels(severity string) ([]Webhook, error) {
-	hooks, err := db.GlobalWebhooks()
-	if err != nil {
-		return nil, err
-	}
-	return filterBySeverity(hooks, severity), nil
-}
-
-// ResolveWebhooksForTool returns the channels to notify for a tool alert:
-// tool-specific plus any group (visibility or access) channels; if none, the
-// global channels are the fallback.
+// ResolveChannels returns the enabled channels that cover one event: every
+// global channel, the ones scoped to the tool it names or the host it happened
+// on, and the group ones whose members can reach either. A channel is listed
+// once, because a channel has one scope.
 //
-// Credential access is held against a host, not a tool, so the second branch
-// reaches it through the tool's host: the groups that can get into the machine
-// this tool runs on. A tool with no host matches nothing there.
-func (db *DB) ResolveWebhooksForTool(toolID string) ([]Webhook, error) {
+// Scope is the whole rule. A global channel receives everything, so an operator
+// who wants one receiver for one host adds a host channel and leaves global for
+// the instance as a whole, rather than discovering that the first narrow channel
+// silently took traffic away from a broad one.
+//
+// Credential access is held against a host, not a tool, so a group is reached
+// two ways: the groups a tool is visible to, and the groups that can get into
+// the machine. A tool alert carries its host, so both branches see it.
+func (db *DB) ResolveChannels(toolID, hostID, severity string) ([]Webhook, error) {
 	q := `
 		SELECT ` + webhookCols + ` FROM webhooks
 		WHERE enabled=1 AND (
-			(owner_type='tool' AND owner_id = ?)
+			owner_type='global'
+			OR (owner_type='tool' AND ? <> '' AND owner_id = ?)
+			OR (owner_type='host' AND ? <> '' AND owner_id = ?)
 			OR (owner_type='group' AND owner_id IN (
 				SELECT principal_id FROM tool_visibility WHERE tool_id = ? AND principal_type='group'
 				UNION
 				SELECT principal_id FROM credential_access
-				WHERE principal_type='group'
-				  AND host_id = (SELECT host_id FROM tools WHERE id = ?)
+				WHERE principal_type='group' AND host_id = ?
 			))
-		)`
-	hooks, err := db.queryWebhooks(q, toolID, toolID, toolID)
+		)
+		ORDER BY owner_type, created_at`
+	hooks, err := db.queryWebhooks(q, toolID, toolID, hostID, hostID, toolID, hostID)
 	if err != nil {
 		return nil, err
 	}
-	if len(hooks) == 0 {
-		return db.GlobalWebhooks()
-	}
-	return hooks, nil
-}
-
-// ResolveChannelsForTool is ResolveWebhooksForTool filtered by min_severity.
-func (db *DB) ResolveChannelsForTool(toolID, severity string) ([]Webhook, error) {
-	hooks, err := db.ResolveWebhooksForTool(toolID)
-	if err != nil {
-		return nil, err
-	}
-	return filterBySeverity(hooks, severity), nil
-}
-
-func filterBySeverity(hooks []Webhook, severity string) []Webhook {
 	out := make([]Webhook, 0, len(hooks))
 	for _, h := range hooks {
 		if channelAccepts(h.MinSeverity, severity) {
 			out = append(out, h)
 		}
 	}
-	return out
+	return out, nil
 }
 
 func (db *DB) queryWebhooks(q string, args ...any) ([]Webhook, error) {

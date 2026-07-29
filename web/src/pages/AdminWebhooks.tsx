@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
-import { api, type ChannelFormats, type ChannelKind, type Severity, type Webhook } from '../api';
+import {
+  api,
+  type ChannelFormats,
+  type ChannelKind,
+  type ChannelScope,
+  type Host,
+  type Principals,
+  type Severity,
+  type Tool,
+  type Webhook,
+} from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import { matchesQuery } from '../lib/search';
@@ -10,6 +20,40 @@ const selectClass =
   'rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
 const textareaClass =
   'w-full rounded-button border border-hairline-strong bg-canvas px-3 py-2 font-mono text-xs text-content placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
+
+// SCOPES is what a channel can watch, broadest first. Global receives every
+// event; a narrower channel adds a receiver rather than taking traffic off the
+// broad one, so an operator can page one team about one host and keep the
+// instance-wide feed intact.
+const SCOPES: { value: ChannelScope; label: string; noun: string }[] = [
+  { value: 'global', label: 'Everything', noun: '' },
+  { value: 'host', label: 'One host', noun: 'Host' },
+  { value: 'tool', label: 'One service', noun: 'Service' },
+  { value: 'group', label: 'What a group can reach', noun: 'Group' },
+];
+
+// scopeTargets is every entity a channel can be pointed at, so the form offers
+// names instead of asking an operator to paste an id.
+interface ScopeTargets {
+  hosts: Host[];
+  tools: Tool[];
+  groups: { id: string; name: string }[];
+}
+
+const NO_TARGETS: ScopeTargets = { hosts: [], tools: [], groups: [] };
+
+function targetsFor(scope: ChannelScope, t: ScopeTargets): { id: string; name: string }[] {
+  if (scope === 'host') {
+    return t.hosts;
+  }
+  if (scope === 'tool') {
+    return t.tools;
+  }
+  if (scope === 'group') {
+    return t.groups;
+  }
+  return [];
+}
 
 // A channel as the form holds it: the shape both the create card and a row's
 // editor post, so the two cannot drift.
@@ -62,7 +106,8 @@ function draftConfig(d: Draft): Record<string, string> {
 export default function AdminWebhooks() {
   const [hooks, setHooks] = useState<Webhook[]>([]);
   const [meta, setMeta] = useState<ChannelFormats | null>(null);
-  const [ownerType, setOwnerType] = useState<'global' | 'tool' | 'group'>('global');
+  const [targets, setTargets] = useState<ScopeTargets>(NO_TARGETS);
+  const [ownerType, setOwnerType] = useState<ChannelScope>('global');
   const [ownerId, setOwnerId] = useState('');
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [error, setError] = useState('');
@@ -98,6 +143,13 @@ export default function AdminWebhooks() {
   useEffect(() => {
     load();
     api.get<ChannelFormats>('/api/admin/webhook-formats').then(setMeta).catch(() => setMeta(null));
+    Promise.all([
+      api.get<Host[]>('/api/hosts').catch(() => []),
+      api.get<Tool[]>('/api/tools').catch(() => []),
+      api.get<Principals>('/api/principals').catch(() => null),
+    ]).then(([hosts, tools, principals]) =>
+      setTargets({ hosts: hosts ?? [], tools: tools ?? [], groups: principals?.groups ?? [] }),
+    );
   }, []);
 
   const create = async () => {
@@ -138,20 +190,15 @@ export default function AdminWebhooks() {
 
       <Card className="mt-6 p-5">
         <Form onSubmit={create}>
-          <div className="flex flex-wrap items-end gap-3">
-            <Field label="Scope">
-              <select value={ownerType} onChange={(e) => setOwnerType(e.target.value as typeof ownerType)} className={selectClass}>
-                <option value="global">global</option>
-                <option value="tool">tool</option>
-                <option value="group">group</option>
-              </select>
-            </Field>
-            {ownerType !== 'global' && (
-              <Field label={`${ownerType} id`}>
-                <Input value={ownerId} onChange={(e) => setOwnerId(e.target.value)} />
-              </Field>
-            )}
-          </div>
+          <ScopeFields
+            scope={ownerType}
+            ownerId={ownerId}
+            targets={targets}
+            onChange={(scope, id) => {
+              setOwnerType(scope);
+              setOwnerId(id);
+            }}
+          />
 
           <ChannelFields draft={draft} onChange={setDraft} meta={meta} />
 
@@ -167,7 +214,7 @@ export default function AdminWebhooks() {
               >
                 {testing === 'new' ? 'Testing…' : 'Test'}
               </Button>
-              <Button type="submit" disabled={!draft.url.trim()}>
+              <Button type="submit" disabled={!draft.url.trim() || (ownerType !== 'global' && !ownerId)}>
                 Add webhook
               </Button>
             </div>
@@ -186,10 +233,9 @@ export default function AdminWebhooks() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Pill>{h.owner_type}</Pill>
+                  <Pill>{scopeLabel(h, targets)}</Pill>
                   <Pill>{h.min_severity}</Pill>
                   <span className="text-xs text-muted">{receiverLabel(h)}</span>
-                  {h.owner_id && <span className="text-xs text-muted">{h.owner_id}</span>}
                 </div>
                 {h.url && <p className="mt-1 truncate font-mono text-xs text-muted">{h.url}</p>}
               </div>
@@ -238,6 +284,17 @@ export default function AdminWebhooks() {
   );
 }
 
+// scopeLabel names what a channel watches. An id whose entity has since been
+// deleted still reads as the id, because a channel pointing at nothing is worth
+// seeing rather than hiding.
+function scopeLabel(h: Webhook, targets: ScopeTargets): string {
+  if (h.owner_type === 'global') {
+    return 'everything';
+  }
+  const name = targetsFor(h.owner_type, targets).find((t) => t.id === h.owner_id)?.name;
+  return `${h.owner_type}: ${name ?? h.owner_id}`;
+}
+
 // receiverLabel says what the payload will be shaped as. An 'auto' channel names
 // what the URL resolved to, because that is the answer the operator wants.
 function receiverLabel(h: Webhook): string {
@@ -245,6 +302,57 @@ function receiverLabel(h: Webhook): string {
     return `auto · ${FORMAT_LABEL[h.detected] ?? h.detected}`;
   }
   return FORMAT_LABEL[h.format] ?? h.format;
+}
+
+// ScopeFields picks what a channel watches. Only the create card renders it: a
+// channel's scope never changes, because a global hook that should have been a
+// host hook is a different channel, not an edit.
+function ScopeFields({
+  scope,
+  ownerId,
+  targets,
+  onChange,
+}: {
+  scope: ChannelScope;
+  ownerId: string;
+  targets: ScopeTargets;
+  onChange: (scope: ChannelScope, ownerId: string) => void;
+}) {
+  const noun = SCOPES.find((s) => s.value === scope)?.noun ?? '';
+  const options = targetsFor(scope, targets);
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <Field label="Watches">
+        <select
+          value={scope}
+          onChange={(e) => onChange(e.target.value as ChannelScope, '')}
+          className={selectClass}
+        >
+          {SCOPES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {noun && (
+        <Field label={noun}>
+          <select
+            value={ownerId}
+            onChange={(e) => onChange(scope, e.target.value)}
+            className={selectClass}
+          >
+            <option value="">Choose a {noun.toLowerCase()}…</option>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+    </div>
+  );
 }
 
 // ChannelFields is the URL, receiver, severity gate and whatever that receiver

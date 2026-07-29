@@ -1,6 +1,10 @@
 package store
 
-import "testing"
+import (
+	"sort"
+	"strings"
+	"testing"
+)
 
 func TestChannelColumnsRoundTrip(t *testing.T) {
 	db := openTemp(t)
@@ -56,25 +60,92 @@ func TestChannelAcceptsSeverity(t *testing.T) {
 	}
 }
 
-func TestGlobalChannelsFilterBySeverity(t *testing.T) {
+func TestResolveChannelsFiltersBySeverity(t *testing.T) {
 	db := openTemp(t)
 	db.CreateWebhook("global", "", "http://info.invalid", "generic", "", "info")
 	db.CreateWebhook("global", "", "http://warn.invalid", "generic", "", "warning")
 	db.CreateWebhook("global", "", "http://err.invalid", "generic", "", "error")
 
-	warn, err := db.GlobalChannels("warning")
+	warn, err := db.ResolveChannels("", "", "warning")
 	if err != nil {
-		t.Fatalf("GlobalChannels: %v", err)
+		t.Fatalf("ResolveChannels: %v", err)
 	}
 	if len(warn) != 2 {
 		t.Fatalf("warning resolves %d channels, want 2 (info+warning)", len(warn))
 	}
-	all, _ := db.GlobalChannels("error")
+	all, _ := db.ResolveChannels("", "", "error")
 	if len(all) != 3 {
 		t.Fatalf("error resolves %d channels, want 3", len(all))
 	}
-	info, _ := db.GlobalChannels("info")
+	info, _ := db.ResolveChannels("", "", "info")
 	if len(info) != 1 {
 		t.Fatalf("info resolves %d channels, want 1", len(info))
+	}
+}
+
+// Scope is the whole rule: a global channel receives everything, and a narrower
+// channel adds to it rather than taking traffic away from it.
+func TestResolveChannelsByScope(t *testing.T) {
+	db := openTemp(t)
+	host, _ := db.CreateHost("db-1", "linux", "", "hash", 120)
+	other, _ := db.CreateHost("web-1", "linux", "", "hash2", 120)
+	owner, _ := db.CreateUser("owner@example.com", "hash", "admin")
+	tool, err := db.CreateTool(Tool{
+		Name: "postgres", Slug: "postgres", HostID: host.ID, SourceType: "systemd", CreatorID: owner.ID})
+	if err != nil {
+		t.Fatalf("CreateTool: %v", err)
+	}
+	group, _ := db.CreateGroup("dba")
+	if err := db.GrantCredentialAccess(host.ID, "group", group.ID, "admin"); err != nil {
+		t.Fatalf("GrantCredentialAccess: %v", err)
+	}
+
+	db.CreateWebhook("global", "", "http://global.invalid", "generic", "", "info")
+	db.CreateWebhook("tool", tool.ID, "http://tool.invalid", "generic", "", "info")
+	db.CreateWebhook("host", host.ID, "http://host.invalid", "generic", "", "info")
+	db.CreateWebhook("host", other.ID, "http://otherhost.invalid", "generic", "", "info")
+	db.CreateWebhook("group", group.ID, "http://group.invalid", "generic", "", "info")
+
+	for _, tc := range []struct {
+		name           string
+		toolID, hostID string
+		want           []string
+	}{
+		{"a tool alert reaches its tool, its host, the group and global", tool.ID, host.ID,
+			[]string{"http://global.invalid", "http://group.invalid", "http://host.invalid", "http://tool.invalid"}},
+		{"a host alert reaches its host, the group and global", "", host.ID,
+			[]string{"http://global.invalid", "http://group.invalid", "http://host.invalid"}},
+		{"another host reaches only its own and global", "", other.ID,
+			[]string{"http://global.invalid", "http://otherhost.invalid"}},
+		{"an event about nothing in particular reaches global only", "", "",
+			[]string{"http://global.invalid"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hooks, err := db.ResolveChannels(tc.toolID, tc.hostID, "error")
+			if err != nil {
+				t.Fatalf("ResolveChannels: %v", err)
+			}
+			got := make([]string, 0, len(hooks))
+			for _, h := range hooks {
+				got = append(got, h.URL)
+			}
+			sort.Strings(got)
+			if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+				t.Errorf("resolved %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// A disabled channel is off, whatever its scope says.
+func TestResolveChannelsSkipsDisabled(t *testing.T) {
+	db := openTemp(t)
+	ch, _ := db.CreateWebhook("global", "", "http://off.invalid", "generic", "", "info")
+	if err := db.UpdateWebhook(ch.ID, ch.URL, ch.Format, ch.Config, ch.MinSeverity, false); err != nil {
+		t.Fatalf("UpdateWebhook: %v", err)
+	}
+	hooks, _ := db.ResolveChannels("", "", "error")
+	if len(hooks) != 0 {
+		t.Errorf("resolved %d channels, want none", len(hooks))
 	}
 }

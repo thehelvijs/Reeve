@@ -336,9 +336,23 @@ like the other settings sections, omitting `agent_update` leaves it unchanged.
 ## Notification channels (admin)
 
 `GET/POST /admin/webhooks`, `PATCH/DELETE /admin/webhooks/{id}`,
-`POST /admin/webhooks/test`. A channel is a URL, a `format`, a `min_severity`
-gate and an encrypted `config`. Every read redacts `token` and `routing_key`;
-sending either as an empty string on a `PATCH` keeps the stored value.
+`POST /admin/webhooks/test`. A channel is a URL, a scope, a `format`, a
+`min_severity` gate and an encrypted `config`. Every read redacts `token` and
+`routing_key`; sending either as an empty string on a `PATCH` keeps the stored
+value.
+
+`owner_type` is what the channel watches, and `owner_id` names it:
+
+- `global` receives every event. `owner_id` is empty.
+- `host` receives the host's own alerts and the alerts of the services on it.
+- `tool` receives one service's alerts.
+- `group` receives the alerts of the services a group can see, and of the hosts
+  it can get into by credential.
+
+Scope is the whole rule and the scopes add up: an event reaches every channel
+whose scope covers it. A narrow channel never takes traffic off a broad one.
+`POST` rejects a `tool`, `host` or `group` channel with no `owner_id` as
+`400 invalid_owner`. Scope is fixed at creation; `PATCH` does not change it.
 
 `format` names the receiver, because each one rejects a body that is not its
 own: Discord needs `content`, Slack needs `text`, Webex needs `markdown`.
