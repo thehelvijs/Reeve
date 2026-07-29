@@ -1,35 +1,5 @@
 # Project conventions
 
-## Knowledge graph
-
-`graphify-out/graph.json` is a committed map of this repo: 2,649 nodes and
-6,731 edges over the Go, TypeScript, Python, shell and SQL sources, plus the
-design intent extracted from the docs. Query it before you read files.
-
-```sh
-graphify query "how does the agent decide it is out of date?"
-graphify explain "Follow-the-host endpoint resolution"
-graphify path "Say what the state means" "PortalGraph.tsx"
-graphify god-nodes            # the most connected symbols
-graphify affected "Cipher"    # what breaks if this changes
-```
-
-Code edges come from tree-sitter, so they are exact and cost nothing. Doc edges
-carry the *why*: `SECURITY.md` links to `crypto.go`, `DESIGN.md` links to
-`statusTone.ts`. Every edge is tagged `EXTRACTED` or `INFERRED`.
-
-Rebuild after a change that moves code:
-
-```sh
-graphify update .             # re-extract changed files, no LLM
-graphify export html          # regenerate the viewer (gitignored)
-```
-
-`.graphifyignore` keeps the Playwright baselines, `server/webdist` and the test
-artifacts out. `graph.html`, the extraction cache and `cost.json` are
-gitignored; `graph.json` and `GRAPH_REPORT.md` are committed so everyone shares
-one map.
-
 ## Gate
 
 Everything below has to pass before a commit. Install the hook once:
