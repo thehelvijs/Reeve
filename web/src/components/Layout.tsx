@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useMatch } from 'react-router-dom';
 import { api, type Collection, type Group, type Host, type Tool } from '../api';
 import { useAuth } from '../auth';
 import { Button } from './ui';
 import Avatar from './Avatar';
-import SearchBar from './SearchBar';
 import NavIcon, { type IconName } from './NavIcon';
 import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
@@ -36,8 +35,6 @@ const adminNav: { to: string; label: string; icon: IconName }[] = [
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [search, setSearch] = useState('');
   // The same cache keys the pages read, so the sidebar's lists cost no extra
   // request and update with whatever the open page just refreshed.
   const tools = useResource<Tool[]>('/api/tools', () => api.get<Tool[]>('/api/tools')).data ?? [];
@@ -53,8 +50,6 @@ export default function Layout() {
     '/collections': collections.map((c) => ({ to: `/collections/${c.id}`, label: c.name })),
     '/hosts': hosts.map((h) => ({ to: `/hosts/${h.id}`, label: h.name })),
   };
-
-  const submitSearch = () => navigate(`/services?q=${encodeURIComponent(search.trim())}`);
 
   return (
     <div className="flex h-screen">
@@ -73,10 +68,6 @@ export default function Layout() {
             </svg>
             <span className="sr-only">Source on GitHub, AGPL-3.0</span>
           </a>
-        </div>
-
-        <div className="px-3">
-          <SearchBar value={search} onChange={setSearch} onSubmit={submitSearch} placeholder="Search…" />
         </div>
 
         <nav className="mt-4 flex-1 space-y-0.5 overflow-y-auto px-3">
