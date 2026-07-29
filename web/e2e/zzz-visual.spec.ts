@@ -352,21 +352,24 @@ for (const theme of THEMES) {
         });
         expect(push.status(), 'the host would have no inventory to photograph').toBe(200);
 
-        for (const tab of ['overview', 'metrics', 'inventory', 'credentials', 'settings']) {
-          await page.goto(`/hosts/${host.host.id}?tab=${tab}`);
-          await expect(page.locator('main')).toBeVisible();
-          await navReady(page, '/hosts');
-          await settle(page);
-          await expect(page).toHaveScreenshot(`app-host-${tab}-${theme}.png`, {
-            fullPage: true,
-            mask: volatile(page),
-          });
+        // Enrolled for this shot only, and removed even when a shot fails: left
+        // behind it is an extra row in every later spec's fleet, and a host that
+        // pushed but cannot go offline for an hour, which hangs the alert wait.
+        try {
+          for (const tab of ['overview', 'metrics', 'inventory', 'credentials', 'settings']) {
+            await page.goto(`/hosts/${host.host.id}?tab=${tab}`);
+            await expect(page.locator('main')).toBeVisible();
+            await navReady(page, '/hosts');
+            await settle(page);
+            await expect(page).toHaveScreenshot(`app-host-${tab}-${theme}.png`, {
+              fullPage: true,
+              mask: volatile(page),
+            });
+          }
+        } finally {
+          const gone = await page.request.delete(`/api/admin/hosts/${host.host.id}`);
+          expect(gone.ok(), 'the photographed host outlived its test').toBe(true);
         }
-
-        // Enrolled for this shot only. Left behind it would be an extra row in
-        // every later spec's fleet, and one more outdated host in the rollup.
-        const gone = await page.request.delete(`/api/admin/hosts/${host.host.id}`);
-        expect(gone.ok(), 'the photographed host outlived its test').toBe(true);
       });
 
     });
