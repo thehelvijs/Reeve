@@ -13,10 +13,13 @@ import (
 
 // notifyChannel is a transport's view of a channel: its URL, receiver format and
 // decrypted config. The store never sees this; the app decrypts before dispatch.
+// BaseURL is where a reader of the message can reach this Reeve, and is empty
+// when the instance has not been told its own public address.
 type notifyChannel struct {
-	URL    string
-	Format string
-	Config map[string]string
+	URL     string
+	Format  string
+	Config  map[string]string
+	BaseURL string
 }
 
 // secretConfigKeys are redacted from every API read of a channel's config. A
@@ -155,7 +158,7 @@ func (a *app) dispatchDue(now time.Time) int {
 			a.db.MarkDeliveryFailed(d.ID, "channel config unreadable", d.Attempts, now)
 			continue
 		}
-		if err := send(notifyChannel{URL: d.URL, Format: d.Kind, Config: cfg}, d.Payload); err != nil {
+		if err := send(notifyChannel{URL: d.URL, Format: d.Kind, Config: cfg, BaseURL: a.cfg.PublicURL}, d.Payload); err != nil {
 			a.db.MarkDeliveryFailed(d.ID, err.Error(), d.Attempts, now)
 			continue
 		}

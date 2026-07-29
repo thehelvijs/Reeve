@@ -10,18 +10,24 @@ import (
 
 const testAlert = `{"event":"fired","type":"cpu","severity":"error","tool":"postgres","tool_id":"t1","host":"db-1","message":"cpu 97%"}`
 
-const testLine = "[error] postgres on db-1: cpu 97%"
+// The same alert in each receiver's emphasis. A push service renders neither
+// markdown nor Slack's syntax, so it keeps the plain line.
+const (
+	testLine  = "[error] postgres on db-1: cpu 97%"
+	mdLine    = "**[error] postgres on db-1:** cpu 97%"
+	slackLine = "*[error] postgres on db-1:* cpu 97%"
+)
 
 // Every popular receiver 400s on a body without its own field, so the URL alone
 // has to produce the right shape with nothing configured.
 func TestAutoFormatShapesPerReceiver(t *testing.T) {
 	for _, tc := range []struct{ name, url, want string }{
-		{"discord", "https://discord.com/api/webhooks/1/abc", `{"content":"` + testLine + `"}`},
-		{"discordapp", "https://discordapp.com/api/webhooks/1/abc", `{"content":"` + testLine + `"}`},
-		{"slack", "https://hooks.slack.com/services/T/B/x", `{"text":"` + testLine + `"}`},
-		{"google chat", "https://chat.googleapis.com/v1/spaces/s/messages?key=k", `{"text":"` + testLine + `"}`},
-		{"teams connector", "https://acme.webhook.office.com/webhookb2/abc", `{"text":"` + testLine + `"}`},
-		{"webex", "https://webexapis.com/v1/webhooks/incoming/abc", `{"markdown":"` + testLine + `"}`},
+		{"discord", "https://discord.com/api/webhooks/1/abc", `{"content":"` + mdLine + `"}`},
+		{"discordapp", "https://discordapp.com/api/webhooks/1/abc", `{"content":"` + mdLine + `"}`},
+		{"slack", "https://hooks.slack.com/services/T/B/x", `{"text":"` + slackLine + `"}`},
+		{"google chat", "https://chat.googleapis.com/v1/spaces/s/messages?key=k", `{"text":"` + slackLine + `"}`},
+		{"teams connector", "https://acme.webhook.office.com/webhookb2/abc", `{"text":"` + mdLine + `"}`},
+		{"webex", "https://webexapis.com/v1/webhooks/incoming/abc", `{"markdown":"` + mdLine + `"}`},
 		{"gotify", "https://push.example.com/message?token=k", testAlert},
 		{"private sink", "https://sink.example.com/hook", testAlert},
 		{"mattermost is not guessed", "https://chat.example.com/hooks/abc", testAlert},
@@ -45,8 +51,8 @@ func TestAutoFormatShapesPerReceiver(t *testing.T) {
 // wrong, is chosen by name. ntfy is the only one that takes plain text.
 func TestNamedFormatOverridesTheURL(t *testing.T) {
 	for _, tc := range []struct{ format, url, wantBody, wantType string }{
-		{fmtMattermost, "https://chat.example.com/hooks/abc", `{"text":"` + testLine + `"}`, "application/json"},
-		{fmtRocketChat, "https://chat.example.com/hooks/a/b", `{"text":"` + testLine + `"}`, "application/json"},
+		{fmtMattermost, "https://chat.example.com/hooks/abc", `{"text":"` + mdLine + `"}`, "application/json"},
+		{fmtRocketChat, "https://chat.example.com/hooks/a/b", `{"text":"` + mdLine + `"}`, "application/json"},
 		{fmtGeneric, "https://discord.com/api/webhooks/1/abc", testAlert, "application/json"},
 		{fmtNtfy, "https://ntfy.example.com/reeve", testLine, "text/plain"},
 		{fmtGotify, "https://push.example.com/message?token=k", `{"message":"` + testLine + `","title":"Reeve: postgres"}`, "application/json"},
@@ -73,7 +79,7 @@ func TestLegacyFormatFallsBackToTheURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("shapePayload: %v", err)
 	}
-	if out.body != `{"content":"`+testLine+`"}` {
+	if out.body != `{"content":"`+mdLine+`"}` {
 		t.Errorf("body = %s, want the discord shape", out.body)
 	}
 }
@@ -103,15 +109,64 @@ func TestTeamsFlowSendsAnAdaptiveCard(t *testing.T) {
 	if got.Attachments[0].ContentType != "application/vnd.microsoft.card.adaptive" {
 		t.Errorf("content type = %q", got.Attachments[0].ContentType)
 	}
-	if got.Attachments[0].Content.Body[0].Text != testLine {
-		t.Errorf("card text = %q, want %q", got.Attachments[0].Content.Body[0].Text, testLine)
+	if got.Attachments[0].Content.Body[0].Text != mdLine {
+		t.Errorf("card text = %q, want %q", got.Attachments[0].Content.Body[0].Text, mdLine)
 	}
+}
+
+// A chat message that names a failing service is worth little without a way to
+// reach it. Each receiver spells the link its own way, and an instance that does
+// not know its own address must not post one at all.
+func TestLinkBackToReeve(t *testing.T) {
+	const base = "https://reeve.example.com/"
+	for _, tc := range []struct{ name, url, want string }{
+		{"discord takes markdown", "https://discord.com/api/webhooks/1/a",
+			mdLine + "\n[Open in Reeve](https://reeve.example.com/services/t1)"},
+		{"slack takes its own", "https://hooks.slack.com/services/T/B/x",
+			slackLine + "\n<https://reeve.example.com/services/t1|Open in Reeve>"},
+		{"ntfy takes the bare url", "https://ntfy.sh/reeve",
+			testLine + "\nhttps://reeve.example.com/services/t1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := shapePayload(notifyChannel{URL: tc.url, BaseURL: base}, testAlert)
+			if err != nil {
+				t.Fatalf("shapePayload: %v", err)
+			}
+			if !strings.Contains(out.body, tc.want) && !strings.Contains(out.body, jsonEscape(tc.want)) {
+				t.Errorf("body = %s, want it to carry %q", out.body, tc.want)
+			}
+		})
+	}
+
+	out, _ := shapePayload(notifyChannel{URL: "https://discord.com/api/webhooks/1/a"}, testAlert)
+	if strings.Contains(out.body, "Open in Reeve") {
+		t.Errorf("body = %s, want no link when the instance has no public url", out.body)
+	}
+}
+
+// A host alert names no service, so the link has to reach the host page.
+func TestHostAlertLinksToTheHost(t *testing.T) {
+	payload := `{"severity":"error","host":"db-1","host_id":"h9","message":"agent is offline"}`
+	out, err := shapePayload(notifyChannel{
+		URL: "https://discord.com/api/webhooks/1/a", BaseURL: "https://reeve.example.com"}, payload)
+	if err != nil {
+		t.Fatalf("shapePayload: %v", err)
+	}
+	if !strings.Contains(out.body, "https://reeve.example.com/hosts/h9") {
+		t.Errorf("body = %s, want the host page", out.body)
+	}
+}
+
+func jsonEscape(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b[1 : len(b)-1])
 }
 
 // PagerDuty rejects any severity outside its own four words, and a resolve has to
 // arrive as event_action=resolve or the incident it opened never closes.
 func TestPagerDutyEventShape(t *testing.T) {
-	ch := notifyChannel{URL: "https://events.pagerduty.com/v2/enqueue", Config: map[string]string{"routing_key": "R1"}}
+	ch := notifyChannel{URL: "https://events.pagerduty.com/v2/enqueue",
+		Config: map[string]string{"routing_key": "R1"}, BaseURL: "https://reeve.example.com"}
 	out, err := shapePayload(ch, `{"event":"resolved","type":"cpu","severity":"warning","tool_id":"t1","host":"db-1","message":"back under"}`)
 	if err != nil {
 		t.Fatalf("shapePayload: %v", err)
@@ -125,6 +180,7 @@ func TestPagerDutyEventShape(t *testing.T) {
 			Source   string `json:"source"`
 			Severity string `json:"severity"`
 		} `json:"payload"`
+		Links []struct{ Href, Text string } `json:"links"`
 	}
 	if err := json.Unmarshal([]byte(out.body), &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -137,6 +193,9 @@ func TestPagerDutyEventShape(t *testing.T) {
 	}
 	if got.Payload.Severity != "warning" || got.Payload.Source != "db-1" {
 		t.Errorf("payload = %+v", got.Payload)
+	}
+	if len(got.Links) != 1 || got.Links[0].Href != "https://reeve.example.com/services/t1" {
+		t.Errorf("links = %+v, want one pointing at the service", got.Links)
 	}
 }
 

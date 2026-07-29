@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -143,7 +144,7 @@ func TestWebhookProbePutsTheShapedBodyOnTheWire(t *testing.T) {
 	if err := json.Unmarshal([]byte(seen.body), &body); err != nil {
 		t.Fatalf("wire body is not JSON: %v (%s)", err, seen.body)
 	}
-	if body["content"] != "[info] Test delivery from Reeve. This channel works." {
+	if !strings.HasPrefix(body["content"], "**[info]** Test delivery from Reeve. This channel works.") {
 		t.Errorf("content = %q, want the probe message in discord's field", body["content"])
 	}
 	if len(body) != 1 {

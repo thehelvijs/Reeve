@@ -358,6 +358,14 @@ Reeve's own payload reaches none of them, so it is rewritten on the way out.
   delivery. `GET /admin/webhook-formats` returns the format list and the
   placeholder names, which is what the form offers.
 
+Every shaped message carries the severity and the subject in the emphasis its
+receiver understands: markdown for Discord, Mattermost, Rocket.Chat, Teams and
+Webex, its own syntax for Slack and Google Chat, and no emphasis for ntfy,
+Gotify and Telegram. Below the message is a link to the page that shows what
+fired, PagerDuty gets it in `links` instead. The link needs `REEVE_PUBLIC_URL`,
+because a link to localhost helps nobody reading it in Discord. Without it the
+message carries no link.
+
 Two receivers need a value no URL carries: Telegram takes `config.chat_id` and
 PagerDuty takes `config.routing_key`. Without it the delivery fails naming the
 missing field rather than passing on the receiver's own rejection.

@@ -217,7 +217,7 @@ func (a *app) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	ch := notifyChannel{URL: strings.TrimSpace(in.URL), Format: in.Format, Config: in.Config}
+	ch := notifyChannel{URL: strings.TrimSpace(in.URL), Format: in.Format, Config: in.Config, BaseURL: a.baseURL(r)}
 	if in.ID != "" {
 		hook, err := a.db.GetWebhook(in.ID)
 		if err != nil {
@@ -229,7 +229,7 @@ func (a *app) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "internal", "channel config unreadable")
 			return
 		}
-		ch = notifyChannel{URL: hook.URL, Format: hook.Format, Config: cfg}
+		ch = notifyChannel{URL: hook.URL, Format: hook.Format, Config: cfg, BaseURL: a.baseURL(r)}
 	}
 	if !strings.HasPrefix(ch.URL, "http://") && !strings.HasPrefix(ch.URL, "https://") {
 		writeError(w, http.StatusBadRequest, "invalid_url", "url must be http(s)")

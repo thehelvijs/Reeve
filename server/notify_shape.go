@@ -86,6 +86,26 @@ func detectFormat(url string) string {
 	return fmtGeneric
 }
 
+// A line is emphasised and linked the way its receiver spells it. Slack and
+// Google Chat share their own syntax, the chat clients that take markdown share
+// that, and the push services render neither and get the bare URL.
+const (
+	styleText     = "text"
+	styleMarkdown = "markdown"
+	styleSlack    = "slack"
+)
+
+var lineStyles = map[string]string{
+	fmtDiscord:    styleMarkdown,
+	fmtMattermost: styleMarkdown,
+	fmtRocketChat: styleMarkdown,
+	fmtTeams:      styleMarkdown,
+	fmtTeamsFlow:  styleMarkdown,
+	fmtWebex:      styleMarkdown,
+	fmtSlack:      styleSlack,
+	fmtGoogleChat: styleSlack,
+}
+
 // shaped is the body and content type one receiver takes.
 type shaped struct {
 	body        string
@@ -124,7 +144,7 @@ func shapePayload(ch notifyChannel, payload string) (shaped, error) {
 		}
 		return shaped{body: renderTemplate(tmpl, fields), contentType: "application/json"}, nil
 	}
-	line := messageLine(fields, payload)
+	line := messageLine(lineStyles[format], fields, payload, ch.BaseURL)
 
 	switch format {
 	case fmtDiscord:
@@ -150,7 +170,7 @@ func shapePayload(ch notifyChannel, payload string) (shaped, error) {
 		if key == "" {
 			return shaped{}, errors.New("pagerduty needs a routing_key in the channel config")
 		}
-		return jsonBody(pagerDutyEvent(key, fields, line))
+		return jsonBody(pagerDutyEvent(key, fields, line, alertLink(ch.BaseURL, fields)))
 	}
 	return raw, fmt.Errorf("unknown channel format %q", format)
 }
@@ -177,28 +197,86 @@ func payloadFields(payload string) map[string]string {
 	return out
 }
 
-// messageLine renders a payload as one human line: severity, what it is about,
-// then the message the alert already wrote. A payload with no message keeps its
-// whole JSON, so nothing is lost to a receiver that would have taken it.
-func messageLine(fields map[string]string, raw string) string {
+// messageLine renders a payload for one receiver: severity and what it is about
+// in that receiver's emphasis, the message the alert already wrote, then a link
+// back to Reeve on its own line. A payload with no message keeps its whole JSON,
+// so nothing is lost to a receiver that would have taken it.
+func messageLine(style string, fields map[string]string, raw, base string) string {
 	if fields["message"] == "" {
 		return raw
 	}
+	line := fields["message"]
+	if head := messageHead(fields); head != "" {
+		line = emphasise(style, head) + " " + line
+	}
+	if link := alertLink(base, fields); link != "" {
+		line += "\n" + linkText(style, link)
+	}
+	return line
+}
+
+// messageHead is the severity and the subject an alert is about, the part a
+// chat client shows in bold. The colon belongs to the subject: an alert that
+// names none reads as "[info] the message", not "[info]: the message".
+func messageHead(fields map[string]string) string {
 	var b strings.Builder
 	if sev := fields["severity"]; sev != "" {
-		b.WriteString("[" + sev + "] ")
+		b.WriteString("[" + sev + "]")
 	}
 	tool, host := fields["tool"], fields["host"]
+	var subject string
 	switch {
 	case tool != "" && host != "":
-		b.WriteString(tool + " on " + host + ": ")
+		subject = tool + " on " + host + ":"
 	case tool != "":
-		b.WriteString(tool + ": ")
+		subject = tool + ":"
 	case host != "":
-		b.WriteString(host + ": ")
+		subject = host + ":"
 	}
-	b.WriteString(fields["message"])
+	if subject != "" {
+		if b.Len() > 0 {
+			b.WriteString(" ")
+		}
+		b.WriteString(subject)
+	}
 	return b.String()
+}
+
+func emphasise(style, text string) string {
+	switch style {
+	case styleMarkdown:
+		return "**" + text + "**"
+	case styleSlack:
+		return "*" + text + "*"
+	}
+	return text
+}
+
+func linkText(style, link string) string {
+	switch style {
+	case styleMarkdown:
+		return "[Open in Reeve](" + link + ")"
+	case styleSlack:
+		return "<" + link + "|Open in Reeve>"
+	}
+	return link
+}
+
+// alertLink points at the page that shows what fired: the service when the
+// alert names one, otherwise the host. It stays empty until REEVE_PUBLIC_URL is
+// set, because a link to localhost helps nobody reading it in Discord.
+func alertLink(base string, fields map[string]string) string {
+	base = strings.TrimSuffix(base, "/")
+	if base == "" {
+		return ""
+	}
+	if id := fields["tool_id"]; id != "" {
+		return base + "/services/" + id
+	}
+	if id := fields["host_id"]; id != "" {
+		return base + "/hosts/" + id
+	}
+	return base
 }
 
 func gotifyTitle(fields map[string]string) string {
@@ -231,7 +309,7 @@ var pagerDutySeverities = map[string]string{"info": "info", "warning": "warning"
 
 // pagerDutyEvent builds an Events API v2 payload. dedup_key on the alert subject
 // is what lets a resolve close the incident the fire opened.
-func pagerDutyEvent(routingKey string, fields map[string]string, line string) map[string]any {
+func pagerDutyEvent(routingKey string, fields map[string]string, line, link string) map[string]any {
 	severity := pagerDutySeverities[fields["severity"]]
 	if severity == "" {
 		severity = "error"
@@ -255,6 +333,9 @@ func pagerDutyEvent(routingKey string, fields map[string]string, line string) ma
 	}
 	if key := fields["tool_id"] + fields["type"]; key != "" {
 		ev["dedup_key"] = key
+	}
+	if link != "" {
+		ev["links"] = []map[string]string{{"href": link, "text": "Open in Reeve"}}
 	}
 	return ev
 }
