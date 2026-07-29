@@ -21,8 +21,8 @@ services:
       # the host network a loopback bind would need REEVE_BIND set before the
       # first `up -d` is useful at all. Narrow it with REEVE_BIND=192.168.1.10.
       # The port is overridable so a second instance can run alongside one that
-      # already holds 8080.
-      REEVE_ADDR: ${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-8080}
+      # already holds 7338.
+      REEVE_ADDR: ${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-7338}
       # Required. Generate once: openssl rand -base64 32
       REEVE_MASTER_KEY: ${REEVE_MASTER_KEY:?set REEVE_MASTER_KEY in .env}
       # The URL people reach this server on. Optional: it defaults to the host

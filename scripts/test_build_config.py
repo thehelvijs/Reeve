@@ -97,7 +97,7 @@ COMPOSE = ROOT / "deploy" / "docker-compose.yml"
 def test_compose_bind_is_overridable():
     server = yaml.safe_load(COMPOSE.read_text())["services"]["server"]
     assert "ports" not in server
-    assert server["environment"]["REEVE_ADDR"] == "${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-8080}"
+    assert server["environment"]["REEVE_ADDR"] == "${REEVE_BIND:-0.0.0.0}:${REEVE_PORT:-7338}"
 
 
 # mDNS is why the server is not behind a bridge: multicast never leaves it.

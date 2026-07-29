@@ -121,7 +121,7 @@ test('a restricted tool 404s for an anonymous short link', async ({ page, browse
   });
 
   const anon = await browser.newContext();
-  const res = await anon.request.get(`http://127.0.0.1:5173/go/${tool.slug}`, { maxRedirects: 0 });
+  const res = await anon.request.get(`http://127.0.0.1:7339/go/${tool.slug}`, { maxRedirects: 0 });
   expect(res.status()).toBe(404);
   await anon.close();
 });

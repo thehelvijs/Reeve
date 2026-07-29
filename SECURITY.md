@@ -105,7 +105,7 @@ anywhere untrusted:
   instance is reachable from the LAN the moment it starts. Compose runs the
   server on the host network, so unlike a published container port — which
   Docker's NAT rules reach ahead of `ufw` — a host firewall rule does gate it:
-  `ufw allow from 192.168.1.0/24 to any port 8080 proto tcp`.
+  `ufw allow from 192.168.1.0/24 to any port 7338 proto tcp`.
 
 The agent runs as root, because reading systemd, Docker, cron, and journald
 requires it. It only ever makes outbound connections to the server URL it was

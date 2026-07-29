@@ -47,7 +47,7 @@ func run() error {
 	flag.Parse()
 
 	cfg := config{
-		Addr:         envOr("REEVE_ADDR", "127.0.0.1:8080"),
+		Addr:         envOr("REEVE_ADDR", "127.0.0.1:7338"),
 		PublicURL:    envOr("REEVE_PUBLIC_URL", ""),
 		DBPath:       envOr("REEVE_DB", "reeve.db"),
 		AvatarDir:    os.Getenv("REEVE_AVATAR_DIR"),

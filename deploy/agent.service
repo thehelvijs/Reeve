@@ -14,7 +14,7 @@ User=root
 # Pinned so a writable directory earlier on an inherited PATH cannot decide
 # which systemctl, docker or journalctl this root process runs.
 Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin
-Environment=REEVE_SERVER_URL=http://CHANGE-ME:8080
+Environment=REEVE_SERVER_URL=http://CHANGE-ME:7338
 Environment=REEVE_AGENT_TOKEN=CHANGE-ME
 Environment=REEVE_PUSH_INTERVAL=15s
 ExecStart=/usr/local/bin/reeve-agent

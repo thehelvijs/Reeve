@@ -42,8 +42,8 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up
 
 The container runs on the host network, so that the server can reach machines
 by their `.local` name: mDNS is multicast, and multicast out of a bridge network
-stops at the bridge. It listens on `0.0.0.0:8080` by default; `REEVE_BIND` and
-`REEVE_PORT` narrow that (`REEVE_BIND=192.168.1.10`, `REEVE_PORT=9000`). Docker
+stops at the bridge. It listens on `0.0.0.0:7338` by default; `REEVE_BIND` and
+`REEVE_PORT` narrow that (`REEVE_BIND=192.168.1.10`, `REEVE_PORT=7400`). Docker
 Desktop is the exception — its "host" is a VM, not your machine, so `.local`
 names will not resolve there. The image carries its own `HEALTHCHECK` — the
 binary probes its own `/healthz`, so `docker ps` shows `healthy` without curl in
@@ -91,7 +91,7 @@ database and stages an uploaded one (applied on the next restart). Credential
 ciphertext travels inside it; the master key does not, so store the key
 separately or the backup is unreadable.
 
-**LAN binding.** The compose file binds `0.0.0.0:8080` by default, so a fresh
+**LAN binding.** The compose file binds `0.0.0.0:7338` by default, so a fresh
 instance is reachable from the network immediately — keep it behind your
 firewall. Set `REEVE_BIND` to narrow it to one interface
 (`REEVE_BIND=192.168.1.10`, or `127.0.0.1` when a reverse proxy on the same box
@@ -100,14 +100,14 @@ set `REEVE_TRUST_PROXY=true` so the login throttle and the credential-reveal
 audit see the real client address instead of the proxy's — and only then, since
 the header is forgeable by anyone who can reach the server directly.
 
-**Your firewall applies here.** A published container port (`-p 8080:8080`) is
+**Your firewall applies here.** A published container port (`-p 7338:7338`) is
 reached through Docker's own NAT rules, which sit in front of `ufw` and ignore
 it — a rule you thought was gating the port was not. On the host network the
 server listens directly, so host rules do gate it. Scoping it to the LAN, which
 is who this is for:
 
 ```sh
-sudo ufw allow from 192.168.1.0/24 to any port 8080 proto tcp
+sudo ufw allow from 192.168.1.0/24 to any port 7338 proto tcp
 ```
 
 Anything arriving from outside that range is then dropped, including containers
@@ -148,7 +148,7 @@ Delete, rather than in the list — both end a host, and neither belongs one cli
 away in a row you are scrolling past.
 
 The address the agent is told to push to defaults to whatever host you reached
-the UI on, so opening it at `http://<lan-ip>:8080` needs no configuration. Set
+the UI on, so opening it at `http://<lan-ip>:7338` needs no configuration. Set
 `REEVE_PUBLIC_URL` when that differs from the address agents should use, or when
 you are working over `localhost` — a loopback origin is refused, since an agent
 on another machine cannot dial it.
@@ -164,8 +164,8 @@ the LAN: use the machine's IP, or map the name with
 ### Pulled by the host with curl
 
 ```sh
-curl -fsSL http://<server>:8080/install.sh | sudo \
-  REEVE_SERVER_URL=http://<server>:8080 \
+curl -fsSL http://<server>:7338/install.sh | sudo \
+  REEVE_SERVER_URL=http://<server>:7338 \
   REEVE_AGENT_TOKEN=<token> bash
 ```
 
@@ -235,7 +235,7 @@ unsigned.
 ### Uninstall
 
 ```sh
-curl -fsSL http://<server>:8080/uninstall.sh | sudo bash
+curl -fsSL http://<server>:7338/uninstall.sh | sudo bash
 # or, offline on the host:
 sudo reeve-agent-uninstall
 ```

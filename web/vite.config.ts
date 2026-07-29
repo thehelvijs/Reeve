@@ -6,14 +6,17 @@ const uiVersion = process.env.npm_package_version ?? '0.0.1-alpha';
 
 // UI builds into dist/ and is embedded into the server binary (Milestone 9).
 // In dev, /api is proxied to the Go server so cookies stay same-origin.
-// REEVE_DEV_PORT lets e2e point at a throwaway server without colliding with one already on 8080.
-const devPort = process.env.REEVE_DEV_PORT ?? '8080';
+// REEVE_DEV_PORT lets e2e point at a throwaway server without colliding with one already on 7338.
+const devPort = process.env.REEVE_DEV_PORT ?? '7338';
 
 export default defineConfig({
   plugins: [react()],
   define: { __UI_VERSION__: JSON.stringify(uiVersion) },
   build: { outDir: 'dist' },
   server: {
+    // Off vite's 5173 default, which anything else on the machine may hold.
+    port: 7339,
+    strictPort: true,
     proxy: {
       '/api': `http://127.0.0.1:${devPort}`,
       '/healthz': `http://127.0.0.1:${devPort}`,

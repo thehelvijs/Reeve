@@ -44,7 +44,7 @@ test('both enroll commands are runnable as shown', async ({ page }) => {
   await expect(install).toBeVisible();
   await expect(docker).toBeVisible();
 
-  const origin = 'http://127.0.0.1:8099';
+  const origin = 'http://127.0.0.1:7348';
   await expect(install).toContainText(`curl -fsSL ${origin}/install.sh`);
   for (const block of [install, docker]) {
     await expect(block).toContainText(`REEVE_SERVER_URL=${origin}`);

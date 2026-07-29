@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Reeve agent installer/upgrader. Idempotent: re-run to upgrade in place.
 #
-#   curl -fsSL http://SERVER:8080/install.sh | sudo \
-#     REEVE_SERVER_URL=http://SERVER:8080 REEVE_AGENT_TOKEN=TOKEN bash
+#   curl -fsSL http://SERVER:7338/install.sh | sudo \
+#     REEVE_SERVER_URL=http://SERVER:7338 REEVE_AGENT_TOKEN=TOKEN bash
 #
 # The server's SSH push-install runs this same script with the binary already
 # copied in: REEVE_AGENT_BINARY points at it, REEVE_AGENT_SHA256 is the

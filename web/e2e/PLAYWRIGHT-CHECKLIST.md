@@ -22,8 +22,8 @@ Neither replaces the sweep below. A snapshot cannot tell you the layout is
 `/admin/server` has no baseline on purpose: it renders the live state of the
 machine the suite runs on.
 
-`playwright.config.ts` always runs the e2e backend on `REEVE_DEV_PORT=8099` (it
-sets the variable itself, unconditionally), so it never collides with `8080`,
+`playwright.config.ts` always runs the e2e backend on `REEVE_DEV_PORT=7348` (it
+sets the variable itself, unconditionally), so it never collides with `7338`,
 which `npm run dev` uses by default and which a locally deployed Reeve
 instance may already hold.
 
