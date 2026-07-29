@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 // notifyChannel is a transport's view of a channel: its URL, receiver format and
@@ -168,10 +170,12 @@ func (a *app) dispatchDue(now time.Time) int {
 }
 
 // notifyEvent enqueues an informational payload (e.g. an access request) to the
-// channels that cover the tool or host it is about. Informational events route
-// at info severity. Best-effort; delivery is handled by the dispatcher.
-func (a *app) notifyEvent(toolID, hostID string, payload map[string]any, now time.Time) {
-	hooks, err := a.db.ResolveChannels(toolID, hostID, "info")
+// channels that cover the tool or host it is about and subscribe to its kind.
+// Informational events route at info severity. Best-effort; delivery is handled
+// by the dispatcher.
+func (a *app) notifyEvent(toolID, hostID, event string, payload map[string]any, now time.Time) {
+	hooks, err := a.db.ResolveChannels(store.ChannelSubject{
+		ToolID: toolID, HostID: hostID, Event: event, Severity: "info"})
 	if err != nil {
 		return
 	}

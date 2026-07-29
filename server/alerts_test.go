@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 // enrollHostWin enrolls a host with a custom offline window so a test can hold
@@ -47,7 +48,7 @@ func TestDownAlertDebounceFireResolve(t *testing.T) {
 	down.Services = []contracts.ServiceState{{Unit: "web.service", ActiveState: "failed", SubState: "failed"}}
 	ts.do(t, nil, http.MethodPost, "/api/ingest", down, hdr)
 	createTool(t, ts, admin, toolInput{Name: "Web", HostID: hostID, SourceType: "systemd", SourceRef: "web.service"})
-	ts.app.db.CreateWebhook("global", "", "http://sink.invalid", "", "", "")
+	ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://sink.invalid"})
 
 	t0 := time.Now().UTC()
 	ts.app.evaluateAlerts(t0) // pending
@@ -106,7 +107,7 @@ func TestAgentOfflineAlert(t *testing.T) {
 	_, token := enrollHostWin(t, ts, admin, "h", 60)
 	ts.do(t, nil, http.MethodPost, "/api/ingest", samplePush(),
 		map[string]string{"Authorization": "Bearer " + token})
-	ts.app.db.CreateWebhook("global", "", "http://sink.invalid", "", "", "")
+	ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://sink.invalid"})
 
 	// last_seen is ~now; evaluate far in the future so the host reads offline.
 	base := time.Now().UTC().Add(2 * time.Minute)
@@ -277,14 +278,14 @@ func TestDispatchSendsAndRetries(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer sink.Close()
-	okHook, _ := ts.app.db.CreateWebhook("global", "", sink.URL, "", "", "")
+	okHook, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: sink.URL})
 	ts.app.db.EnqueueDelivery(okHook.ID, `{"x":1}`, time.Now().UTC())
 
 	failSink := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer failSink.Close()
-	badHook, _ := ts.app.db.CreateWebhook("global", "", failSink.URL, "", "", "")
+	badHook, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: failSink.URL})
 	ts.app.db.EnqueueDelivery(badHook.ID, `{"x":2}`, time.Now().UTC())
 
 	n := ts.app.dispatchDue(time.Now().UTC())

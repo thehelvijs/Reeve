@@ -14,7 +14,7 @@ import {
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import { matchesQuery } from '../lib/search';
-import { FORMAT_LABEL, extraConfigKey, formatNeedsTemplate } from '../lib/channelFormat';
+import { EVENT_LABEL, FORMAT_LABEL, extraConfigKey, formatNeedsTemplate } from '../lib/channelFormat';
 
 const selectClass =
   'rounded-button border border-hairline-strong bg-canvas px-3 py-2 text-sm text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link';
@@ -61,6 +61,7 @@ interface Draft {
   url: string;
   format: ChannelKind;
   minSeverity: Severity;
+  events: string[];
   token: string;
   template: string;
   extra: string;
@@ -70,6 +71,7 @@ const EMPTY_DRAFT: Draft = {
   url: '',
   format: 'auto',
   minSeverity: 'info',
+  events: [],
   token: '',
   template: '',
   extra: '',
@@ -80,6 +82,7 @@ function draftFrom(h: Webhook): Draft {
     url: h.url,
     format: h.format,
     minSeverity: h.min_severity,
+    events: h.events ?? [],
     token: '',
     template: h.config.template ?? '',
     extra: h.config[extraConfigKey(h.format) ?? ''] ?? '',
@@ -161,6 +164,7 @@ export default function AdminWebhooks() {
         url: draft.url,
         format: draft.format,
         min_severity: draft.minSeverity,
+        events: draft.events,
         config: draftConfig(draft),
       });
       setDraft(EMPTY_DRAFT);
@@ -406,6 +410,12 @@ function ChannelFields({
         </Field>
       </div>
 
+      <EventFields
+        selected={draft.events}
+        all={meta?.events ?? []}
+        onChange={(events) => onChange({ ...draft, events })}
+      />
+
       {draft.format === 'auto' && (
         <p className="mt-1.5 text-xs text-muted">
           Read from the URL. Discord, Slack, Google Chat, Teams, Webex, ntfy, Telegram and PagerDuty
@@ -474,6 +484,55 @@ function ChannelFields({
   );
 }
 
+// EventFields chooses which events reach a channel. An empty selection means
+// every type, so a channel nobody narrowed keeps receiving a type added after it
+// was saved; that is why every box reads as checked when the list is empty. The
+// last checked box cannot be cleared, because a channel that receives nothing is
+// a channel to disable, not to configure.
+function EventFields({
+  selected,
+  all,
+  onChange,
+}: {
+  selected: string[];
+  all: string[];
+  onChange: (events: string[]) => void;
+}) {
+  if (all.length === 0) {
+    return null;
+  }
+  const checked = (e: string) => selected.length === 0 || selected.includes(e);
+  const count = all.filter(checked).length;
+  const toggle = (e: string) => {
+    const next = all.filter((x) => (x === e ? !checked(x) : checked(x)));
+    onChange(next.length === all.length ? [] : next);
+  };
+  return (
+    <fieldset className="mt-3">
+      <legend className="text-xs font-semibold text-content">Triggers on</legend>
+      <div className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        {all.map((e) => (
+          <label key={e} className="flex items-center gap-2 text-sm text-content">
+            <input
+              type="checkbox"
+              className="size-4 rounded-button accent-link"
+              checked={checked(e)}
+              disabled={checked(e) && count === 1}
+              onChange={() => toggle(e)}
+            />
+            {EVENT_LABEL[e] ?? e}
+          </label>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-muted">
+        {count === all.length
+          ? 'Everything, including any event type added later.'
+          : `${count} of ${all.length} event types.`}
+      </p>
+    </fieldset>
+  );
+}
+
 // ChannelEditor saves a row in place. A channel's scope never changes: a global
 // hook that should have been a tool hook is a different channel, not an edit.
 function ChannelEditor({
@@ -499,6 +558,7 @@ function ChannelEditor({
         url: draft.url,
         format: draft.format,
         min_severity: draft.minSeverity,
+        events: draft.events,
         enabled: hook.enabled,
         config: draftConfig(draft),
       });

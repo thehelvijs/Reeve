@@ -505,7 +505,7 @@ func TestDueDeliveriesResolvesWebhook(t *testing.T) {
 	db := openTemp(t)
 	now := time.Now().UTC()
 
-	wh, err := db.CreateWebhook("global", "", "https://sink.invalid/hook", "", "", "")
+	wh, err := db.CreateWebhook(Webhook{OwnerType: "global", URL: "https://sink.invalid/hook"})
 	if err != nil {
 		t.Fatalf("CreateWebhook: %v", err)
 	}
@@ -528,7 +528,7 @@ func TestDueDeliveriesResolvesWebhook(t *testing.T) {
 func TestDeliveryBackoff(t *testing.T) {
 	db := openTemp(t)
 	now := time.Now().UTC()
-	wh, _ := db.CreateWebhook("global", "", "https://sink.invalid/hook", "", "", "")
+	wh, _ := db.CreateWebhook(Webhook{OwnerType: "global", URL: "https://sink.invalid/hook"})
 	db.EnqueueDelivery(wh.ID, `{"a":1}`, now)
 
 	due, _ := db.DueDeliveries(now.Add(time.Second), 10)

@@ -354,6 +354,14 @@ whose scope covers it. A narrow channel never takes traffic off a broad one.
 `POST` rejects a `tool`, `host` or `group` channel with no `owner_id` as
 `400 invalid_owner`. Scope is fixed at creation; `PATCH` does not change it.
 
+`events` narrows what a channel receives to named types: `down`, `log_error`,
+`agent_offline`, `<metric>_high` for each threshold metric, and
+`access_request`. An empty list is every type, and stays every type when a new
+one is added, so selecting all of them stores as empty. A fire and its matching
+resolve share a type, so a channel gets both or neither. An unknown name is
+`400 invalid_events`. `GET /admin/webhook-formats` returns the list the form
+offers, beside the receiver vocabulary.
+
 `format` names the receiver, because each one rejects a body that is not its
 own: Discord needs `content`, Slack needs `text`, Webex needs `markdown`.
 Reeve's own payload reaches none of them, so it is rewritten on the way out.

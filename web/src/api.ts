@@ -258,6 +258,7 @@ export type ChannelKind =
 
 export interface ChannelFormats {
   formats: ChannelKind[];
+  events: string[];
   variables: string[];
 }
 
@@ -276,6 +277,8 @@ export interface Webhook {
   detected: ChannelKind;
   config: Record<string, string>;
   min_severity: Severity;
+  // The event types this channel wants. Empty is all of them.
+  events: string[];
 }
 
 export interface AlertEvent {

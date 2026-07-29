@@ -135,7 +135,7 @@ func TestWebhookRoutesAreAdminOnly(t *testing.T) {
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
 
-	hook, err := ts.app.db.CreateWebhook("global", "", "https://sink.invalid", "generic", "{}", "info")
+	hook, err := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "https://sink.invalid", Format: "generic", Config: "{}", MinSeverity: "info"})
 	if err != nil {
 		t.Fatalf("create channel: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestAlertEventAndDeliveryLists(t *testing.T) {
 		}
 	}
 
-	hook, err := ts.app.db.CreateWebhook("global", "", "https://sink.invalid", "generic", "{}", "info")
+	hook, err := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "https://sink.invalid", Format: "generic", Config: "{}", MinSeverity: "info"})
 	if err != nil {
 		t.Fatalf("create channel: %v", err)
 	}
@@ -208,5 +208,48 @@ func TestAlertEventAndDeliveryLists(t *testing.T) {
 	json.Unmarshal(data, &deliveries)
 	if len(deliveries) != 1 || deliveries[0].WebhookID != hook.ID {
 		t.Errorf("deliveries = %s", data)
+	}
+}
+
+// The event list is the trigger list the form draws, so a channel has to keep
+// exactly what was chosen. Choosing all of them stores as empty, which is what
+// keeps a channel receiving a type invented after it was saved.
+func TestWebhookEventSubscriptionRoundTrips(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.client(t)
+	signup(t, ts, admin, "boss@example.com", "password123")
+
+	create := func(events []string) (int, channelView) {
+		resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/webhooks", map[string]any{
+			"owner_type": "global", "url": "https://sink.invalid/hook", "events": events,
+		}, nil)
+		var out channelView
+		json.Unmarshal(data, &out)
+		return resp.StatusCode, out
+	}
+
+	code, narrow := create([]string{"down", "agent_offline"})
+	if code != http.StatusCreated {
+		t.Fatalf("create = %d", code)
+	}
+	if !slices.Equal(narrow.Events, []string{"down", "agent_offline"}) {
+		t.Errorf("events = %v, want the two chosen", narrow.Events)
+	}
+
+	if code, all := create(channelEvents); code != http.StatusCreated || len(all.Events) != 0 {
+		t.Errorf("every type = %d %v, want it stored as empty", code, all.Events)
+	}
+	if code, _ := create([]string{"pigeon_high"}); code != http.StatusBadRequest {
+		t.Errorf("unknown event = %d, want 400", code)
+	}
+
+	_, data := ts.do(t, admin, http.MethodPatch, "/api/admin/webhooks/"+narrow.ID, map[string]any{
+		"url": narrow.URL, "format": narrow.Format, "min_severity": narrow.MinSeverity,
+		"events": []string{"cpu_high"}, "enabled": true,
+	}, nil)
+	var edited channelView
+	json.Unmarshal(data, &edited)
+	if !slices.Equal(edited.Events, []string{"cpu_high"}) {
+		t.Errorf("edited events = %v", edited.Events)
 	}
 }

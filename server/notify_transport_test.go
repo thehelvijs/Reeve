@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -58,9 +59,9 @@ func TestDispatchMarksSentAndFailed(t *testing.T) {
 		return nil
 	}
 
-	okCh, _ := ts.app.db.CreateWebhook("global", "", "http://ok.invalid", "webhook", "{}", "info")
+	okCh, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://ok.invalid", Format: "webhook", Config: "{}", MinSeverity: "info"})
 	ts.app.db.EnqueueDelivery(okCh.ID, `{"x":1}`, time.Now().UTC())
-	failCh, _ := ts.app.db.CreateWebhook("global", "", "http://sink.invalid", "generic", "{}", "info")
+	failCh, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://sink.invalid", Format: "generic", Config: "{}", MinSeverity: "info"})
 	ts.app.db.EnqueueDelivery(failCh.ID, `{"x":1}`, time.Now().UTC())
 
 	n := ts.app.dispatchDue(time.Now().UTC())
@@ -82,7 +83,7 @@ func TestDispatchMarksSentAndFailed(t *testing.T) {
 // failed rather than silently dropped.
 func TestDispatchFailsChannelWithNoURL(t *testing.T) {
 	ts := newTestServer(t)
-	ch, _ := ts.app.db.CreateWebhook("global", "", "", "webhook", "{}", "info")
+	ch, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", Format: "webhook", Config: "{}", MinSeverity: "info"})
 	ts.app.db.EnqueueDelivery(ch.ID, `{"x":1}`, time.Now().UTC())
 
 	if n := ts.app.dispatchDue(time.Now().UTC()); n != 1 {
@@ -99,7 +100,7 @@ func TestDueDeliveriesReturnsKindConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sealConfig: %v", err)
 	}
-	ch, _ := ts.app.db.CreateWebhook("global", "", "http://mx.invalid", "webhook", sealed, "info")
+	ch, _ := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://mx.invalid", Format: "webhook", Config: sealed, MinSeverity: "info"})
 	ts.app.db.EnqueueDelivery(ch.ID, `{"x":1}`, time.Now().UTC())
 
 	due, err := ts.app.db.DueDeliveries(time.Now().UTC(), 10)

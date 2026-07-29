@@ -1,12 +1,14 @@
 package store
 
 import (
+	"strings"
 	"time"
 )
 
 // Webhook is a notification channel. Config carries the transport's settings,
 // stored as an opaque blob (encrypted at rest by the app); the store never
-// decrypts it. MinSeverity gates which alerts the channel receives.
+// decrypts it. MinSeverity gates how loud an alert must be, and Events which
+// kinds it may be, before the channel receives it.
 type Webhook struct {
 	ID          string `json:"id"`
 	OwnerType   string `json:"owner_type"`
@@ -16,12 +18,15 @@ type Webhook struct {
 	Format      string `json:"format"`
 	Config      string `json:"-"`
 	MinSeverity string `json:"min_severity"`
+	// Events is the comma-separated list of event types this channel wants.
+	// Empty is every type, which is what a channel nobody has narrowed means.
+	Events string `json:"-"`
 }
 
 // Channel is the channel-oriented alias for a Webhook row.
 type Channel = Webhook
 
-const webhookCols = `id, owner_type, owner_id, url, enabled, format, config, min_severity`
+const webhookCols = `id, owner_type, owner_id, url, enabled, format, config, min_severity, events`
 
 // severityRank orders alert severities so a channel's min_severity can gate
 // delivery. Unknown values rank as info so nothing is silently dropped.
@@ -43,22 +48,26 @@ func channelAccepts(minSeverity, eventSeverity string) bool {
 }
 
 // CreateWebhook stores a channel. An empty format defaults to generic, an empty
-// config to '{}', and an empty min_severity to info. config is already sealed by
-// the caller; the store persists it verbatim.
-func (db *DB) CreateWebhook(ownerType, ownerID, url, format, config, minSeverity string) (Webhook, error) {
-	if format == "" {
-		format = "generic"
+// config to '{}', and an empty min_severity to info. Scope, config and the event
+// list arrive as the caller built them; the store persists them verbatim and
+// never decrypts the config.
+func (db *DB) CreateWebhook(w Webhook) (Webhook, error) {
+	if w.Format == "" {
+		w.Format = "generic"
 	}
-	if config == "" {
-		config = "{}"
+	if w.Config == "" {
+		w.Config = "{}"
 	}
-	if minSeverity == "" {
-		minSeverity = "info"
+	if w.MinSeverity == "" {
+		w.MinSeverity = "info"
 	}
-	w := Webhook{ID: NewID(), OwnerType: ownerType, OwnerID: ownerID, URL: url, Enabled: true, Format: format, Config: config, MinSeverity: minSeverity}
+	w.ID = NewID()
+	w.Enabled = true
 	_, err := db.sql.Exec(
-		`INSERT INTO webhooks(id, owner_type, owner_id, url, enabled, format, config, min_severity, created_at) VALUES (?,?,?,?,1,?,?,?,?)`,
-		w.ID, w.OwnerType, w.OwnerID, w.URL, w.Format, w.Config, w.MinSeverity, time.Now().UTC().Format(time.RFC3339Nano))
+		`INSERT INTO webhooks(id, owner_type, owner_id, url, enabled, format, config, min_severity, events, created_at)
+		 VALUES (?,?,?,?,1,?,?,?,?,?)`,
+		w.ID, w.OwnerType, w.OwnerID, w.URL, w.Format, w.Config, w.MinSeverity, w.Events,
+		time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return Webhook{}, err
 	}
@@ -66,12 +75,13 @@ func (db *DB) CreateWebhook(ownerType, ownerID, url, format, config, minSeverity
 }
 
 // UpdateWebhook replaces the editable fields of a channel: where it posts, the
-// receiver shape, the severity gate and the sealed config that carries a token
-// and a custom template. config is already sealed by the caller.
-func (db *DB) UpdateWebhook(id, url, format, config, minSeverity string, enabled bool) error {
+// receiver shape, the gates and the sealed config that carries a token and a
+// custom template. Scope is not one of them, because a channel that should
+// watch something else is a different channel. config is already sealed.
+func (db *DB) UpdateWebhook(w Webhook) error {
 	return db.exec1(
-		`UPDATE webhooks SET url=?, format=?, config=?, min_severity=?, enabled=? WHERE id = ?`,
-		url, format, config, minSeverity, boolToInt(enabled), id)
+		`UPDATE webhooks SET url=?, format=?, config=?, min_severity=?, events=?, enabled=? WHERE id = ?`,
+		w.URL, w.Format, w.Config, w.MinSeverity, w.Events, boolToInt(w.Enabled), w.ID)
 }
 
 // ListWebhooks returns all channels.
@@ -96,6 +106,30 @@ func (db *DB) DeleteWebhook(id string) error {
 	return db.exec1(`DELETE FROM webhooks WHERE id = ?`, id)
 }
 
+// ChannelSubject is one event as the routing sees it: what it is about, what
+// kind it is and how loud. Every field narrows which channels receive it.
+type ChannelSubject struct {
+	ToolID   string
+	HostID   string
+	Event    string
+	Severity string
+}
+
+// channelWants reports whether a channel subscribed to these event types wants
+// this one. An empty subscription is every type. An event with no type of its
+// own (the setup probe) is never withheld, because it is testing the wire.
+func channelWants(events, event string) bool {
+	if events == "" || event == "" {
+		return true
+	}
+	for _, e := range strings.Split(events, ",") {
+		if e == event {
+			return true
+		}
+	}
+	return false
+}
+
 // ResolveChannels returns the enabled channels that cover one event: every
 // global channel, the ones scoped to the tool it names or the host it happened
 // on, and the group ones whose members can reach either. A channel is listed
@@ -109,7 +143,7 @@ func (db *DB) DeleteWebhook(id string) error {
 // Credential access is held against a host, not a tool, so a group is reached
 // two ways: the groups a tool is visible to, and the groups that can get into
 // the machine. A tool alert carries its host, so both branches see it.
-func (db *DB) ResolveChannels(toolID, hostID, severity string) ([]Webhook, error) {
+func (db *DB) ResolveChannels(s ChannelSubject) ([]Webhook, error) {
 	q := `
 		SELECT ` + webhookCols + ` FROM webhooks
 		WHERE enabled=1 AND (
@@ -124,13 +158,13 @@ func (db *DB) ResolveChannels(toolID, hostID, severity string) ([]Webhook, error
 			))
 		)
 		ORDER BY owner_type, created_at`
-	hooks, err := db.queryWebhooks(q, toolID, toolID, hostID, hostID, toolID, hostID)
+	hooks, err := db.queryWebhooks(q, s.ToolID, s.ToolID, s.HostID, s.HostID, s.ToolID, s.HostID)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]Webhook, 0, len(hooks))
 	for _, h := range hooks {
-		if channelAccepts(h.MinSeverity, severity) {
+		if channelAccepts(h.MinSeverity, s.Severity) && channelWants(h.Events, s.Event) {
 			out = append(out, h)
 		}
 	}
@@ -147,7 +181,7 @@ func (db *DB) queryWebhooks(q string, args ...any) ([]Webhook, error) {
 	for rows.Next() {
 		var w Webhook
 		var enabled int
-		if err := rows.Scan(&w.ID, &w.OwnerType, &w.OwnerID, &w.URL, &enabled, &w.Format, &w.Config, &w.MinSeverity); err != nil {
+		if err := rows.Scan(&w.ID, &w.OwnerType, &w.OwnerID, &w.URL, &enabled, &w.Format, &w.Config, &w.MinSeverity, &w.Events); err != nil {
 			return nil, err
 		}
 		w.Enabled = enabled == 1

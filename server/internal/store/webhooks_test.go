@@ -8,7 +8,7 @@ import (
 
 func TestChannelColumnsRoundTrip(t *testing.T) {
 	db := openTemp(t)
-	ch, err := db.CreateWebhook("global", "", "http://sink.invalid", "email", "enc:opaqueblob", "warning")
+	ch, err := db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://sink.invalid", Format: "email", Config: "enc:opaqueblob", MinSeverity: "warning"})
 	if err != nil {
 		t.Fatalf("CreateWebhook: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestChannelColumnsRoundTrip(t *testing.T) {
 
 func TestChannelDefaults(t *testing.T) {
 	db := openTemp(t)
-	if _, err := db.CreateWebhook("global", "", "http://sink.invalid", "", "", ""); err != nil {
+	if _, err := db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://sink.invalid"}); err != nil {
 		t.Fatalf("CreateWebhook: %v", err)
 	}
 	hooks, _ := db.ListWebhooks()
@@ -62,22 +62,22 @@ func TestChannelAcceptsSeverity(t *testing.T) {
 
 func TestResolveChannelsFiltersBySeverity(t *testing.T) {
 	db := openTemp(t)
-	db.CreateWebhook("global", "", "http://info.invalid", "generic", "", "info")
-	db.CreateWebhook("global", "", "http://warn.invalid", "generic", "", "warning")
-	db.CreateWebhook("global", "", "http://err.invalid", "generic", "", "error")
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://info.invalid", Format: "generic", MinSeverity: "info"})
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://warn.invalid", Format: "generic", MinSeverity: "warning"})
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://err.invalid", Format: "generic", MinSeverity: "error"})
 
-	warn, err := db.ResolveChannels("", "", "warning")
+	warn, err := db.ResolveChannels(ChannelSubject{Severity: "warning"})
 	if err != nil {
 		t.Fatalf("ResolveChannels: %v", err)
 	}
 	if len(warn) != 2 {
 		t.Fatalf("warning resolves %d channels, want 2 (info+warning)", len(warn))
 	}
-	all, _ := db.ResolveChannels("", "", "error")
+	all, _ := db.ResolveChannels(ChannelSubject{Severity: "error"})
 	if len(all) != 3 {
 		t.Fatalf("error resolves %d channels, want 3", len(all))
 	}
-	info, _ := db.ResolveChannels("", "", "info")
+	info, _ := db.ResolveChannels(ChannelSubject{Severity: "info"})
 	if len(info) != 1 {
 		t.Fatalf("info resolves %d channels, want 1", len(info))
 	}
@@ -100,11 +100,11 @@ func TestResolveChannelsByScope(t *testing.T) {
 		t.Fatalf("GrantCredentialAccess: %v", err)
 	}
 
-	db.CreateWebhook("global", "", "http://global.invalid", "generic", "", "info")
-	db.CreateWebhook("tool", tool.ID, "http://tool.invalid", "generic", "", "info")
-	db.CreateWebhook("host", host.ID, "http://host.invalid", "generic", "", "info")
-	db.CreateWebhook("host", other.ID, "http://otherhost.invalid", "generic", "", "info")
-	db.CreateWebhook("group", group.ID, "http://group.invalid", "generic", "", "info")
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://global.invalid", Format: "generic", MinSeverity: "info"})
+	db.CreateWebhook(Webhook{OwnerType: "tool", OwnerID: tool.ID, URL: "http://tool.invalid", Format: "generic", MinSeverity: "info"})
+	db.CreateWebhook(Webhook{OwnerType: "host", OwnerID: host.ID, URL: "http://host.invalid", Format: "generic", MinSeverity: "info"})
+	db.CreateWebhook(Webhook{OwnerType: "host", OwnerID: other.ID, URL: "http://otherhost.invalid", Format: "generic", MinSeverity: "info"})
+	db.CreateWebhook(Webhook{OwnerType: "group", OwnerID: group.ID, URL: "http://group.invalid", Format: "generic", MinSeverity: "info"})
 
 	for _, tc := range []struct {
 		name           string
@@ -121,7 +121,7 @@ func TestResolveChannelsByScope(t *testing.T) {
 			[]string{"http://global.invalid"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			hooks, err := db.ResolveChannels(tc.toolID, tc.hostID, "error")
+			hooks, err := db.ResolveChannels(ChannelSubject{ToolID: tc.toolID, HostID: tc.hostID, Severity: "error"})
 			if err != nil {
 				t.Fatalf("ResolveChannels: %v", err)
 			}
@@ -137,14 +137,41 @@ func TestResolveChannelsByScope(t *testing.T) {
 	}
 }
 
+// A channel that names its event types receives those and nothing else. One
+// that names none receives every type, including a type added after it was
+// saved. An event with no type of its own is the setup probe and always lands.
+func TestResolveChannelsFiltersByEvent(t *testing.T) {
+	db := openTemp(t)
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://all.invalid"})
+	db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://down.invalid", Events: "down,agent_offline"})
+
+	for _, tc := range []struct {
+		event string
+		want  int
+	}{
+		{"down", 2},
+		{"agent_offline", 2},
+		{"cpu_high", 1},
+		{"", 2},
+	} {
+		hooks, err := db.ResolveChannels(ChannelSubject{Event: tc.event, Severity: "error"})
+		if err != nil {
+			t.Fatalf("ResolveChannels: %v", err)
+		}
+		if len(hooks) != tc.want {
+			t.Errorf("event %q resolves %d channels, want %d", tc.event, len(hooks), tc.want)
+		}
+	}
+}
+
 // A disabled channel is off, whatever its scope says.
 func TestResolveChannelsSkipsDisabled(t *testing.T) {
 	db := openTemp(t)
-	ch, _ := db.CreateWebhook("global", "", "http://off.invalid", "generic", "", "info")
-	if err := db.UpdateWebhook(ch.ID, ch.URL, ch.Format, ch.Config, ch.MinSeverity, false); err != nil {
+	ch, _ := db.CreateWebhook(Webhook{OwnerType: "global", URL: "http://off.invalid", Format: "generic", MinSeverity: "info"})
+	if err := db.UpdateWebhook(Webhook{ID: ch.ID, URL: ch.URL, Format: ch.Format, Config: ch.Config, MinSeverity: ch.MinSeverity, Enabled: false}); err != nil {
 		t.Fatalf("UpdateWebhook: %v", err)
 	}
-	hooks, _ := db.ResolveChannels("", "", "error")
+	hooks, _ := db.ResolveChannels(ChannelSubject{Severity: "error"})
 	if len(hooks) != 0 {
 		t.Errorf("resolved %d channels, want none", len(hooks))
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 func TestAlertSeverityAssigned(t *testing.T) {
@@ -56,8 +57,8 @@ func TestThresholdAlertSeverityWarning(t *testing.T) {
 
 func TestSeverityRoutingEnqueue(t *testing.T) {
 	ts := newTestServer(t)
-	ts.app.db.CreateWebhook("global", "", "http://info.invalid", "generic", "{}", "info")
-	ts.app.db.CreateWebhook("global", "", "http://err.invalid", "generic", "{}", "error")
+	ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://info.invalid", Format: "generic", Config: "{}", MinSeverity: "info"})
+	ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://err.invalid", Format: "generic", Config: "{}", MinSeverity: "error"})
 
 	// A warning host alert should reach only the info channel.
 	ts.app.enqueue(alertSubject{key: "host:h:cpu_high", altype: "cpu_high", hostID: "h", message: "m", severity: "warning"}, "fired", time.Now().UTC())

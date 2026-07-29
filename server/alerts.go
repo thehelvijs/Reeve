@@ -20,6 +20,21 @@ const (
 	logThreshold = 1
 )
 
+// channelEvents is every event type a channel can subscribe to, in the order
+// the form lists them. The threshold breaches are derived from the metric list
+// so a new metric cannot appear as an alert nobody can subscribe to.
+var channelEvents = func() []string {
+	out := []string{"down", "log_error", "agent_offline"}
+	for _, m := range thresholdMetrics {
+		out = append(out, m+"_high")
+	}
+	return append(out, eventAccessRequest)
+}()
+
+// eventAccessRequest is the one channel event that is not an alert: somebody
+// asking for credentials on a host.
+const eventAccessRequest = "access_request"
+
 // alertSubject describes what an alert is about, for the event row and payload.
 type alertSubject struct {
 	key      string
@@ -223,7 +238,8 @@ func (a *app) enqueue(s alertSubject, phase string, now time.Time) {
 		"message":   s.message,
 		"timestamp": now.UTC().Format(time.RFC3339),
 	})
-	hooks, _ := a.db.ResolveChannels(s.toolID, s.hostID, severity)
+	hooks, _ := a.db.ResolveChannels(store.ChannelSubject{
+		ToolID: s.toolID, HostID: s.hostID, Event: s.altype, Severity: severity})
 	for _, h := range hooks {
 		a.db.EnqueueDelivery(h.ID, string(generic), now)
 	}

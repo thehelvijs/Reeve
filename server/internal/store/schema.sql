@@ -367,6 +367,8 @@ CREATE TABLE IF NOT EXISTS webhooks (
     format       TEXT NOT NULL DEFAULT 'generic',
     config       TEXT NOT NULL DEFAULT '{}',
     min_severity TEXT NOT NULL DEFAULT 'info',
+    -- The event types this channel wants, comma separated. Empty is all of them.
+    events       TEXT NOT NULL DEFAULT '',
     enabled      INTEGER NOT NULL DEFAULT 1,
     created_at   TEXT NOT NULL
 );

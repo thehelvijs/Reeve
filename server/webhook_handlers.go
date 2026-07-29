@@ -25,15 +25,56 @@ type channelView struct {
 	Detected    string            `json:"detected"`
 	Config      map[string]string `json:"config"`
 	MinSeverity string            `json:"min_severity"`
+	Events      []string          `json:"events"`
 }
 
-// handleChannelFormats hands the form the receiver vocabulary and the template
-// placeholders, so the two lists cannot drift from the shaper that reads them.
+// handleChannelFormats hands the form the receiver vocabulary, the event types
+// and the template placeholders, so none of the three can drift from the code
+// that reads them.
 func (a *app) handleChannelFormats(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"formats":   channelFormats,
+		"events":    channelEvents,
 		"variables": templateVariables,
 	})
+}
+
+var knownEvents = func() map[string]bool {
+	m := make(map[string]bool, len(channelEvents))
+	for _, e := range channelEvents {
+		m[e] = true
+	}
+	return m
+}()
+
+// cleanEvents turns the requested subscription into the stored comma-separated
+// list. Selecting every type stores as empty, the same as selecting none, so a
+// channel that wants everything keeps saying so when a new type is added.
+func cleanEvents(in []string) (string, error) {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, e := range in {
+		e = strings.TrimSpace(e)
+		if e == "" || seen[e] {
+			continue
+		}
+		if !knownEvents[e] {
+			return "", errors.New("unknown event " + e)
+		}
+		seen[e] = true
+		out = append(out, e)
+	}
+	if len(out) == len(channelEvents) {
+		return "", nil
+	}
+	return strings.Join(out, ","), nil
+}
+
+func splitEvents(stored string) []string {
+	if stored == "" {
+		return []string{}
+	}
+	return strings.Split(stored, ",")
 }
 
 func (a *app) channelToView(w store.Webhook) channelView {
@@ -48,7 +89,7 @@ func (a *app) channelToView(w store.Webhook) channelView {
 	return channelView{
 		ID: w.ID, OwnerType: w.OwnerType, OwnerID: w.OwnerID, URL: w.URL,
 		Enabled: w.Enabled, Format: format, Detected: detectFormat(w.URL),
-		Config: redactConfig(cfg), MinSeverity: w.MinSeverity,
+		Config: redactConfig(cfg), MinSeverity: w.MinSeverity, Events: splitEvents(w.Events),
 	}
 }
 
@@ -111,10 +152,17 @@ func (a *app) handleUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 		Format      string            `json:"format"`
 		Config      map[string]string `json:"config"`
 		MinSeverity string            `json:"min_severity"`
+		Events      []string          `json:"events"`
 		Enabled     bool              `json:"enabled"`
-	}{URL: hook.URL, Format: hook.Format, MinSeverity: hook.MinSeverity, Enabled: hook.Enabled}
+	}{URL: hook.URL, Format: hook.Format, MinSeverity: hook.MinSeverity,
+		Events: splitEvents(hook.Events), Enabled: hook.Enabled}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	events, err := cleanEvents(in.Events)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_events", err.Error())
 		return
 	}
 	for k, v := range in.Config {
@@ -140,7 +188,10 @@ func (a *app) handleUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt channel config")
 		return
 	}
-	if err := a.db.UpdateWebhook(hook.ID, in.URL, in.Format, sealed, in.MinSeverity, in.Enabled); err != nil {
+	if err := a.db.UpdateWebhook(store.Webhook{
+		ID: hook.ID, URL: in.URL, Format: in.Format, Config: sealed,
+		MinSeverity: in.MinSeverity, Events: events, Enabled: in.Enabled,
+	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not update webhook")
 		return
 	}
@@ -160,9 +211,15 @@ func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		Format      string            `json:"format"`
 		Config      map[string]string `json:"config"`
 		MinSeverity string            `json:"min_severity"`
+		Events      []string          `json:"events"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	events, err := cleanEvents(in.Events)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_events", err.Error())
 		return
 	}
 	switch in.OwnerType {
@@ -197,7 +254,10 @@ func (a *app) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not encrypt channel config")
 		return
 	}
-	wh, err := a.db.CreateWebhook(in.OwnerType, in.OwnerID, in.URL, in.Format, sealed, in.MinSeverity)
+	wh, err := a.db.CreateWebhook(store.Webhook{
+		OwnerType: in.OwnerType, OwnerID: in.OwnerID, URL: in.URL, Format: in.Format,
+		Config: sealed, MinSeverity: in.MinSeverity, Events: events,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create webhook")
 		return

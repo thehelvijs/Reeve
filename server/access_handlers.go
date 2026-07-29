@@ -55,8 +55,8 @@ func (a *app) handleCreateAccessRequest(w http.ResponseWriter, r *http.Request) 
 	}
 	// The in-app notification is the inbox; this reaches whoever watches the
 	// host a request is against, plus every global channel.
-	a.notifyEvent("", h.ID, map[string]any{
-		"event": "access_request", "host": h.Name, "host_id": h.ID,
+	a.notifyEvent("", h.ID, eventAccessRequest, map[string]any{
+		"event": eventAccessRequest, "type": eventAccessRequest, "host": h.Name, "host_id": h.ID,
 		"requester": p.Email, "note": req.Note,
 		"timestamp": req.CreatedAt.UTC().Format(time.RFC3339),
 	}, time.Now().UTC())

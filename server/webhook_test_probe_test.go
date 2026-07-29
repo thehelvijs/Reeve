@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +34,7 @@ func TestWebhookProbeReportsBothOutcomes(t *testing.T) {
 		return nil
 	}
 
-	saved, err := ts.app.db.CreateWebhook("global", "", "http://ok.invalid/hook", "webhook", mustSeal(t, ts, "tok123"), "info")
+	saved, err := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: "http://ok.invalid/hook", Format: "webhook", Config: mustSeal(t, ts, "tok123"), MinSeverity: "info"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +125,7 @@ func TestWebhookProbePutsTheShapedBodyOnTheWire(t *testing.T) {
 	}))
 	defer sink.Close()
 
-	saved, err := ts.app.db.CreateWebhook("global", "", sink.URL, fmtDiscord, mustSeal(t, ts, "tok123"), "info")
+	saved, err := ts.app.db.CreateWebhook(store.Webhook{OwnerType: "global", URL: sink.URL, Format: fmtDiscord, Config: mustSeal(t, ts, "tok123"), MinSeverity: "info"})
 	if err != nil {
 		t.Fatal(err)
 	}
