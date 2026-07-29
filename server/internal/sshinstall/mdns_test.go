@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -100,4 +101,26 @@ func TestMDNSLive(t *testing.T) {
 		t.Fatalf("lookupMDNS(%s): %v", host, err)
 	}
 	t.Logf("%s -> %s", host, ip)
+}
+
+// A .local name is the whole reason mdns.go exists, and no fake host exercises
+// it: the fake listens on 127.0.0.1, where DNS answers and the fallback never
+// runs. This dials a real name on the LAN, which is the first step of "Install
+// over SSH" and the step that fails when multicast cannot get out of the
+// container. Opt-in, because it needs that machine to be switched on.
+func TestProbeOverMDNSLive(t *testing.T) {
+	host := os.Getenv("REEVE_MDNS_HOST")
+	if host == "" {
+		t.Skip("set REEVE_MDNS_HOST to a .local name on this LAN")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	fingerprint, keyType, err := Probe(ctx, host, 22)
+	if err != nil {
+		t.Fatalf("Probe(%s:22): %v", host, err)
+	}
+	if fingerprint == "" || keyType == "" {
+		t.Fatalf("probe of %s returned %q / %q", host, fingerprint, keyType)
+	}
+	t.Logf("%s -> %s %s", host, keyType, fingerprint)
 }
