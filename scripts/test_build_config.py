@@ -90,6 +90,10 @@ def test_workflows_grant_no_blanket_permissions(path):
 
 
 COMPOSE = ROOT / "deploy" / "docker-compose.yml"
+PULL_COMPOSE = ROOT / "deploy" / "docker-compose.pull.yml"
+
+# Compose's !reset tag is not plain YAML, and what it nulls does not matter here.
+yaml.SafeLoader.add_constructor("!reset", lambda loader, node: None)
 
 
 # On the host network there is no port mapping, so REEVE_ADDR is the only thing
@@ -104,6 +108,16 @@ def test_compose_bind_is_overridable():
 def test_compose_uses_the_host_network():
     server = yaml.safe_load(COMPOSE.read_text())["services"]["server"]
     assert server["network_mode"] == "host"
+
+
+# The updater only touches containers carrying the label, so dropping the label
+# or the flag leaves an instance sitting on the release it was installed with
+# while the compose file still claims it updates itself.
+def test_pull_override_scopes_the_updater_to_the_server():
+    doc = yaml.safe_load(PULL_COMPOSE.read_text())
+    label = "com.centurylinklabs.watchtower.enable"
+    assert doc["services"]["server"]["labels"][label] == "true"
+    assert doc["services"]["updater"]["environment"]["WATCHTOWER_LABEL_ENABLE"] == "true"
 
 
 # A compose build with no signing key embeds unsigned agents, and every host

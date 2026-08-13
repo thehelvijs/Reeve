@@ -40,6 +40,29 @@ docker login ghcr.io
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
 ```
 
+**Server auto-update.** That override also starts an `updater` container, so an
+instance installed this way stays current with nothing else to run: it checks
+the tag `REEVE_IMAGE` names every `REEVE_UPDATE_POLL_SECS` (default hourly) and
+recreates the server when the digest moves. The web UI is embedded in the server
+binary, so one pull updates both, and `schema.sql` is re-executed on every open,
+so there is nothing to migrate across a restart. Agents follow on their own
+afterwards through the paced rollout below.
+
+`latest` is published only by a tagged release; `edge` is every push to
+`develop`. Pin `REEVE_IMAGE` to a version and the updater goes quiet until you
+change it — that, not deleting the container, is how you hold an instance still.
+It is scoped by label, so it never touches another container on the host, and it
+needs the Docker socket, which is root on that machine: run it only where you
+would run `docker` yourself. While the ghcr package is private the updater
+cannot authenticate on its own — mount host credentials into it
+(`~/.docker/config.json:/config.json:ro`) or make the package public, otherwise
+its pulls fail and the server simply stays put.
+
+Building from this checkout instead? There is no image to pull, so nothing
+updates itself; `up -d --build` is the update. Same for the raw
+`server-linux-*` binaries — supervise them yourself, and note they ship
+unsigned, unlike the agent builds.
+
 The container runs on the host network, so that the server can reach machines
 by their `.local` name: mDNS is multicast, and multicast out of a bridge network
 stops at the bridge. It listens on `0.0.0.0:7338` by default; `REEVE_BIND` and

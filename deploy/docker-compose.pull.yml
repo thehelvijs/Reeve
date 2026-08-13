@@ -1,8 +1,28 @@
 # Override for running a published image instead of building from this
 # checkout. The package is private, so `docker login ghcr.io` first:
 #   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
+#
+# This also brings up the updater, so an instance started this way keeps itself
+# on the newest release with nothing further to run.
 services:
   server:
     build: !reset null
     image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
     pull_policy: always
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+  # Watches the tag REEVE_IMAGE names and recreates the server when its digest
+  # moves. The web UI is embedded in the server binary, so this updates both;
+  # schema.sql is re-executed on open, so there is no migration to sequence.
+  # A private package needs credentials mounted in; see deploy/README.md.
+  updater:
+    image: containrrr/watchtower:1.7.1
+    environment:
+      # Scoped by label, so nothing else on this host is in its reach.
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_POLL_INTERVAL: ${REEVE_UPDATE_POLL_SECS:-3600}
+      WATCHTOWER_CLEANUP: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
