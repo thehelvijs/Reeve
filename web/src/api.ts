@@ -116,12 +116,21 @@ export interface AgentUpdateSettings {
   stall_secs: number;
 }
 
+// Which stream of builds this server follows. The tag each one resolves to is
+// the server's business, not the browser's.
+export type UpdateChannel = 'release' | 'develop' | 'main';
+
+export interface ServerUpdateSettings {
+  channel: UpdateChannel;
+}
+
 export interface Settings {
   signup_enabled: boolean;
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
   agent_update: AgentUpdateSettings;
+  server_update: ServerUpdateSettings;
 }
 
 // The write shape differs from the read shape: secrets are write-only.
@@ -131,6 +140,7 @@ export interface SettingsInput {
   smtp?: SMTPInput;
   google?: GoogleInput;
   agent_update?: AgentUpdateSettings;
+  server_update?: ServerUpdateSettings;
 }
 
 // Avatar upload rides a multipart form, so it bypasses the JSON request helper.

@@ -41,27 +41,49 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up
 ```
 
 **Server auto-update.** That override also starts an `updater` container, so an
-instance installed this way stays current with nothing else to run: it checks
-the tag `REEVE_IMAGE` names every `REEVE_UPDATE_POLL_SECS` (default hourly) and
-recreates the server when the digest moves. The web UI is embedded in the server
-binary, so one pull updates both, and `schema.sql` is re-executed on every open,
-so there is nothing to migrate across a restart. Agents follow on their own
+instance installed this way stays current with nothing else to run. Every
+`REEVE_UPDATE_POLL_SECS` (default hourly) it re-runs `up -d server` with the
+current channel's tag: nothing happens when neither the digest nor the channel
+moved, which is the ordinary case. The web UI is embedded in the server binary,
+so one pull updates both, and `schema.sql` is re-executed on every open, so
+there is nothing to migrate across a restart. Agents follow on their own
 afterwards through the paced rollout below.
 
-`latest` is published only by a tagged release; `edge` is every push to
-`develop`. Pin `REEVE_IMAGE` to a version and the updater goes quiet until you
-change it — that, not deleting the container, is how you hold an instance still.
-It is scoped by label, so it never touches another container on the host, and it
-needs the Docker socket, which is root on that machine: run it only where you
-would run `docker` yourself. While the ghcr package is private the updater
-cannot authenticate on its own — mount host credentials into it
-(`~/.docker/config.json:/config.json:ro`) or make the package public, otherwise
-its pulls fail and the server simply stays put.
+**Channels.** **Settings → Server updates**, admin-only, picks which stream of
+builds this instance follows:
+
+| Channel | Image tag | Moves on |
+| --- | --- | --- |
+| `release` (default) | `:latest` | a tagged `v*` release |
+| `develop` | `:develop` | every push to `develop` |
+| `main` | `:main` | every push to `main` |
+
+The server writes the resolved tag to `update-channel` in the data volume and
+the updater picks it up on the next poll, so switching is a click and a wait,
+not a redeploy. Switching *down* a channel — develop back to release — runs an
+older binary against a database a newer build has already opened; the UI says so
+before you press the button. The tag list lives in two places by necessity, the
+`channelTags` map in `server/server_update.go` and the updater's own whitelist
+here; a test fails if they drift.
+
+Holding an instance still: pin `REEVE_IMAGE` to a version *and* leave the
+channel alone, or drop the `updater` service. There is deliberately no
+"arbitrary image" field in the UI — an admin session can choose among three
+published tags of one repository, and the repository itself
+(`REEVE_IMAGE_REPO`) is set here, not in the database.
+
+The updater holds the Docker socket, which is root on that host: nothing inside
+the server container can replace the container it is running in, so this is what
+the capability costs. It mounts the data volume read-only and the compose files
+read-only. While the ghcr package is private it cannot authenticate on its own —
+mount host credentials into it (`~/.docker/config.json:/config.json:ro`) or make
+the package public, otherwise its pulls fail, it logs and the server stays on
+the build it is running.
 
 Building from this checkout instead? There is no image to pull, so nothing
-updates itself; `up -d --build` is the update. Same for the raw
-`server-linux-*` binaries — supervise them yourself, and note they ship
-unsigned, unlike the agent builds.
+updates itself; `up -d --build` is the update, and the channel selector has
+nothing behind it. Same for the raw `server-linux-*` binaries — supervise them
+yourself, and note they ship unsigned, unlike the agent builds.
 
 The container runs on the host network, so that the server can reach machines
 by their `.local` name: mDNS is multicast, and multicast out of a bridge network

@@ -110,14 +110,24 @@ def test_compose_uses_the_host_network():
     assert server["network_mode"] == "host"
 
 
-# The updater only touches containers carrying the label, so dropping the label
-# or the flag leaves an instance sitting on the release it was installed with
-# while the compose file still claims it updates itself.
-def test_pull_override_scopes_the_updater_to_the_server():
-    doc = yaml.safe_load(PULL_COMPOSE.read_text())
-    label = "com.centurylinklabs.watchtower.enable"
-    assert doc["services"]["server"]["labels"][label] == "true"
-    assert doc["services"]["updater"]["environment"]["WATCHTOWER_LABEL_ENABLE"] == "true"
+# The updater recreates the server by re-running compose, so it has to land in
+# the project it is already part of. A hardcoded or defaulted project name would
+# start a second server on the same host port instead of replacing this one.
+def test_updater_takes_the_project_name_from_its_own_labels():
+    updater = yaml.safe_load(PULL_COMPOSE.read_text())["services"]["updater"]
+    script = updater["entrypoint"][-1]
+    assert 'com.docker.compose.project' in script
+    assert "--project-name" in script
+    assert "refusing to guess" in script
+
+
+# The updater mounts the data volume read-only. It reads one file the server
+# writes there; write access would put the database in reach of a container
+# whose only job is to restart another one.
+def test_updater_cannot_write_the_data_volume():
+    updater = yaml.safe_load(PULL_COMPOSE.read_text())["services"]["updater"]
+    data = [v for v in updater["volumes"] if v.startswith("reeve-data:")]
+    assert data == ["reeve-data:/state:ro"]
 
 
 # A compose build with no signing key embeds unsigned agents, and every host

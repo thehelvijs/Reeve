@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { api, type GoogleInput, type Settings, type SettingsInput, type SMTPInput } from '../api';
+import {
+  api,
+  type GoogleInput,
+  type Settings,
+  type SettingsInput,
+  type SMTPInput,
+  type UpdateChannel,
+} from '../api';
 import { Button, Card, ErrorText, Field, Form, Input } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 
@@ -76,7 +83,75 @@ export default function AdminSettings() {
       <GoogleSection settings={settings} onSave={save} />
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
+      <ServerUpdateSection settings={settings} onSave={save} />
     </div>
+  );
+}
+
+const CHANNELS: { value: UpdateChannel; label: string; hint: string }[] = [
+  { value: 'release', label: 'Release', hint: 'Moves only when a version is tagged. What an instance follows unless you change it.' },
+  { value: 'develop', label: 'Develop', hint: 'Every merge into develop, reviewed but not released.' },
+  { value: 'main', label: 'Main', hint: 'Every commit on main, ahead of the tagged release it will become.' },
+];
+
+// Switching channel restarts the server, so this section does not pretend the
+// save is over when the request returns: the reply is the last thing this page
+// hears from the build that answered it.
+function ServerUpdateSection({
+  settings,
+  onSave,
+}: {
+  settings: Settings;
+  onSave: (patch: SettingsInput) => Promise<void>;
+}) {
+  const current = settings.server_update.channel;
+  const [draft, setDraft] = useState<UpdateChannel>(current);
+  useEffect(() => setDraft(current), [current]);
+
+  const order = CHANNELS.map((c) => c.value);
+  const backwards = order.indexOf(draft) < order.indexOf(current);
+
+  return (
+    <Section
+      title="Server updates"
+      description="Which builds this server pulls for itself. The updater checks on a timer and restarts the server when the channel's newest build is not the one running; the web UI ships inside it, so both move together."
+    >
+      <Form onSubmit={() => onSave({ server_update: { channel: draft } })}>
+        <div className="space-y-2">
+          {CHANNELS.map((c) => (
+            <label key={c.value} className="flex items-start gap-2 text-sm text-content">
+              <input
+                type="radio"
+                name="update-channel"
+                className="mt-0.5 h-4 w-4 accent-accent"
+                value={c.value}
+                checked={draft === c.value}
+                onChange={() => setDraft(c.value)}
+              />
+              <span>
+                {c.label}
+                {c.value === current && <span className="ml-2 text-xs text-muted">current</span>}
+                <span className="block text-xs text-muted">{c.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {draft !== current && (
+          <p className="mt-4 text-xs text-warn">
+            {backwards
+              ? 'Moving to a less current channel downgrades this server: it will run an older binary against a database a newer build has already opened.'
+              : 'This runs code that has not been through a release. The server restarts to pick it up, and this page will reconnect on its own.'}
+          </p>
+        )}
+
+        <div className="mt-4 flex justify-end">
+          <Button type="submit" disabled={draft === current}>
+            Switch channel
+          </Button>
+        </div>
+      </Form>
+    </Section>
   );
 }
 

@@ -333,6 +333,26 @@ host may hold a slot before it's considered stalled and pauses the rollout.
 `PUT` validates both bounds and returns `400 invalid_agent_update` on failure;
 like the other settings sections, omitting `agent_update` leaves it unchanged.
 
+### Settings: `server_update`
+
+The same endpoint carries which stream of builds the server follows:
+
+```json
+{ "server_update": {"channel": "release"} }
+```
+
+`channel` is one of `release`, `develop` or `main`; anything else is
+`400 invalid_update_channel`. It is the whole of what a client may say about
+server updates — the image tag each channel resolves to belongs to the server,
+so a caller can select among three published builds and nothing else.
+
+Writing it publishes the resolved tag to `update-channel` beside the database,
+which the updater sidecar reads on its next poll; the switch is a container
+recreate, so the response to this `PUT` is the last thing the calling build
+sends. A stored channel the running build does not recognise reads back as
+`release`, so a downgrade cannot leave an instance chasing a tag nothing
+publishes.
+
 ## Notification channels (admin)
 
 `GET/POST /admin/webhooks`, `PATCH/DELETE /admin/webhooks/{id}`,

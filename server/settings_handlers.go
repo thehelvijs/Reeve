@@ -79,12 +79,17 @@ type agentUpdateView struct {
 	StallSecs   int  `json:"stall_secs"`
 }
 
+type serverUpdateView struct {
+	Channel string `json:"channel"`
+}
+
 type settingsView struct {
-	SignupEnabled bool            `json:"signup_enabled"`
-	Retention     retentionView   `json:"retention"`
-	SMTP          smtpView        `json:"smtp"`
-	Google        googleAuthView  `json:"google"`
-	AgentUpdate   agentUpdateView `json:"agent_update"`
+	SignupEnabled bool             `json:"signup_enabled"`
+	Retention     retentionView    `json:"retention"`
+	SMTP          smtpView         `json:"smtp"`
+	Google        googleAuthView   `json:"google"`
+	AgentUpdate   agentUpdateView  `json:"agent_update"`
+	ServerUpdate  serverUpdateView `json:"server_update"`
 }
 
 // handleGetSettings returns every instance-wide setting an admin can change.
@@ -100,7 +105,8 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 		},
 		SMTP:        a.smtpView(),
 		Google:      a.googleAuthView(),
-		AgentUpdate: agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
+		AgentUpdate:  agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
+		ServerUpdate: serverUpdateView{Channel: a.serverUpdateChannel()},
 	})
 }
 
@@ -121,6 +127,9 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			Concurrency int  `json:"concurrency"`
 			StallSecs   int  `json:"stall_secs"`
 		} `json:"agent_update"`
+		ServerUpdate *struct {
+			Channel string `json:"channel"`
+		} `json:"server_update"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
@@ -181,6 +190,24 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusInternalServerError, "internal", "could not save agent update settings")
 				return
 			}
+		}
+	}
+	if in.ServerUpdate != nil {
+		if channelTags[in.ServerUpdate.Channel] == "" {
+			writeError(w, http.StatusBadRequest, "invalid_update_channel",
+				"channel must be one of release, develop or main")
+			return
+		}
+		// The file is what the updater acts on, so it is written first: a stored
+		// channel the updater never sees would show as switched while the
+		// instance kept following the old one.
+		if err := a.writeChannelFile(in.ServerUpdate.Channel); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not publish the update channel")
+			return
+		}
+		if err := a.db.SetSetting(settingServerUpdateChannel, in.ServerUpdate.Channel); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not save the update channel")
+			return
 		}
 	}
 	a.handleGetSettings(w, r)
