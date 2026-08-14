@@ -35,8 +35,9 @@ docker compose -f deploy/docker-compose.yml up -d
 
 That is the whole thing: the server with the UI embedded, an agent for the
 machine it runs on, and an updater that keeps both on the release channel — or on
-`develop` or `main`, switchable from Settings. To build from the checkout instead,
-with no registry and no login, add the build override in
+`develop` or `main`, switchable from Settings. It needs a published release to
+pull, so before the first `v*` tag — and to work with no registry and no login at
+all — build from the checkout with the override in
 [deploy/README.md](deploy/README.md).
 
 The first account created becomes the admin. Add a host in the UI and it gives

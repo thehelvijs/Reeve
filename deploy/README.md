@@ -14,6 +14,15 @@ docker compose -f deploy/docker-compose.yml up -d
 `.env` lives beside the compose file, not at the repo root: Compose reads it
 from the compose file's directory.
 
+**Before the first release.** The default channel is `release`, which is the
+`:latest` tag, and only a `v*` tag publishes that. Until one is cut there is
+nothing to pull: either build from the checkout (below), or follow a branch by
+pinning both images in `.env` —
+`REEVE_IMAGE=ghcr.io/thehelvijs/reeve:develop` and
+`REEVE_AGENT_IMAGE=ghcr.io/thehelvijs/reeve-agent:develop` — and picking
+**Develop** in Settings so the updater keeps them there. A missing tag and a
+private package look identical from the client: both answer `unauthorized`.
+
 That is the whole product in one command: the server, an agent for the machine it
 runs on, and the updater that keeps both on the channel picked in the UI. The web
 UI is embedded in the server binary, so the SPA, the REST API, the agent
