@@ -1,17 +1,18 @@
-# Reeve server, built from this checkout. Nothing is pulled from a registry.
+# Reeve, whole. One `up -d` gives the server, an agent for the machine it runs
+# on, and the updater that keeps both on the channel picked in the UI.
+#
 # LAN-only: this listens on every interface, so keep it behind your firewall, or
 # narrow it with REEVE_BIND=192.168.1.10.
 #
-# To run a published image instead of building, use the pull override:
-#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
+# The images come from ghcr, so `docker login ghcr.io` first while the package is
+# private. To build from this checkout instead:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.build.yml up -d --build
 services:
   server:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.server
-      secrets:
-        - signing_key
-    image: reeve:source
+    image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
+    # The tag stays put while its digest moves, so a plain `up -d` has to check
+    # for a new one rather than reuse whatever is cached.
+    pull_policy: always
     # The server reaches hosts by their .local name over mDNS, and multicast out
     # of a bridge network stops at the bridge. Host networking is what makes
     # "Install over SSH" work with the names the machines answer to.
@@ -43,16 +44,14 @@ services:
   # Host networking to reach the server on the port it bound, and because the
   # metrics it reports should be the machine's, not a bridge's.
   agent:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.agent
-    image: reeve-agent:source
+    image: ${REEVE_AGENT_IMAGE:-ghcr.io/thehelvijs/reeve-agent:latest}
+    pull_policy: always
     network_mode: host
     environment:
       REEVE_SERVER_URL: http://127.0.0.1:${REEVE_PORT:-7338}
       REEVE_AGENT_TOKEN_FILE: /state/self-agent-token
       # This agent is part of the deploy, not of the fleet rollout: it is
-      # replaced by rebuilding or repulling its image, and a self-update would
+      # replaced by repulling or rebuilding its image, and a self-update would
       # be undone by the next `up -d`.
       REEVE_AUTO_UPDATE: "false"
     volumes:
@@ -64,11 +63,60 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Re-runs `up -d` on a timer with the channel's tag substituted in, so one loop
+  # covers both jobs: a new digest on the current channel, and a channel an admin
+  # switched in the UI. Compose does nothing when neither moved, which is the
+  # common case.
+  #
+  # This exists because a container cannot replace itself: the server cannot
+  # recreate the container it is running in, whatever it is allowed to do. So the
+  # job goes to a container with no network surface, and the Docker socket — root
+  # on this host — stays out of the one serving HTTP.
+  updater:
+    image: docker:28-cli
+    environment:
+      REEVE_UPDATE_POLL_SECS: ${REEVE_UPDATE_POLL_SECS:-3600}
+      REEVE_IMAGE_REPO: ${REEVE_IMAGE_REPO:-ghcr.io/thehelvijs/reeve}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The compose files and .env this project was started from: the updater
+      # recreates the containers from the same spec rather than a copy of it.
+      - ./:/deploy:ro
+      # Read-only, and only for update-channel: the server owns that file, and
+      # the rest of the volume is the database.
+      - reeve-data:/state:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -u
+        # The project name this container was started under. Guessing it wrong
+        # would start a *second* server on the same host port instead of
+        # replacing this one, so it is read from our own labels, not configured.
+        project=$$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$$(hostname)")
+        if [ -z "$$project" ]; then
+          echo "updater: cannot determine the compose project; refusing to guess" >&2
+          exit 1
+        fi
+        echo "updater: watching project $$project every $$REEVE_UPDATE_POLL_SECS s"
+        while :; do
+          tag=$$(cat /state/update-channel 2>/dev/null | tr -d '[:space:]')
+          # Only tags this project publishes. The file is written by the server
+          # from a fixed map, so anything else means a hand-edited volume.
+          case "$$tag" in
+            latest|develop|main) ;;
+            *) tag=latest ;;
+          esac
+          REEVE_IMAGE="$$REEVE_IMAGE_REPO:$$tag" \
+          REEVE_AGENT_IMAGE="$$REEVE_IMAGE_REPO-agent:$$tag" docker compose \
+            --project-name "$$project" \
+            --project-directory /deploy \
+            -f /deploy/docker-compose.yml \
+            up -d server agent ||
+            echo "updater: up -d failed; staying on the running build" >&2
+          sleep "$$REEVE_UPDATE_POLL_SECS"
+        done
+    restart: unless-stopped
+
 volumes:
   reeve-data: {}
-
-secrets:
-  # Only reaches the build, never the running container. Unset means the
-  # embedded agents go out unsigned and hosts refuse to self-update from here.
-  signing_key:
-    environment: REEVE_SIGNING_KEY

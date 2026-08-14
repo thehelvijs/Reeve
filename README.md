@@ -29,13 +29,15 @@ external account.
 git clone https://github.com/thehelvijs/Reeve && cd Reeve
 cp deploy/.env.example deploy/.env
 # set REEVE_MASTER_KEY (openssl rand -base64 32)
+docker login ghcr.io                    # while the package is private
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
-That builds everything from the checkout — UI, embedded agents, server — and
-needs nothing but Docker. No registry, no login, no toolchain. Add `--build`
-after changing code; the `docker-compose.pull.yml` override in
-[deploy/README.md](deploy/README.md) runs a published image instead.
+That is the whole thing: the server with the UI embedded, an agent for the
+machine it runs on, and an updater that keeps both on the release channel — or on
+`develop` or `main`, switchable from Settings. To build from the checkout instead,
+with no registry and no login, add the build override in
+[deploy/README.md](deploy/README.md).
 
 The first account created becomes the admin. Add a host in the UI and it gives
 you the one-line installer for that host's agent, or pushes the agent over SSH

@@ -7,63 +7,49 @@ LAN-only. Nothing here should be exposed to the public internet.
 ```sh
 cp deploy/.env.example deploy/.env
 # set REEVE_MASTER_KEY (openssl rand -base64 32)
+docker login ghcr.io                    # while the package is private
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
 `.env` lives beside the compose file, not at the repo root: Compose reads it
 from the compose file's directory.
 
-That builds the image from this checkout and tags it `reeve:source`. Nothing is
-pulled from a registry, so no login, no published package and no network access
-to ghcr is involved. The build needs only Docker: `deploy/Dockerfile.server`
-installs the web dependencies, builds the UI, embeds the agent binaries and
-compiles the server itself, so no local Go, Node or Python toolchain is
-required.
+That is the whole product in one command: the server, an agent for the machine it
+runs on, and the updater that keeps both on the channel picked in the UI. The web
+UI is embedded in the server binary, so the SPA, the REST API, the agent
+installer and the agent binaries all come off the same port — there is no
+frontend container or dev server to run.
 
-One container serves everything: the web UI is built and embedded into the server
-binary, so the SPA, the REST API, the agent installer, and the agent binaries all
-come off the same port. There is no separate frontend container or dev server to
-run.
-
-`up -d` also starts an **agent for the machine Reeve runs on**, because that
-machine is a host like any other and usually the one already running something
-worth watching. It enrols itself: the server writes an enrollment token for its
-own host row into the data volume and the agent reads it from there, so there is
+**The agent for this machine** is there because the machine running Reeve is a
+host like any other, and usually the one already running something worth
+watching. It enrols itself: the server writes an enrollment token for its own
+host row into the data volume and the agent reads it from there, so there is
 nothing to paste and no secret in `.env`. It appears as **Reeve server** in
 Hosts, with its containers and metrics like any other machine.
 
-That agent is part of the deploy, not of the fleet rollout — it self-updates by
-being repulled or rebuilt with the rest of the stack, so it runs with
-`REEVE_AUTO_UPDATE=false` and reads "updates off". Running it in a container
-means Docker visibility but not the host's systemd or journal; for those, install
-the agent on that machine the ordinary way (**Install command** on its host page)
-and it takes over the row — the server stops sampling itself as soon as an agent
-reports. Don't want it at all? `docker compose -f deploy/docker-compose.yml up -d
-server` starts the server alone.
+That agent is part of the deploy, not of the fleet rollout — it is replaced with
+the rest of the stack, so it runs with `REEVE_AUTO_UPDATE=false` and reads
+"updates off". In a container it sees Docker but not the host's systemd or
+journal; for those, install the agent on that machine the ordinary way (**Install
+command** on its host page) and it takes over the row — the server stops sampling
+itself as soon as an agent reports. Don't want it at all? `up -d server updater`
+starts the rest without it.
 
-`up -d` reuses the existing `reeve:source` image. After changing code, rebuild:
+**Server auto-update.** Every `REEVE_UPDATE_POLL_SECS` (default hourly) the
+updater re-runs `up -d server agent` with the current channel's tag: nothing
+happens when neither the digest nor the channel moved, which is the ordinary
+case. `schema.sql` is re-executed on every open, so there is nothing to migrate
+across a restart. Agents on other hosts follow afterwards through the paced
+rollout below.
 
-```sh
-docker compose -f deploy/docker-compose.yml up -d --build
-```
-
-To run a published image instead of building, add the pull override. The
-package is private, so log in first; `REEVE_IMAGE` picks the tag and should be
-pinned to a version in production:
-
-```sh
-docker login ghcr.io
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pull.yml up -d
-```
-
-**Server auto-update.** That override also starts an `updater` container, so an
-instance installed this way stays current with nothing else to run. Every
-`REEVE_UPDATE_POLL_SECS` (default hourly) it re-runs `up -d server` with the
-current channel's tag: nothing happens when neither the digest nor the channel
-moved, which is the ordinary case. The web UI is embedded in the server binary,
-so one pull updates both, and `schema.sql` is re-executed on every open, so
-there is nothing to migrate across a restart. Agents follow on their own
-afterwards through the paced rollout below.
+Why a separate container: a container cannot replace itself. The server cannot
+recreate the container it is running in, whatever it is allowed to do, so the job
+goes to a 20-line shell loop with no network surface — and the Docker socket,
+which is root on that host, stays out of the process serving HTTP. It mounts the
+data volume and the compose files read-only. While the ghcr package is private
+the updater cannot authenticate on its own — mount host credentials into it
+(`~/.docker/config.json:/config.json:ro`) or make the package public, otherwise
+its pulls fail, it logs, and the server stays on the build it is running.
 
 **Channels.** **Settings → Server updates**, admin-only, picks which stream of
 builds this instance follows:
@@ -80,26 +66,32 @@ not a redeploy. Switching *down* a channel — develop back to release — runs 
 older binary against a database a newer build has already opened; the UI says so
 before you press the button. The tag list lives in two places by necessity, the
 `channelTags` map in `server/server_update.go` and the updater's own whitelist
-here; a test fails if they drift.
+in the compose file; a test fails if they drift.
 
-Holding an instance still: pin `REEVE_IMAGE` to a version *and* leave the
-channel alone, or drop the `updater` service. There is deliberately no
-"arbitrary image" field in the UI — an admin session can choose among three
-published tags of one repository, and the repository itself
+Holding an instance still: pin `REEVE_IMAGE` (and `REEVE_AGENT_IMAGE`) to a
+version *and* leave the channel alone, or drop the `updater` service. There is
+deliberately no "arbitrary image" field in the UI — an admin session can choose
+among three published tags of one repository, and the repository itself
 (`REEVE_IMAGE_REPO`) is set here, not in the database.
 
-The updater holds the Docker socket, which is root on that host: nothing inside
-the server container can replace the container it is running in, so this is what
-the capability costs. It mounts the data volume read-only and the compose files
-read-only. While the ghcr package is private it cannot authenticate on its own —
-mount host credentials into it (`~/.docker/config.json:/config.json:ro`) or make
-the package public, otherwise its pulls fail, it logs and the server stays on
-the build it is running.
+### Building from this checkout instead
 
-Building from this checkout instead? There is no image to pull, so nothing
-updates itself; `up -d --build` is the update, and the channel selector has
-nothing behind it. Same for the raw `server-linux-*` binaries — supervise them
-yourself, and note they ship unsigned, unlike the agent builds.
+```sh
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.build.yml up -d --build
+```
+
+Nothing is pulled from a registry, so no login, no published package and no
+network access to ghcr is involved. The build needs only Docker:
+`deploy/Dockerfile.server` installs the web dependencies, builds the UI, embeds
+the agent binaries and compiles the server itself, so no local Go, Node or Python
+toolchain is required.
+
+On this path `up -d --build` *is* the update: the override leaves the updater out
+(it recreates containers from the base file, which would replace a source build
+with a pulled image), and **Settings → Server updates** has no image behind it.
+Same for the raw `server-linux-*` binaries — supervise them yourself, and note
+they ship unsigned, unlike the agent builds.
 
 The container runs on the host network, so that the server can reach machines
 by their `.local` name: mDNS is multicast, and multicast out of a bridge network

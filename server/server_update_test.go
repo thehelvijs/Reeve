@@ -11,9 +11,9 @@ import (
 // the compose file learning about it would read as switched in the UI and be
 // silently ignored on the next poll.
 func TestEveryChannelTagIsOneTheUpdaterAccepts(t *testing.T) {
-	script, err := os.ReadFile(filepath.Join("..", "deploy", "docker-compose.pull.yml"))
+	script, err := os.ReadFile(filepath.Join("..", "deploy", "docker-compose.yml"))
 	if err != nil {
-		t.Fatalf("read pull override: %v", err)
+		t.Fatalf("read compose file: %v", err)
 	}
 	for channel, tag := range channelTags {
 		if !strings.Contains(string(script), tag+"|") && !strings.Contains(string(script), "|"+tag+")") {

@@ -90,7 +90,7 @@ def test_workflows_grant_no_blanket_permissions(path):
 
 
 COMPOSE = ROOT / "deploy" / "docker-compose.yml"
-PULL_COMPOSE = ROOT / "deploy" / "docker-compose.pull.yml"
+BUILD_COMPOSE = ROOT / "deploy" / "docker-compose.build.yml"
 
 # Compose's !reset tag is not plain YAML, and what it nulls does not matter here.
 yaml.SafeLoader.add_constructor("!reset", lambda loader, node: None)
@@ -114,7 +114,7 @@ def test_compose_uses_the_host_network():
 # the project it is already part of. A hardcoded or defaulted project name would
 # start a second server on the same host port instead of replacing this one.
 def test_updater_takes_the_project_name_from_its_own_labels():
-    updater = yaml.safe_load(PULL_COMPOSE.read_text())["services"]["updater"]
+    updater = yaml.safe_load(COMPOSE.read_text())["services"]["updater"]
     script = updater["entrypoint"][-1]
     assert 'com.docker.compose.project' in script
     assert "--project-name" in script
@@ -125,7 +125,7 @@ def test_updater_takes_the_project_name_from_its_own_labels():
 # writes there; write access would put the database in reach of a container
 # whose only job is to restart another one.
 def test_updater_cannot_write_the_data_volume():
-    updater = yaml.safe_load(PULL_COMPOSE.read_text())["services"]["updater"]
+    updater = yaml.safe_load(COMPOSE.read_text())["services"]["updater"]
     data = [v for v in updater["volumes"] if v.startswith("reeve-data:")]
     assert data == ["reeve-data:/state:ro"]
 
@@ -135,12 +135,12 @@ def test_updater_cannot_write_the_data_volume():
 # remembering a --secret flag. It stays a build secret: the running server
 # never needs it, and the image must not carry it.
 def test_compose_passes_the_signing_key_to_the_build_only():
-    doc = yaml.safe_load(COMPOSE.read_text())
+    doc = yaml.safe_load(BUILD_COMPOSE.read_text())
     server = doc["services"]["server"]
     assert server["build"]["secrets"] == ["signing_key"]
     assert doc["secrets"]["signing_key"] == {"environment": "REEVE_SIGNING_KEY"}
     assert "secrets" not in server
-    assert "REEVE_SIGNING_KEY" not in server["environment"]
+    assert "environment" not in server  # the base file owns what the container runs with
 
 
 # Compose mounts an env-sourced secret as an empty file when the variable is
@@ -154,6 +154,35 @@ def test_dockerfile_treats_an_empty_signing_secret_as_absent():
 # the data volume. A variable would mean an operator pasting a secret, which is
 # the step this exists to remove; the mount stays read-only because the rest of
 # that volume is the database.
+# The updater recreates containers from the base file alone, so a source build
+# left with an updater running would be replaced by a pulled image on the next
+# poll — silently undoing the deploy the operator chose.
+def test_the_build_override_leaves_the_updater_out():
+    updater = yaml.safe_load(BUILD_COMPOSE.read_text())["services"]["updater"]
+    assert updater["profiles"] == ["never"]
+
+
+# Nothing may be pulled on the build path: the tags it builds exist nowhere to
+# pull from, and `always` would fail the command trying.
+def test_the_build_override_builds_both_images():
+    services = yaml.safe_load(BUILD_COMPOSE.read_text())["services"]
+    for name, dockerfile in (("server", "deploy/Dockerfile.server"), ("agent", "deploy/Dockerfile.agent")):
+        assert services[name]["build"]["dockerfile"] == dockerfile
+        assert services[name]["pull_policy"] == "build"
+
+
+# The default path is the whole product: an operator who runs `up -d` gets the
+# server, the agent for its own machine, and the updater that keeps them current.
+def test_the_default_path_runs_published_images_and_the_updater():
+    services = yaml.safe_load(COMPOSE.read_text())["services"]
+    assert set(services) == {"server", "agent", "updater"}
+    assert services["server"]["image"].startswith("${REEVE_IMAGE:-ghcr.io/")
+    assert services["agent"]["image"].startswith("${REEVE_AGENT_IMAGE:-ghcr.io/")
+    for name in ("server", "agent"):
+        assert "build" not in services[name]
+        assert services[name]["pull_policy"] == "always"
+
+
 def test_agent_sidecar_enrols_from_the_data_volume():
     agent = yaml.safe_load(COMPOSE.read_text())["services"]["agent"]
     assert agent["environment"]["REEVE_AGENT_TOKEN_FILE"] == "/state/self-agent-token"

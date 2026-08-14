@@ -1,0 +1,41 @@
+# Override for building from this checkout instead of running a published image.
+# Nothing is pulled from a registry, so no login and no published package is
+# involved; the build needs only Docker.
+#
+#   docker compose -f deploy/docker-compose.yml \
+#                  -f deploy/docker-compose.build.yml up -d --build
+#
+# Re-run that after changing code: `up -d --build` is the update on this path,
+# and Settings -> Server updates has nothing behind it, because there is no image
+# for the updater to pull.
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+      secrets:
+        - signing_key
+    image: reeve:source
+    # The base file pulls on every up; a locally built tag exists nowhere to pull
+    # from, and `always` would fail the whole command trying.
+    pull_policy: build
+
+  agent:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    image: reeve-agent:source
+    pull_policy: build
+
+  # No updater on this path. It recreates containers from the base file alone, so
+  # leaving it running would replace this source build with a pulled image on its
+  # next poll. A profile nothing enables is how compose leaves a service out.
+  updater:
+    profiles:
+      - never
+
+secrets:
+  # Only reaches the build, never the running container. Unset means the embedded
+  # agents go out unsigned and hosts refuse to self-update from here.
+  signing_key:
+    environment: REEVE_SIGNING_KEY
