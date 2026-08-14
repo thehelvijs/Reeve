@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import Catalog from './pages/Catalog';
 import Collections from './pages/Collections';
 import CollectionDetail from './pages/CollectionDetail';
+import AddForMonitoring from './pages/AddForMonitoring';
 import ToolFormPage from './pages/ToolFormPage';
 import ToolDetail from './pages/ToolDetail';
 import Hosts from './pages/Hosts';
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/services" element={<Catalog />} />
         <Route path="/services/new" element={<ToolFormPage />} />
+        <Route path="/services/add" element={<AddForMonitoring />} />
         <Route path="/services/:id" element={<ToolDetail />} />
         <Route path="/services/:id/edit" element={<ToolFormPage />} />
         <Route path="/collections" element={<Collections />} />

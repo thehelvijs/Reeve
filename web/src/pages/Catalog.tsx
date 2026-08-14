@@ -8,7 +8,6 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton } from '../components/Skeleton';
 import VisibilityToggle from '../components/VisibilityToggle';
-import AddServiceModal from '../components/AddServiceModal';
 import { useResource } from '../lib/cache';
 import { matchesQuery } from '../lib/search';
 
@@ -28,7 +27,6 @@ export default function Catalog() {
   const [status, setStatus] = useState<ToolStatus | 'all'>('all');
   const [collectionID, setCollectionID] = useState('');
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     setSearch(params.get('q') ?? '');
@@ -78,7 +76,7 @@ export default function Catalog() {
             <Button variant="secondary" onClick={() => navigate('/services/new')}>
               Add manually
             </Button>
-            <Button onClick={() => setAdding(true)}>Add for monitoring</Button>
+            <Button onClick={() => navigate('/services/add')}>Add for monitoring</Button>
           </div>
         }
       />
@@ -180,7 +178,7 @@ export default function Catalog() {
             <Button variant="secondary" onClick={() => navigate('/services/new')}>
               Add manually
             </Button>
-            <Button onClick={() => setAdding(true)}>Add for monitoring</Button>
+            <Button onClick={() => navigate('/services/add')}>Add for monitoring</Button>
           </div>
         }
                 />
@@ -194,8 +192,6 @@ export default function Catalog() {
           )}
         </>
       )}
-
-      {adding && <AddServiceModal onClose={() => setAdding(false)} />}
     </div>
   );
 }

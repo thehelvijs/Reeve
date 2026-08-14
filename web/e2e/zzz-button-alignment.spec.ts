@@ -16,6 +16,7 @@ const VIEWS = [
   '/',
   '/services',
   '/services/new',
+  '/services/add',
   '/collections',
   '/hosts',
   '/requests',
@@ -96,7 +97,6 @@ test('buttons sharing a row are the same height', async ({ page }) => {
   const modals: [string, string][] = [
     ['/hosts', 'Add host'],
     ['/hosts', 'How to add a host'],
-    ['/services', 'Add for monitoring'],
     ['/collections', 'New collection'],
     ['/admin/groups', 'New group'],
   ];

@@ -15,12 +15,12 @@ test('signup, create tool, store and reveal a host credential', async ({ page })
   await page.click('button[type=submit]');
   await expect(page).toHaveURL('/');
 
-  // "Add for monitoring" opens the host picker; manual entry is the direct path
-  // and the only one available before any host has reported anything.
+  // "Add for monitoring" is a page of everything the agents found; manual entry
+  // is the direct path, and the only one before any host has reported anything.
   await page.goto('/services');
   await page.locator('button:text-is("Add for monitoring")').first().click();
-  await expect(page.locator('[role=dialog]')).toBeVisible();
-  await page.locator('[role=dialog] button:text-is("Add manually")').click();
+  await expect(page).toHaveURL('/services/add');
+  await page.locator('button:text-is("Add manually")').first().click();
   await expect(page).toHaveURL('/services/new');
   await page.fill('input[required]', 'Grafana');
   await page.fill('input[placeholder="10.0.0.5"]', '10.0.0.9');
