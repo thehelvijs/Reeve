@@ -51,7 +51,9 @@ export default function ThresholdFields({
         const row = value[m.key] ?? EMPTY_ROW;
         return (
           <div key={m.key} className="flex items-end gap-3">
-            <label className="flex items-center gap-2 text-sm text-content">
+            {/* Fixed width: the labels run from "CPU %" to "Network MiB/s", and
+                sizing this column to its text put every input at a different x. */}
+            <label className="flex w-40 shrink-0 items-center gap-2 text-sm text-content">
               <input
                 type="checkbox"
                 checked={row.enabled}

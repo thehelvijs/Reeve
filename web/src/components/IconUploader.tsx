@@ -47,8 +47,11 @@ export default function IconUploader({
 
   return (
     <div>
-      <div className="flex items-center gap-4">
-        <EntityIcon url={url} name={name} size={56} />
+      {/* 96px is the thumbnail preview's height: the two uploaders sit side by
+          side, and previews of different heights made one card taller than the
+          other for no reason a reader can see. */}
+      <div className="flex items-start gap-4">
+        <EntityIcon url={url} name={name} size={96} />
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}>
             Upload

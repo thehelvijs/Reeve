@@ -10,6 +10,9 @@ export default function EntityIcon({
   size?: number;
 }) {
   const dim = { width: size, height: size };
+  // The fallback letter scales with the tile. Fixed at text-xs it read as a
+  // speck in the 96px tile the uploaders show.
+  const letter = { ...dim, fontSize: Math.max(12, Math.round(size * 0.4)) };
   if (url) {
     return (
       <img
@@ -22,8 +25,8 @@ export default function EntityIcon({
   }
   return (
     <span
-      style={dim}
-      className="flex shrink-0 items-center justify-center rounded-button border border-hairline bg-surface-2 text-xs font-medium text-muted"
+      style={letter}
+      className="flex shrink-0 items-center justify-center rounded-button border border-hairline bg-surface-2 font-medium text-muted"
     >
       {(name.trim()[0] || '?').toUpperCase()}
     </span>

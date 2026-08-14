@@ -80,7 +80,7 @@ export default function ThumbnailUploader({
           />
         </div>
       </div>
-      <p className="mt-3 text-xs text-muted">A wider preview image. PNG, JPEG, or WebP, up to 1 MB.</p>
+      <p className="mt-3 text-xs text-muted">A wider preview. PNG, JPEG, or WebP, up to 1 MB.</p>
       <ErrorText>{error}</ErrorText>
     </div>
   );
