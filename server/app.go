@@ -243,6 +243,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("DELETE /api/admin/hosts/{id}/thumbnail", admin(a.deleteImage(hostThumbnail)))
 	mux.Handle("GET /api/admin/geocode", admin(http.HandlerFunc(a.handleGeocode)))
 	mux.Handle("POST /api/admin/ssh-probe", admin(http.HandlerFunc(a.handleSSHProbe)))
+	mux.Handle("POST /api/admin/hosts/{id}/enroll-token", admin(http.HandlerFunc(a.handleReissueEnrollToken)))
 	mux.Handle("POST /api/admin/hosts/{id}/ssh-install", admin(http.HandlerFunc(a.handleSSHInstall)))
 	mux.Handle("POST /api/admin/hosts/{id}/ssh-uninstall", admin(http.HandlerFunc(a.handleSSHUninstall)))
 	mux.Handle("DELETE /api/admin/hosts/{id}/metrics", admin(http.HandlerFunc(a.handleClearHostMetrics)))

@@ -25,6 +25,22 @@ binary, so the SPA, the REST API, the agent installer, and the agent binaries al
 come off the same port. There is no separate frontend container or dev server to
 run.
 
+`up -d` also starts an **agent for the machine Reeve runs on**, because that
+machine is a host like any other and usually the one already running something
+worth watching. It enrols itself: the server writes an enrollment token for its
+own host row into the data volume and the agent reads it from there, so there is
+nothing to paste and no secret in `.env`. It appears as **Reeve server** in
+Hosts, with its containers and metrics like any other machine.
+
+That agent is part of the deploy, not of the fleet rollout — it self-updates by
+being repulled or rebuilt with the rest of the stack, so it runs with
+`REEVE_AUTO_UPDATE=false` and reads "updates off". Running it in a container
+means Docker visibility but not the host's systemd or journal; for those, install
+the agent on that machine the ordinary way (**Install command** on its host page)
+and it takes over the row — the server stops sampling itself as soon as an agent
+reports. Don't want it at all? `docker compose -f deploy/docker-compose.yml up -d
+server` starts the server alone.
+
 `up -d` reuses the existing `reeve:source` image. After changing code, rebuild:
 
 ```sh

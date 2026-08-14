@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +33,16 @@ func loadConfig() (config, error) {
 		AutoUpdate:     os.Getenv("REEVE_AUTO_UPDATE") != "false",
 		UpdateInterval: time.Hour,
 		AllowControl:   os.Getenv("REEVE_ALLOW_CONTROL") != "false",
+	}
+	// A token can arrive as a file instead of a variable, which is how the agent
+	// shipped beside a Reeve server enrolls: the server writes one into the data
+	// volume and nobody has to carry a secret between the two.
+	if f := os.Getenv("REEVE_AGENT_TOKEN_FILE"); f != "" && c.Token == "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return c, err
+		}
+		c.Token = strings.TrimSpace(string(b))
 	}
 	if v := os.Getenv("REEVE_PUSH_INTERVAL"); v != "" {
 		d, err := time.ParseDuration(v)

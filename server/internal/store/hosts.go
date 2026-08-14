@@ -180,6 +180,14 @@ func (db *DB) SetHostEnrollTokenHash(id, tokenHash string) error {
 	return db.exec1(`UPDATE hosts SET enroll_token_hash = ? WHERE id = ?`, tokenHash, id)
 }
 
+// MarkHostSeen stamps last_seen_at without claiming an agent version, for the
+// server's own row: it heartbeats from inside the server until an agent is
+// installed on that machine, and must not read as one that already has.
+func (db *DB) MarkHostSeen(id string) error {
+	return db.exec1(`UPDATE hosts SET last_seen_at = ? WHERE id = ?`,
+		time.Now().UTC().Format(time.RFC3339Nano), id)
+}
+
 // TouchHost updates last_seen_at and agent version on a successful push.
 func (db *DB) TouchHost(id, agentVersion string) error {
 	return db.exec1(`UPDATE hosts SET last_seen_at = ?, agent_version = ? WHERE id = ?`,

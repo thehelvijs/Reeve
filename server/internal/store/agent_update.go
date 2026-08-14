@@ -30,8 +30,7 @@ func blockingSlot(alias string, fleetDefault bool) string {
 	if fleetDefault {
 		def = "1"
 	}
-	return alias + `.id != '` + ServerHostID + `'` +
-		` AND ` + alias + `.update_started_at IS NOT NULL` +
+	return alias + `.update_started_at IS NOT NULL` +
 		` AND ` + alias + `.auto_update != '` + AutoUpdateOff + `'` +
 		// A forced slot is outside the paced rollout: update-now already bypasses
 		// the cap and a pause, so its slot must not count against either. Without
@@ -127,7 +126,7 @@ func (db *DB) ListStalledHosts(cutoff time.Time, fleetDefault bool) ([]StalledHo
 func (db *DB) ClearStalledUpdates(cutoff time.Time) error {
 	_, err := db.sql.Exec(
 		`UPDATE hosts SET update_started_at = NULL, update_forced = 0
-		 WHERE id != ? AND update_started_at IS NOT NULL AND update_started_at < ?`,
-		ServerHostID, cutoff.UTC().Format(slotStamp))
+		 WHERE update_started_at IS NOT NULL AND update_started_at < ?`,
+		cutoff.UTC().Format(slotStamp))
 	return err
 }

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,46 @@ func TestLoadConfigDefaultInterval(t *testing.T) {
 	}
 	if cfg.ServerURL != "http://server:8080" || cfg.Token != "tok" {
 		t.Errorf("config not read from env: %+v", cfg)
+	}
+}
+
+// The agent beside a Reeve server is handed a file, not a variable: the token is
+// written into a volume both containers see, trailing newline and all.
+func TestLoadConfigReadsTheTokenFromAFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "self-agent-token")
+	if err := os.WriteFile(path, []byte("file-tok\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("REEVE_SERVER_URL", "http://server:8080")
+	t.Setenv("REEVE_AGENT_TOKEN", "")
+	t.Setenv("REEVE_AGENT_TOKEN_FILE", path)
+	t.Setenv("REEVE_PUSH_INTERVAL", "")
+
+	cfg, err := loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if cfg.Token != "file-tok" {
+		t.Errorf("Token = %q, want %q", cfg.Token, "file-tok")
+	}
+
+	// An explicit token wins: a host installed by hand must not be redirected by
+	// a file that happens to be mounted.
+	t.Setenv("REEVE_AGENT_TOKEN", "env-tok")
+	cfg, err = loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if cfg.Token != "env-tok" {
+		t.Errorf("Token = %q, want the env value to win", cfg.Token)
+	}
+
+	// A file that is not there is a misconfiguration, not an empty token: the
+	// agent must say so rather than start and fail every push with a 401.
+	t.Setenv("REEVE_AGENT_TOKEN", "")
+	t.Setenv("REEVE_AGENT_TOKEN_FILE", path+"-missing")
+	if _, err := loadConfig(); err == nil {
+		t.Error("expected an error for a missing token file")
 	}
 }
 

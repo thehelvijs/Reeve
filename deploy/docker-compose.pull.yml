@@ -10,6 +10,11 @@ services:
     image: ${REEVE_IMAGE:-ghcr.io/thehelvijs/reeve:latest}
     pull_policy: always
 
+  agent:
+    build: !reset null
+    image: ${REEVE_AGENT_IMAGE:-ghcr.io/thehelvijs/reeve-agent:latest}
+    pull_policy: always
+
   # Re-runs `up -d server` on a timer with the channel's tag substituted in, so
   # one loop covers both jobs: a new digest on the current channel, and a
   # channel an admin switched in the UI. Compose does nothing when neither
@@ -53,12 +58,13 @@ services:
             latest|develop|main) ;;
             *) tag=latest ;;
           esac
-          REEVE_IMAGE="$$REEVE_IMAGE_REPO:$$tag" docker compose \
+          REEVE_IMAGE="$$REEVE_IMAGE_REPO:$$tag" \
+          REEVE_AGENT_IMAGE="$$REEVE_IMAGE_REPO-agent:$$tag" docker compose \
             --project-name "$$project" \
             --project-directory /deploy \
             -f /deploy/docker-compose.yml \
             -f /deploy/docker-compose.pull.yml \
-            up -d server ||
+            up -d server agent ||
             echo "updater: up -d failed; staying on the running build" >&2
           sleep "$$REEVE_UPDATE_POLL_SECS"
         done

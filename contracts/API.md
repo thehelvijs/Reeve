@@ -434,10 +434,12 @@ receiver that answers badly is not an API failure: the response is `200` with
   `POST /access-requests/{id}/approve|deny` (admin only — a host has no other
   owner), `/admin/hosts/{id}/access/{ptype}/{pid}`.
 - `GET /hosts` includes the machine Reeve itself runs on, as the reserved id
-  `__server__` with `is_server: true`. It reports itself from inside the server
-  rather than through an agent, so it carries metrics and disks but no
-  inventory, runs no commands, is left out of the agent rollout counts, and
-  cannot be deleted. Services can be pinned to it like any other host.
+  `__server__` with `is_server: true`. It is an ordinary host: install an agent
+  on that machine (see `enroll-token` below) and it reports inventory, runs
+  commands and joins the rollout like any other. Until one is installed the
+  server samples that machine itself, so the row still carries metrics, disks
+  and a heartbeat but no inventory; the first agent push stands that sampling
+  down for good. It cannot be deleted.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
   `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
   carries `processes`, the latest top-by-CPU-and-memory snapshot).
@@ -475,6 +477,16 @@ receiver that answers badly is not an API failure: the response is `200` with
   `/admin/webhooks`, `/admin/alerts`, `/admin/deliveries`,
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
   (see Agent updates above).
+
+### `POST /admin/hosts/{id}/enroll-token`
+
+Mints a fresh enrollment token for a host that already exists and returns
+`install_command` and `run_command` for it. `POST /admin/hosts` shows a token
+once and never again, so this is the way to install an agent on a host created
+earlier — the server's own `__server__` row included. It revokes the previous
+token: an agent still using it stops reporting until the new command is run.
+Refused with `unreachable_server_url` when the UI is being reached on an address
+no other machine can push to, the same check `ssh-install` makes.
 
 ### SSH install and the credential it keeps
 

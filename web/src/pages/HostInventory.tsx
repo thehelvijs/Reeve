@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import SSHDeployModal from '../components/SSHDeployModal';
+import AgentInstallModal from '../components/AgentInstallModal';
 import { needsConfirm, rowConfirmation } from '../lib/confirmText';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -124,14 +125,6 @@ export default function HostInventory() {
 
   const hostLabel = host?.name ?? 'this host';
 
-  // Reeve reports its own machine from inside the server, which does not read
-  // that machine's units, containers or crontabs. Finding nothing is expected
-  // there, so the empty states must not blame a missing agent.
-  let selfNote = '';
-  if (host?.is_server) {
-    selfNote = 'Reeve watches its own machine from inside the server and discovers nothing on it. Add what runs here by hand.';
-  }
-
   if (!inv) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
@@ -184,8 +177,8 @@ export default function HostInventory() {
               />
             )}
             {host && <RightNow host={host} />}
-            {id && host && admin && !host.is_server && <HostControls hostId={id} host={host} />}
-            {host && admin && !host.is_server && <AgentSection host={host} onChanged={load} />}
+            {id && host && admin && <HostControls hostId={id} host={host} />}
+            {host && admin && <AgentSection host={host} onChanged={load} />}
             {id && <EventHistory path={`/api/hosts/${id}/events`} />}
           </>
         )}
@@ -213,7 +206,7 @@ export default function HostInventory() {
               onCreate={createFrom}
               control={controlFor('service')}
               hostName={hostLabel}
-              emptyDescription={selfNote || 'This machine reports no systemd units, or its agent cannot read them.'}
+              emptyDescription="This machine reports no systemd units, or its agent cannot read them."
             />
             <InventorySection
               title="Containers"
@@ -222,7 +215,7 @@ export default function HostInventory() {
               onCreate={createFrom}
               control={controlFor('container')}
               hostName={hostLabel}
-              emptyDescription={selfNote || 'No container runtime is reporting on this machine.'}
+              emptyDescription="No container runtime is reporting on this machine."
             />
             <InventorySection
               title="Cron jobs"
@@ -230,7 +223,7 @@ export default function HostInventory() {
               items={inv.cron_jobs}
               onCreate={createFrom}
               hostName={hostLabel}
-              emptyDescription={selfNote || 'No scheduled job is set up for any user on this machine.'}
+              emptyDescription="No scheduled job is set up for any user on this machine."
             />
           </>
         )}
@@ -402,6 +395,7 @@ function RightNow({ host }: { host: Host }) {
 function AgentSection({ host, onChanged }: { host: Host; onChanged: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   const setPolicy = async (policy: AutoUpdatePolicy) => {
     setError('');
@@ -470,9 +464,13 @@ function AgentSection({ host, onChanged }: { host: Host; onChanged: () => void }
               Update now
             </Button>
           )}
+          <Button variant="secondary" onClick={() => setInstalling(true)}>
+            Install command
+          </Button>
         </div>
         <ErrorText>{error}</ErrorText>
       </Card>
+      {installing && <AgentInstallModal host={host} onClose={() => setInstalling(false)} />}
     </Section>
   );
 }

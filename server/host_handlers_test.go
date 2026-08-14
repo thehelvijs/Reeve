@@ -60,6 +60,57 @@ func TestListHostsIncludesLatestMetric(t *testing.T) {
 	}
 }
 
+// Re-issuing hands back a token that works and retires the one it replaced,
+// which is what makes it usable on a host created before anyone needed an agent
+// on it — the server's own row included.
+func TestReissueEnrollTokenReplacesTheOldOne(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	ts.app.cfg.PublicURL = ts.srv.URL
+	hostID, oldToken := enrollHost(t, ts, admin, "h")
+
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/admin/hosts/"+hostID+"/enroll-token", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("enroll-token = %d: %s", resp.StatusCode, data)
+	}
+	var out struct {
+		InstallCommand string `json:"install_command"`
+		RunCommand     string `json:"run_command"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	newToken := tokenFromCommand(t, out.InstallCommand)
+	if newToken == oldToken {
+		t.Fatal("re-issue returned the same token")
+	}
+	if !strings.Contains(out.RunCommand, newToken) {
+		t.Error("the docker command carries a different token than the installer")
+	}
+
+	push := samplePush()
+	fresh, _ := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + newToken})
+	if fresh.StatusCode != http.StatusOK {
+		t.Errorf("push with the re-issued token = %d, want 200", fresh.StatusCode)
+	}
+	stale, _ := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + oldToken})
+	if stale.StatusCode != http.StatusUnauthorized {
+		t.Errorf("push with the replaced token = %d, want 401", stale.StatusCode)
+	}
+}
+
+func tokenFromCommand(t *testing.T, cmd string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(cmd, "REEVE_AGENT_TOKEN=")
+	if !ok {
+		t.Fatalf("no token in %q", cmd)
+	}
+	token, _, _ := strings.Cut(rest, " ")
+	return token
+}
+
 func TestAgentInstallCommandShape(t *testing.T) {
 	a := &app{cfg: config{PublicURL: "http://10.0.0.2:8080"}}
 	cmd := a.agentInstallCommand(httptest.NewRequest(http.MethodPost, "/", nil), "tok-123")

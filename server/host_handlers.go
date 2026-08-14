@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -164,6 +165,43 @@ func (a *app) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"host":            hostToView(h, time.Now().UTC(), a.updateContext()),
 		"enroll_token":    token,
+		"install_command": a.agentInstallCommand(r, token),
+		"run_command":     a.agentRunCommand(r, token),
+	})
+}
+
+// handleReissueEnrollToken mints a fresh enrollment token for a host that
+// already exists and hands back the commands that use it. The plaintext of the
+// first one is gone by design, so this is the only way to install an agent on a
+// host somebody created earlier — the machine Reeve itself runs on among them.
+//
+// It revokes the previous token, which stops any agent still using it: that is
+// the point of a re-issue, and the UI says so before asking for it.
+func (a *app) handleReissueEnrollToken(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := a.db.GetHost(id); err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "host not found")
+		return
+	}
+	serverURL := a.baseURL(r)
+	if a.cfg.PublicURL == "" && !reachableFromOtherHosts(serverURL) {
+		writeError(w, http.StatusBadRequest, "unreachable_server_url",
+			"reach this UI by the server's LAN address instead of "+serverURL+
+				", or set REEVE_PUBLIC_URL, so the agent has an address it can push to")
+		return
+	}
+	token, hash := auth.NewAgentToken()
+	if err := a.db.SetHostEnrollTokenHash(id, hash); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not issue an enrollment token")
+		return
+	}
+	// The server publishes a token for its own machine on every start. Dropping
+	// that file hands this row over to whoever asked for this token, instead of
+	// having the next restart put the shipped agent's one back.
+	if id == store.ServerHostID {
+		os.Remove(a.selfAgentTokenPath())
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
 		"install_command": a.agentInstallCommand(r, token),
 		"run_command":     a.agentRunCommand(r, token),
 	})

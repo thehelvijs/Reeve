@@ -35,6 +35,35 @@ services:
       - reeve-data:/data
     restart: unless-stopped
 
+  # The machine running Reeve is a host like any other, so it gets an agent like
+  # any other. It enrols itself: the server writes a token for its own host row
+  # into the data volume, and this reads it from there, so there is nothing to
+  # paste and no secret in .env.
+  #
+  # Host networking to reach the server on the port it bound, and because the
+  # metrics it reports should be the machine's, not a bridge's.
+  agent:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    image: reeve-agent:source
+    network_mode: host
+    environment:
+      REEVE_SERVER_URL: http://127.0.0.1:${REEVE_PORT:-7338}
+      REEVE_AGENT_TOKEN_FILE: /state/self-agent-token
+      # This agent is part of the deploy, not of the fleet rollout: it is
+      # replaced by rebuilding or repulling its image, and a self-update would
+      # be undone by the next `up -d`.
+      REEVE_AUTO_UPDATE: "false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Only for the token file; the rest of the volume is the database.
+      - reeve-data:/state:ro
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   reeve-data: {}
 

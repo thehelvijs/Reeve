@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState';
 import EntityIcon from '../components/EntityIcon';
 import { ListSkeleton } from '../components/Skeleton';
 import SSHDeployModal from '../components/SSHDeployModal';
+import { CmdBlock } from '../components/AgentInstallModal';
 import { useResource } from '../lib/cache';
 import { UPDATE_LABEL, UPDATE_TONE, showsVersionPill } from '../lib/agentUpdate';
 import { hostRowActions } from '../lib/hostActions';
@@ -120,7 +121,11 @@ export default function Hosts() {
                     {h.last_seen_at ? new Date(h.last_seen_at).toLocaleString() : 'never'}
                   </Td>
                   <Td>
-                    <AgentBuild host={h} />
+                    {showsVersionPill(h.update_state) ? (
+                      <Pill tone={UPDATE_TONE[h.update_state]}>{UPDATE_LABEL[h.update_state]}</Pill>
+                    ) : (
+                      <span className="text-muted">up to date</span>
+                    )}
                   </Td>
                   <Td>
                     <Pill tone={hostTone(h.status)}>{h.status}</Pill>
@@ -163,19 +168,6 @@ export default function Hosts() {
       )}
     </div>
   );
-}
-
-// AgentBuild reads the rollout state of one row. The server's own machine is not
-// in the rollout — it updates with the server binary — so it says so instead of
-// reporting a build the rollout cannot place.
-function AgentBuild({ host }: { host: Host }) {
-  if (host.is_server) {
-    return <span className="text-muted">built in</span>;
-  }
-  if (!showsVersionPill(host.update_state)) {
-    return <span className="text-muted">up to date</span>;
-  }
-  return <Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>;
 }
 
 // RowActions shows only what this host actually needs. Nothing for a machine
@@ -349,28 +341,6 @@ function EnrollModal({
           </div>
         )}
     </Modal>
-  );
-}
-
-function CmdBlock({ label, cmd }: { label: string; cmd: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(cmd);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs font-medium text-muted">{label}</span>
-        <button type="button" onClick={copy} className="text-xs text-muted transition-colors hover:text-content">
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-      <pre className="overflow-x-auto rounded-button border border-hairline bg-surface-2 px-3 py-2 font-mono text-xs text-content">
-        {cmd}
-      </pre>
-    </div>
   );
 }
 

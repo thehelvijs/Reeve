@@ -91,6 +91,9 @@ func run() error {
 	if err := db.EnsureServerHost(runtime.GOOS); err != nil {
 		return fmt.Errorf("startup: could not register self host: %w", err)
 	}
+	if err := a.syncSelfAgentToken(); err != nil {
+		return fmt.Errorf("startup: could not publish the self-agent token: %w", err)
+	}
 	a.syncChannelFile()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -173,23 +176,30 @@ func every(ctx context.Context, d time.Duration, fn func()) {
 	}
 }
 
-// runServerSampleLoop records the server's own machine metrics so the Server
-// page can chart them like any monitored host.
+// runServerSampleLoop records the server's own machine metrics, and heartbeats
+// its host row, until an agent is installed on that machine.
+//
+// It stands down for good once one has reported: an agent reads the machine
+// itself, while this reads it through the server's container, and two writers
+// would fight over one filesystem snapshot. A machine whose agent is later
+// removed then reads offline like any other, which is the honest answer — put
+// the agent back to fix it.
 func (a *app) runServerSampleLoop(ctx context.Context) {
 	sample := func() {
+		if h, err := a.db.GetHost(store.ServerHostID); err == nil && h.AgentVersion != "" {
+			return
+		}
 		now := time.Now().UTC()
 		m := a.sampleHost()
 		if err := a.db.InsertHostMetric(store.ServerHostID, m, now); err != nil {
 			log.Printf("server sample: %v", err)
 		}
-		// The server never pushes to itself, so its filesystem snapshot has to
-		// be written here or the Server page shows charts and no disks.
+		// Nothing pushes for this row yet, so its filesystem snapshot has to be
+		// written here or the page shows charts and no disks.
 		if err := a.db.ReplaceHostDisks(store.ServerHostID, m.Disks, now); err != nil {
 			log.Printf("server sample disks: %v", err)
 		}
-		// This sample is the server host's heartbeat: nothing pushes for it, so
-		// without a touch here it lists as a host that has never reported.
-		if err := a.db.TouchHost(store.ServerHostID, a.cfg.Version); err != nil {
+		if err := a.db.MarkHostSeen(store.ServerHostID); err != nil {
 			log.Printf("server sample touch: %v", err)
 		}
 	}

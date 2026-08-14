@@ -148,3 +148,17 @@ def test_compose_passes_the_signing_key_to_the_build_only():
 def test_dockerfile_treats_an_empty_signing_secret_as_absent():
     body = (ROOT / "deploy" / "Dockerfile.server").read_text()
     assert "[ -s /run/secrets/signing_key ]" in body
+
+
+# The agent shipped with the deploy enrols from a token the server writes into
+# the data volume. A variable would mean an operator pasting a secret, which is
+# the step this exists to remove; the mount stays read-only because the rest of
+# that volume is the database.
+def test_agent_sidecar_enrols_from_the_data_volume():
+    agent = yaml.safe_load(COMPOSE.read_text())["services"]["agent"]
+    assert agent["environment"]["REEVE_AGENT_TOKEN_FILE"] == "/state/self-agent-token"
+    assert "REEVE_AGENT_TOKEN" not in agent["environment"]
+    assert "reeve-data:/state:ro" in agent["volumes"]
+    # The filename lives in two places by necessity; a drift here would leave the
+    # agent waiting on a file nobody writes.
+    assert 'selfAgentTokenFile = "self-agent-token"' in (ROOT / "server" / "self_agent.go").read_text()
