@@ -12,6 +12,10 @@ export interface RowActions {
 // Removing the agent is deliberately not here: it belongs with deleting the
 // host, on the host's own page, not one click away in a list.
 export function hostRowActions(host: Host): RowActions {
+  // The server's own row has no agent to install or update.
+  if (host.is_server) {
+    return { install: false, update: false };
+  }
   const healthy = host.status === 'online' && host.update_state === 'up_to_date';
   return {
     // The fallback for a machine that is not reporting, or reporting a build

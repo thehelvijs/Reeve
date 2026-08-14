@@ -120,11 +120,7 @@ export default function Hosts() {
                     {h.last_seen_at ? new Date(h.last_seen_at).toLocaleString() : 'never'}
                   </Td>
                   <Td>
-                    {showsVersionPill(h.update_state) ? (
-                      <Pill tone={UPDATE_TONE[h.update_state]}>{UPDATE_LABEL[h.update_state]}</Pill>
-                    ) : (
-                      <span className="text-muted">up to date</span>
-                    )}
+                    <AgentBuild host={h} />
                   </Td>
                   <Td>
                     <Pill tone={hostTone(h.status)}>{h.status}</Pill>
@@ -167,6 +163,19 @@ export default function Hosts() {
       )}
     </div>
   );
+}
+
+// AgentBuild reads the rollout state of one row. The server's own machine is not
+// in the rollout — it updates with the server binary — so it says so instead of
+// reporting a build the rollout cannot place.
+function AgentBuild({ host }: { host: Host }) {
+  if (host.is_server) {
+    return <span className="text-muted">built in</span>;
+  }
+  if (!showsVersionPill(host.update_state)) {
+    return <span className="text-muted">up to date</span>;
+  }
+  return <Pill tone={UPDATE_TONE[host.update_state]}>{UPDATE_LABEL[host.update_state]}</Pill>;
 }
 
 // RowActions shows only what this host actually needs. Nothing for a machine

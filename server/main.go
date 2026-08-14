@@ -187,6 +187,11 @@ func (a *app) runServerSampleLoop(ctx context.Context) {
 		if err := a.db.ReplaceHostDisks(store.ServerHostID, m.Disks, now); err != nil {
 			log.Printf("server sample disks: %v", err)
 		}
+		// This sample is the server host's heartbeat: nothing pushes for it, so
+		// without a touch here it lists as a host that has never reported.
+		if err := a.db.TouchHost(store.ServerHostID, a.cfg.Version); err != nil {
+			log.Printf("server sample touch: %v", err)
+		}
 	}
 	sample()
 	every(ctx, 30*time.Second, sample)

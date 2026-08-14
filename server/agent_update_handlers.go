@@ -32,6 +32,11 @@ func (a *app) handleGetAgentUpdates(w http.ResponseWriter, _ *http.Request) {
 		updateStateUnknown:  0,
 	}
 	for _, h := range hosts {
+		// The server's own row runs no agent, so counting it would put a host in
+		// the rollout that no rollout can ever move.
+		if h.ID == store.ServerHostID {
+			continue
+		}
 		counts[updateStateFor(h, uc, now)]++
 	}
 	stalled, err := a.db.ListStalledHosts(now.Add(-uc.Stall), uc.FleetDefault)

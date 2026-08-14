@@ -433,6 +433,11 @@ receiver that answers badly is not an API failure: the response is `200` with
 - Access: `POST /hosts/{id}/access-requests`, `GET /access-requests?box=`,
   `POST /access-requests/{id}/approve|deny` (admin only — a host has no other
   owner), `/admin/hosts/{id}/access/{ptype}/{pid}`.
+- `GET /hosts` includes the machine Reeve itself runs on, as the reserved id
+  `__server__` with `is_server: true`. It reports itself from inside the server
+  rather than through an agent, so it carries metrics and disks but no
+  inventory, runs no commands, is left out of the agent rollout counts, and
+  cannot be deleted. Services can be pinned to it like any other host.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
   `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
   carries `processes`, the latest top-by-CPU-and-memory snapshot).
@@ -484,7 +489,8 @@ NOPASSWD sudo). The response carries `credential_saved`.
 `DELETE /admin/hosts/{id}` removes a host along with its credentials, metrics,
 events and command history. A tool pinned to it keeps a `host_id` that no
 longer resolves, and the agent on the machine keeps running until it is
-uninstalled.
+uninstalled. The server's own host (`is_server`) answers `409 server_host`:
+startup would recreate the row, without the history the delete threw away.
 
 ## Host controls (admin only)
 

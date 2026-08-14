@@ -127,7 +127,12 @@ function HostItems({
   return (
     <Modal title={`On ${host.name}`} onClose={onClose} onSubmit={onManual}>
       {inv === null && <p className="mt-4 text-sm text-muted">Loading what the agent found…</p>}
-      {inv !== null && total === 0 && (
+      {inv !== null && total === 0 && host.is_server && (
+        <p className="mt-4 text-sm text-muted">
+          Reeve watches its own machine from inside the server and discovers nothing on it. Add what runs here by hand.
+        </p>
+      )}
+      {inv !== null && total === 0 && !host.is_server && (
         <p className="mt-4 text-sm text-muted">
           Its agent has not reported any units or containers — it may not have pushed yet, or there is nothing running
           that Reeve discovers. Add the service by hand instead.

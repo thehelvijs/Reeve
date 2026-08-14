@@ -419,6 +419,9 @@ export interface Host {
   auto_update_vetoed: boolean;
   update_state: UpdateState;
   control_enabled: boolean;
+  // The machine Reeve itself runs on. It reports itself instead of through an
+  // agent, so nothing agent-shaped is offered on it.
+  is_server?: boolean;
 }
 
 export type CommandStatus = 'pending' | 'sent' | 'done' | 'failed' | 'expired';

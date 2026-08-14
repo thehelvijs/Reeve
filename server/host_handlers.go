@@ -37,6 +37,10 @@ type hostView struct {
 	Longitude      *float64         `json:"longitude,omitempty"`
 	// PinColor is #rrggbb for this host's map pin, absent for the brand accent.
 	PinColor string `json:"pin_color,omitempty"`
+	// IsServer marks the machine Reeve runs on. It reports itself instead of
+	// through an agent, so the UI drops the agent, control and delete affordances
+	// on it rather than offering buttons with nothing behind them.
+	IsServer bool `json:"is_server,omitempty"`
 }
 
 // hostMetricsView is the host's most recent sample, for at-a-glance load on the
@@ -63,6 +67,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 		Status: hostStatus(h, now), LastSeenAt: last,
 		IconURL: assetURL("hosts", h.ID, "icon", h.IconPath), ThumbnailURL: assetURL("hosts", h.ID, "thumbnail", h.ThumbnailPath),
 		Latitude: h.Latitude, Longitude: h.Longitude, PinColor: h.PinColor,
+		IsServer: h.ID == store.ServerHostID,
 	}
 }
 
@@ -179,6 +184,12 @@ func (a *app) handleClearHostMetrics(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	// Deleting the server's own row would take its metric history with it and
+	// startup would just recreate an empty one.
+	if id == store.ServerHostID {
+		writeError(w, http.StatusConflict, "server_host", "this is the machine Reeve runs on; it cannot be deleted")
+		return
+	}
 	if err := a.db.DeleteHost(id); err != nil {
 		if err == store.ErrNotFound {
 			writeError(w, http.StatusNotFound, "not_found", "host not found")

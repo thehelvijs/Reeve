@@ -181,7 +181,7 @@ func TestToolUptimeHiddenForOutsider(t *testing.T) {
 	}
 }
 
-func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
+func TestServerMetricsEndpointAndListedHost(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.client(t)
 	signup(t, ts, admin, "boss@example.com", "password123")
@@ -208,16 +208,28 @@ func TestServerMetricsEndpointAndHiddenHost(t *testing.T) {
 		t.Fatalf("expected the sampled point, got %+v", body.Host)
 	}
 
-	// The reserved self host must never appear in the host list.
+	// The machine Reeve runs on lists like any other host, flagged so the UI
+	// drops the agent affordances, and it cannot be deleted.
 	_, hdata := ts.do(t, admin, http.MethodGet, "/api/hosts", nil, nil)
 	var hosts []hostView
 	if err := json.Unmarshal(hdata, &hosts); err != nil {
 		t.Fatal(err)
 	}
+	found := false
 	for _, h := range hosts {
 		if h.ID == store.ServerHostID {
-			t.Fatal("reserved server host leaked into the host list")
+			found = true
+			if !h.IsServer {
+				t.Error("the server host is not flagged is_server")
+			}
 		}
+	}
+	if !found {
+		t.Fatal("the server host is missing from the host list")
+	}
+	delResp, delData := ts.do(t, admin, http.MethodDelete, "/api/admin/hosts/"+store.ServerHostID, nil, nil)
+	if delResp.StatusCode != http.StatusConflict {
+		t.Fatalf("delete server host = %d, want 409: %s", delResp.StatusCode, delData)
 	}
 
 	// Non-admins cannot read server metrics.

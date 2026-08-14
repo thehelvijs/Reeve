@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
-// ServerHostID is the reserved host row that Reeve uses to record its own
-// machine metrics. It is hidden from every host listing and count.
+// ServerHostID is the reserved host row for the machine Reeve itself runs on.
+// It lists like any other host — a service on the server's own box is a service
+// somebody has to watch — but it carries no agent, so the fleet update queries
+// still skip it.
 const ServerHostID = "__server__"
 
 // EnsureServerHost creates the reserved self-monitoring host row if absent.
@@ -88,7 +90,7 @@ func (h Host) Online(now time.Time) bool {
 // CountHosts returns the total number of hosts.
 func (db *DB) CountHosts() (int, error) {
 	var n int
-	err := db.sql.QueryRow("SELECT COUNT(*) FROM hosts WHERE id != ?", ServerHostID).Scan(&n)
+	err := db.sql.QueryRow("SELECT COUNT(*) FROM hosts").Scan(&n)
 	return n, err
 }
 
@@ -114,7 +116,7 @@ func (db *DB) CreateHost(name, os, location, tokenHash string, offlineAfter int)
 
 // ListHosts returns all hosts ordered by name.
 func (db *DB) ListHosts() ([]Host, error) {
-	rows, err := db.sql.Query(hostSelect+` WHERE id != ? ORDER BY name`, ServerHostID)
+	rows, err := db.sql.Query(hostSelect + ` ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}

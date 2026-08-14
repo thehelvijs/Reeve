@@ -124,6 +124,14 @@ export default function HostInventory() {
 
   const hostLabel = host?.name ?? 'this host';
 
+  // Reeve reports its own machine from inside the server, which does not read
+  // that machine's units, containers or crontabs. Finding nothing is expected
+  // there, so the empty states must not blame a missing agent.
+  let selfNote = '';
+  if (host?.is_server) {
+    selfNote = 'Reeve watches its own machine from inside the server and discovers nothing on it. Add what runs here by hand.';
+  }
+
   if (!inv) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
@@ -176,8 +184,8 @@ export default function HostInventory() {
               />
             )}
             {host && <RightNow host={host} />}
-            {id && host && admin && <HostControls hostId={id} host={host} />}
-            {host && admin && <AgentSection host={host} onChanged={load} />}
+            {id && host && admin && !host.is_server && <HostControls hostId={id} host={host} />}
+            {host && admin && !host.is_server && <AgentSection host={host} onChanged={load} />}
             {id && <EventHistory path={`/api/hosts/${id}/events`} />}
           </>
         )}
@@ -205,7 +213,7 @@ export default function HostInventory() {
               onCreate={createFrom}
               control={controlFor('service')}
               hostName={hostLabel}
-              emptyDescription="This machine reports no systemd units, or its agent cannot read them."
+              emptyDescription={selfNote || 'This machine reports no systemd units, or its agent cannot read them.'}
             />
             <InventorySection
               title="Containers"
@@ -214,7 +222,7 @@ export default function HostInventory() {
               onCreate={createFrom}
               control={controlFor('container')}
               hostName={hostLabel}
-              emptyDescription="No container runtime is reporting on this machine."
+              emptyDescription={selfNote || 'No container runtime is reporting on this machine.'}
             />
             <InventorySection
               title="Cron jobs"
@@ -222,7 +230,7 @@ export default function HostInventory() {
               items={inv.cron_jobs}
               onCreate={createFrom}
               hostName={hostLabel}
-              emptyDescription="No scheduled job is set up for any user on this machine."
+              emptyDescription={selfNote || 'No scheduled job is set up for any user on this machine.'}
             />
           </>
         )}
@@ -272,7 +280,7 @@ export default function HostInventory() {
 
             {id && <HostThresholds hostId={id} />}
 
-            {id && host && <DeleteHost hostId={id} host={host} />}
+            {id && host && !host.is_server && <DeleteHost hostId={id} host={host} />}
           </>
         )}
       </div>
