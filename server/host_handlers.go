@@ -245,6 +245,38 @@ func (a *app) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 // escaped somewhere downstream.
 var hexColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
+// handleUpdateHostName renames a host, the server's own row included: the name
+// it is created with is a default, not a fact about the machine. Admin only.
+func (a *app) handleUpdateHostName(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "invalid_name", "host name is required")
+		return
+	}
+	if err := a.db.UpdateHostName(id, name); err != nil {
+		if err == store.ErrNotFound {
+			writeError(w, http.StatusNotFound, "not_found", "host not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal", "could not rename host")
+		return
+	}
+	updated, err := a.db.GetHost(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "could not load host")
+		return
+	}
+	writeJSON(w, http.StatusOK, hostToView(updated, time.Now().UTC(), a.updateContext()))
+}
+
 // handleUpdateHostLocation sets a host's physical location, optional map
 // coordinates and map pin colour. Admin only.
 func (a *app) handleUpdateHostLocation(w http.ResponseWriter, r *http.Request) {

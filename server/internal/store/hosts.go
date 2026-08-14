@@ -52,6 +52,12 @@ type Host struct {
 	PinColor string
 }
 
+// UpdateHostName renames a host. The name is display only — tools and telemetry
+// hang off the id — so a rename costs nothing downstream.
+func (db *DB) UpdateHostName(id, name string) error {
+	return db.exec1(`UPDATE hosts SET name = ? WHERE id = ?`, name, id)
+}
+
 // SetHostThumbnailPath sets (or clears, when empty) a host's thumbnail path.
 func (db *DB) SetHostThumbnailPath(id, path string) error {
 	return db.exec1(`UPDATE hosts SET thumbnail_path = ? WHERE id = ?`, path, id)

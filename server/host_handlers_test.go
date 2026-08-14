@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thehelvijs/Reeve/contracts"
+	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 func TestListHostsIncludesLatestMetric(t *testing.T) {
@@ -414,4 +415,54 @@ func TestNonAdminDoesNotSeeOtherPeoplesEmails(t *testing.T) {
 			t.Errorf("admin sees an empty address for %s", u.ID)
 		}
 	}
+}
+
+// A host's name is a label somebody typed once, the server's own row starts on a
+// default nobody chose, and neither could be changed at all.
+func TestRenameHost(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	if err := ts.app.db.EnsureServerHost("linux"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []string{store.ServerHostID, mustCreateHost(t, ts, "old-name")} {
+		resp, data := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/name",
+			map[string]string{"name": "  Renamed " + id + "  "}, nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("rename %s = %d: %s", id, resp.StatusCode, data)
+		}
+		var view hostView
+		if err := json.Unmarshal(data, &view); err != nil {
+			t.Fatal(err)
+		}
+		if view.Name != "Renamed "+id {
+			t.Errorf("Name = %q, want the trimmed name", view.Name)
+		}
+		got, err := ts.app.db.GetHost(id)
+		if err != nil || got.Name != "Renamed "+id {
+			t.Errorf("stored name = %q (%v), want the new one", got.Name, err)
+		}
+
+		blank, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/name",
+			map[string]string{"name": "   "}, nil)
+		if blank.StatusCode != http.StatusBadRequest {
+			t.Errorf("blank rename = %d, want 400", blank.StatusCode)
+		}
+	}
+
+	missing, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/nope/name",
+		map[string]string{"name": "x"}, nil)
+	if missing.StatusCode != http.StatusNotFound {
+		t.Errorf("rename of an absent host = %d, want 404", missing.StatusCode)
+	}
+}
+
+func mustCreateHost(t *testing.T, ts *testServer, name string) string {
+	t.Helper()
+	h, err := ts.app.db.CreateHost(name, "linux", "", "hash-"+name, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h.ID
 }

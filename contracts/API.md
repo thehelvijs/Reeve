@@ -478,6 +478,10 @@ receiver that answers badly is not an API failure: the response is `200` with
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
   (see Agent updates above).
 
+`PUT /admin/hosts/{id}/name` with `{name}` renames a host and returns the
+updated `hostView`. Names are display only — tools and telemetry hang off the id
+— so this includes the server's own row, whose name starts as a default.
+
 ### `POST /admin/hosts/{id}/enroll-token`
 
 Mints a fresh enrollment token for a host that already exists and returns

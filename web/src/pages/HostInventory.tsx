@@ -232,6 +232,8 @@ export default function HostInventory() {
 
         {tab === 'settings' && admin && (
           <>
+            {id && host && <HostName host={host} onSaved={load} />}
+
             {id && host && (
               <Section title="Location">
                 <Card className="p-4">
@@ -471,6 +473,49 @@ function AgentSection({ host, onChanged }: { host: Host; onChanged: () => void }
         <ErrorText>{error}</ErrorText>
       </Card>
       {installing && <AgentInstallModal host={host} onClose={() => setInstalling(false)} />}
+    </Section>
+  );
+}
+
+// HostName renames the machine. The name a host was enrolled under is a label
+// somebody typed once, and the server's own row starts on a default nobody
+// chose, so it has to be editable wherever the rest of its settings are.
+function HostName({ host, onSaved }: { host: Host; onSaved: () => void }) {
+  const [draft, setDraft] = useState(host.name);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setDraft(host.name), [host.name]);
+
+  const save = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.put(`/api/admin/hosts/${host.id}/name`, { name: draft.trim() });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'could not rename this host');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dirty = draft.trim() !== '' && draft.trim() !== host.name;
+
+  return (
+    <Section title="Name">
+      <Card className="p-4">
+        <Form onSubmit={save}>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Name">
+              <Input value={draft} onChange={(e) => setDraft(e.target.value)} />
+            </Field>
+            <Button type="submit" disabled={!dirty || busy}>
+              Save
+            </Button>
+          </div>
+          <ErrorText>{error}</ErrorText>
+        </Form>
+      </Card>
     </Section>
   );
 }
