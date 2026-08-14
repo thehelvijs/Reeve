@@ -478,9 +478,11 @@ receiver that answers badly is not an API failure: the response is `200` with
   `/admin/audit/reveals|grants`, `/admin/server-info`, `/admin/agent-updates`
   (see Agent updates above).
 
-`PUT /admin/hosts/{id}/name` with `{name}` renames a host and returns the
-updated `hostView`. Names are display only — tools and telemetry hang off the id
-— so this includes the server's own row, whose name starts as a default.
+`PUT /admin/hosts/{id}/identity` with `{name, description}` renames a host and
+sets what it is for, returning the updated `hostView`. Both are display only —
+tools, telemetry and grants hang off the id — so this includes the server's own
+row, whose name starts as a default. A blank name is refused; a blank
+description clears it, and `description` is omitted from a host that has none.
 
 ### `POST /admin/hosts/{id}/enroll-token`
 

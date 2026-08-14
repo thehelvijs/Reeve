@@ -59,6 +59,8 @@ CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 CREATE TABLE IF NOT EXISTS hosts (
     id                 TEXT PRIMARY KEY,
     name               TEXT NOT NULL,
+    -- What this machine is for, in an operator's words. Display only.
+    description        TEXT NOT NULL DEFAULT '',
     os                 TEXT NOT NULL DEFAULT 'linux',
     physical_location  TEXT NOT NULL DEFAULT '',
     latitude           REAL,

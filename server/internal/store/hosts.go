@@ -6,10 +6,9 @@ import (
 	"time"
 )
 
-// ServerHostID is the reserved host row for the machine Reeve itself runs on.
-// It lists like any other host — a service on the server's own box is a service
-// somebody has to watch — but it carries no agent, so the fleet update queries
-// still skip it.
+// ServerHostID is the reserved host row for the machine Reeve itself runs on. It
+// is an ordinary host — a service on the server's own box is a service somebody
+// has to watch — created here rather than by an operator, and undeletable.
 const ServerHostID = "__server__"
 
 // EnsureServerHost creates the reserved self-monitoring host row if absent.
@@ -23,8 +22,10 @@ func (db *DB) EnsureServerHost(os string) error {
 
 // Host is a monitored machine running an agent.
 type Host struct {
-	ID               string
-	Name             string
+	ID   string
+	Name string
+	// Description is what the machine is for, in an operator's words.
+	Description      string
 	OS               string
 	PhysicalLocation string
 	// IPAddress is where the agent last reported this host to be, on the route
@@ -52,10 +53,11 @@ type Host struct {
 	PinColor string
 }
 
-// UpdateHostName renames a host. The name is display only — tools and telemetry
-// hang off the id — so a rename costs nothing downstream.
-func (db *DB) UpdateHostName(id, name string) error {
-	return db.exec1(`UPDATE hosts SET name = ? WHERE id = ?`, name, id)
+// UpdateHostIdentity sets a host's name and description. Both are display only
+// — tools, telemetry and grants hang off the id — so this costs nothing
+// downstream.
+func (db *DB) UpdateHostIdentity(id, name, description string) error {
+	return db.exec1(`UPDATE hosts SET name = ?, description = ? WHERE id = ?`, name, description, id)
 }
 
 // SetHostThumbnailPath sets (or clears, when empty) a host's thumbnail path.
@@ -205,14 +207,14 @@ func (db *DB) DeleteHost(id string) error {
 	return db.exec1(`DELETE FROM hosts WHERE id = ?`, id)
 }
 
-const hostSelect = `SELECT id, name, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, update_forced, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude, pin_color FROM hosts`
+const hostSelect = `SELECT id, name, description, os, physical_location, ip_address, agent_version, agent_checksum, auto_update, auto_update_vetoed, update_started_at, update_forced, last_seen_at, offline_after_secs, control_enabled, created_at, icon_path, thumbnail_path, latitude, longitude, pin_color FROM hosts`
 
 func (db *DB) scanHost(row scanner) (Host, error) {
 	var h Host
 	var created string
 	var lastSeen, updateStarted *string
 	var lat, lng sql.NullFloat64
-	if err := row.Scan(&h.ID, &h.Name, &h.OS, &h.PhysicalLocation, &h.IPAddress, &h.AgentVersion,
+	if err := row.Scan(&h.ID, &h.Name, &h.Description, &h.OS, &h.PhysicalLocation, &h.IPAddress, &h.AgentVersion,
 		&h.AgentChecksum, &h.AutoUpdate, &h.AutoUpdateVetoed, &updateStarted, &h.UpdateForced, &lastSeen,
 		&h.OfflineAfterSecs, &h.ControlEnabled, &created, &h.IconPath, &h.ThumbnailPath, &lat, &lng, &h.PinColor); err != nil {
 		return Host{}, err

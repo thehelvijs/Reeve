@@ -418,8 +418,8 @@ func TestNonAdminDoesNotSeeOtherPeoplesEmails(t *testing.T) {
 }
 
 // A host's name is a label somebody typed once, the server's own row starts on a
-// default nobody chose, and neither could be changed at all.
-func TestRenameHost(t *testing.T) {
+// default nobody chose, and what a machine is for is written nowhere else.
+func TestUpdateHostIdentity(t *testing.T) {
 	ts := newTestServer(t)
 	admin := adminClient(t, ts)
 	if err := ts.app.db.EnsureServerHost("linux"); err != nil {
@@ -427,34 +427,43 @@ func TestRenameHost(t *testing.T) {
 	}
 
 	for _, id := range []string{store.ServerHostID, mustCreateHost(t, ts, "old-name")} {
-		resp, data := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/name",
-			map[string]string{"name": "  Renamed " + id + "  "}, nil)
+		resp, data := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/identity",
+			map[string]string{"name": "  Renamed " + id + "  ", "description": "  runs the backups  "}, nil)
 		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("rename %s = %d: %s", id, resp.StatusCode, data)
+			t.Fatalf("update %s = %d: %s", id, resp.StatusCode, data)
 		}
 		var view hostView
 		if err := json.Unmarshal(data, &view); err != nil {
 			t.Fatal(err)
 		}
-		if view.Name != "Renamed "+id {
-			t.Errorf("Name = %q, want the trimmed name", view.Name)
+		if view.Name != "Renamed "+id || view.Description != "runs the backups" {
+			t.Errorf("view = %q / %q, want the trimmed values", view.Name, view.Description)
 		}
 		got, err := ts.app.db.GetHost(id)
-		if err != nil || got.Name != "Renamed "+id {
-			t.Errorf("stored name = %q (%v), want the new one", got.Name, err)
+		if err != nil || got.Name != "Renamed "+id || got.Description != "runs the backups" {
+			t.Errorf("stored = %q / %q (%v)", got.Name, got.Description, err)
 		}
 
-		blank, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/name",
+		// A description can be cleared; a name cannot.
+		cleared, cdata := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/identity",
+			map[string]string{"name": "Renamed " + id, "description": ""}, nil)
+		if cleared.StatusCode != http.StatusOK {
+			t.Fatalf("clear description = %d: %s", cleared.StatusCode, cdata)
+		}
+		if after, _ := ts.app.db.GetHost(id); after.Description != "" {
+			t.Errorf("description = %q, want it cleared", after.Description)
+		}
+		blank, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/"+id+"/identity",
 			map[string]string{"name": "   "}, nil)
 		if blank.StatusCode != http.StatusBadRequest {
-			t.Errorf("blank rename = %d, want 400", blank.StatusCode)
+			t.Errorf("blank name = %d, want 400", blank.StatusCode)
 		}
 	}
 
-	missing, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/nope/name",
+	missing, _ := ts.do(t, admin, http.MethodPut, "/api/admin/hosts/nope/identity",
 		map[string]string{"name": "x"}, nil)
 	if missing.StatusCode != http.StatusNotFound {
-		t.Errorf("rename of an absent host = %d, want 404", missing.StatusCode)
+		t.Errorf("update of an absent host = %d, want 404", missing.StatusCode)
 	}
 }
 

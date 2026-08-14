@@ -13,8 +13,10 @@ import (
 )
 
 type hostView struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Description is what the machine is for, in an operator's words.
+	Description      string `json:"description,omitempty"`
 	OS               string `json:"os"`
 	PhysicalLocation string `json:"physical_location"`
 	IPAddress        string `json:"ip_address"`
@@ -61,7 +63,7 @@ func hostToView(h store.Host, now time.Time, uc updateContext) hostView {
 		last = h.LastSeenAt.Format(time.RFC3339)
 	}
 	return hostView{
-		ID: h.ID, Name: h.Name, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
+		ID: h.ID, Name: h.Name, Description: h.Description, OS: h.OS, PhysicalLocation: h.PhysicalLocation,
 		AgentVersion: h.AgentVersion, AutoUpdate: h.AutoUpdate, AutoUpdateVetoed: h.AutoUpdateVetoed,
 		IPAddress:   h.IPAddress,
 		UpdateState: updateStateFor(h, uc, now), ControlEnabled: h.ControlEnabled,
@@ -245,12 +247,15 @@ func (a *app) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 // escaped somewhere downstream.
 var hexColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
-// handleUpdateHostName renames a host, the server's own row included: the name
-// it is created with is a default, not a fact about the machine. Admin only.
-func (a *app) handleUpdateHostName(w http.ResponseWriter, r *http.Request) {
+// handleUpdateHostIdentity sets a host's name and description, the server's own
+// row included: the name it is created with is a default, not a fact about the
+// machine, and what a machine is for is not derivable from anything it reports.
+// Admin only.
+func (a *app) handleUpdateHostIdentity(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var in struct {
-		Name string `json:"name"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
@@ -261,12 +266,12 @@ func (a *app) handleUpdateHostName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_name", "host name is required")
 		return
 	}
-	if err := a.db.UpdateHostName(id, name); err != nil {
+	if err := a.db.UpdateHostIdentity(id, name, strings.TrimSpace(in.Description)); err != nil {
 		if err == store.ErrNotFound {
 			writeError(w, http.StatusNotFound, "not_found", "host not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "internal", "could not rename host")
+		writeError(w, http.StatusInternalServerError, "internal", "could not update host")
 		return
 	}
 	updated, err := a.db.GetHost(id)

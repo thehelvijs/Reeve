@@ -236,7 +236,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("/", a.uiHandler())
 	mux.Handle("POST /api/admin/hosts", admin(http.HandlerFunc(a.handleCreateHost)))
 	mux.Handle("PATCH /api/admin/hosts/{id}", admin(http.HandlerFunc(a.handleUpdateHostLocation)))
-	mux.Handle("PUT /api/admin/hosts/{id}/name", admin(http.HandlerFunc(a.handleUpdateHostName)))
+	mux.Handle("PUT /api/admin/hosts/{id}/identity", admin(http.HandlerFunc(a.handleUpdateHostIdentity)))
 	mux.Handle("DELETE /api/admin/hosts/{id}", admin(http.HandlerFunc(a.handleDeleteHost)))
 	mux.Handle("POST /api/admin/hosts/{id}/icon", admin(a.uploadImage(hostIcon)))
 	mux.Handle("DELETE /api/admin/hosts/{id}/icon", admin(a.deleteImage(hostIcon)))

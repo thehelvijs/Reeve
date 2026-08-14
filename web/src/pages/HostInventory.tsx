@@ -232,7 +232,7 @@ export default function HostInventory() {
 
         {tab === 'settings' && admin && (
           <>
-            {id && host && <HostName host={host} onSaved={load} />}
+            {id && host && <HostIdentity host={host} onSaved={load} />}
 
             {id && host && (
               <Section title="Location">
@@ -250,7 +250,7 @@ export default function HostInventory() {
             )}
 
             {id && (
-              <div className="grid items-start gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2">
                 <Section title="Icon">
                   <Card className="p-4">
                     <IconUploader
@@ -303,6 +303,9 @@ function hostSubtitle(host: Host | null, canEditLocation: boolean): ReactNode {
     return undefined;
   }
   const parts: ReactNode[] = [];
+  if (host.description) {
+    parts.push(<span key="description" className="block text-content">{host.description}</span>);
+  }
   if (host.os) {
     parts.push(host.os);
   }
@@ -477,38 +480,51 @@ function AgentSection({ host, onChanged }: { host: Host; onChanged: () => void }
   );
 }
 
-// HostName renames the machine. The name a host was enrolled under is a label
-// somebody typed once, and the server's own row starts on a default nobody
-// chose, so it has to be editable wherever the rest of its settings are.
-function HostName({ host, onSaved }: { host: Host; onSaved: () => void }) {
-  const [draft, setDraft] = useState(host.name);
+// HostIdentity is what a machine is called and what it is for. The name a host
+// was enrolled under is a label somebody typed once, the server's own row starts
+// on a default nobody chose, and what a box is actually for is not derivable
+// from anything it reports.
+function HostIdentity({ host, onSaved }: { host: Host; onSaved: () => void }) {
+  const [name, setName] = useState(host.name);
+  const [description, setDescription] = useState(host.description ?? '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => setDraft(host.name), [host.name]);
+  useEffect(() => {
+    setName(host.name);
+    setDescription(host.description ?? '');
+  }, [host.name, host.description]);
 
   const save = async () => {
     setError('');
     setBusy(true);
     try {
-      await api.put(`/api/admin/hosts/${host.id}/name`, { name: draft.trim() });
+      await api.put(`/api/admin/hosts/${host.id}/identity`, {
+        name: name.trim(),
+        description: description.trim(),
+      });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'could not rename this host');
+      setError(e instanceof Error ? e.message : 'could not save this host');
     } finally {
       setBusy(false);
     }
   };
 
-  const dirty = draft.trim() !== '' && draft.trim() !== host.name;
+  const dirty = name.trim() !== '' && (name.trim() !== host.name || description.trim() !== (host.description ?? ''));
 
   return (
-    <Section title="Name">
+    <Section title="Name and description">
       <Card className="p-4">
         <Form onSubmit={save}>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Name">
-              <Input value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
+            <Field label="Description" hint="Optional. What this machine is for.">
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </Field>
+          </div>
+          <div className="mt-4 flex items-center gap-3">
             <Button type="submit" disabled={!dirty || busy}>
               Save
             </Button>

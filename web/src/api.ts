@@ -402,6 +402,8 @@ export type UpdateState =
 export interface Host {
   id: string;
   name: string;
+  // What this machine is for, in an operator's words.
+  description?: string;
   os: string;
   physical_location?: string;
   // Where the agent last reported this host to be. Empty until it first pushes.
