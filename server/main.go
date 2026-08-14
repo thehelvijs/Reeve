@@ -95,6 +95,7 @@ func run() error {
 		return fmt.Errorf("startup: could not publish the self-agent token: %w", err)
 	}
 	a.syncChannelFile()
+	a.recordServerVersion()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

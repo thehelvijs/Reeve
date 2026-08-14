@@ -77,3 +77,34 @@ func TestSyncChannelFileRepublishesTheStoredChannel(t *testing.T) {
 		t.Fatalf("published %q, want main", strings.TrimSpace(string(body)))
 	}
 }
+
+// "Last updated" has to mean a new build arrived, not that the process
+// restarted, or a reboot would read as an update and hide how stale an instance
+// really is.
+func TestRecordServerVersionStampsOnlyRealChanges(t *testing.T) {
+	ts := newTestServer(t)
+	ts.app.cfg.Version = "1.0.0"
+
+	ts.app.recordServerVersion()
+	if at, ok := ts.app.db.GetSetting(settingServerUpdateAt); ok {
+		t.Fatalf("first start recorded an update at %q", at)
+	}
+	if v := ts.app.serverUpdateView(); v.Version != "1.0.0" || v.UpdatedAt != "" {
+		t.Fatalf("view after first start = %+v", v)
+	}
+
+	ts.app.recordServerVersion()
+	if _, ok := ts.app.db.GetSetting(settingServerUpdateAt); ok {
+		t.Fatal("a restart on the same build recorded an update")
+	}
+
+	ts.app.cfg.Version = "1.1.0"
+	ts.app.recordServerVersion()
+	view := ts.app.serverUpdateView()
+	if view.Version != "1.1.0" {
+		t.Errorf("Version = %q, want 1.1.0", view.Version)
+	}
+	if view.UpdatedAt == "" {
+		t.Error("a new build did not stamp an update time")
+	}
+}

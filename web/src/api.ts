@@ -122,6 +122,9 @@ export type UpdateChannel = 'release' | 'develop' | 'main';
 
 export interface ServerUpdateSettings {
   channel: UpdateChannel;
+  // Read-only: the build running now, and when it replaced a different one.
+  version?: string;
+  updated_at?: string;
 }
 
 export interface Settings {

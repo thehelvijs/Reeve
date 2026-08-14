@@ -81,6 +81,10 @@ type agentUpdateView struct {
 
 type serverUpdateView struct {
 	Channel string `json:"channel"`
+	// Version is the build running now; UpdatedAt is when it replaced a different
+	// one, absent on an instance that has never been updated.
+	Version   string `json:"version"`
+	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
 type settingsView struct {
@@ -106,7 +110,7 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 		SMTP:        a.smtpView(),
 		Google:      a.googleAuthView(),
 		AgentUpdate:  agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
-		ServerUpdate: serverUpdateView{Channel: a.serverUpdateChannel()},
+		ServerUpdate: a.serverUpdateView(),
 	})
 }
 

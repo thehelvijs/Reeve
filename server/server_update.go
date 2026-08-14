@@ -5,9 +5,43 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const settingServerUpdateChannel = "server_update.channel"
+
+// The build this instance last started as, and when it changed to it. There is
+// nothing else to ask: the updater replaces the container and the new binary is
+// the only witness that anything happened.
+const (
+	settingServerUpdateVersion = "server_update.version"
+	settingServerUpdateAt      = "server_update.updated_at"
+)
+
+// recordServerVersion notes a version change at startup, which is what "last
+// updated" reports. A restart on the same build is not an update and must not
+// move the stamp, or every reboot would read as one.
+func (a *app) recordServerVersion() {
+	if a.cfg.Version == "" {
+		return
+	}
+	last, ok := a.db.GetSetting(settingServerUpdateVersion)
+	if ok && last == a.cfg.Version {
+		return
+	}
+	if err := a.db.SetSetting(settingServerUpdateVersion, a.cfg.Version); err != nil {
+		log.Printf("server update: could not record the running version: %v", err)
+		return
+	}
+	// A first start has nothing to have updated from, so it records the version
+	// without claiming an update happened.
+	if !ok {
+		return
+	}
+	if err := a.db.SetSetting(settingServerUpdateAt, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		log.Printf("server update: could not record the update time: %v", err)
+	}
+}
 
 const (
 	channelRelease = "release"
@@ -40,6 +74,17 @@ func (a *app) serverUpdateChannel() string {
 		return channelRelease
 	}
 	return v
+}
+
+// serverUpdateView is what the settings page reads: the channel it follows, the
+// build it is on, and when that build arrived.
+func (a *app) serverUpdateView() serverUpdateView {
+	at, _ := a.db.GetSetting(settingServerUpdateAt)
+	return serverUpdateView{
+		Channel:   a.serverUpdateChannel(),
+		Version:   a.cfg.Version,
+		UpdatedAt: at,
+	}
 }
 
 // channelFilePath puts the file beside the database, which is the one directory

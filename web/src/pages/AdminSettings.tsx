@@ -111,12 +111,24 @@ function ServerUpdateSection({
   const order = CHANNELS.map((c) => c.value);
   const backwards = order.indexOf(draft) < order.indexOf(current);
 
+  // What the last update actually was, rather than when the process last
+  // started: a restart on the same build is not an update, and an instance that
+  // has only ever run one build has nothing to report.
+  let updated = 'no update yet — this instance has only run this build';
+  if (settings.server_update.updated_at) {
+    updated = `last updated ${new Date(settings.server_update.updated_at).toLocaleString()}`;
+  }
+
   return (
     <Section
       title="Server updates"
       description="Which builds this server pulls for itself. The updater checks on a timer and restarts the server when the channel's newest build is not the one running; the web UI ships inside it, so both move together."
     >
       <Form onSubmit={() => onSave({ server_update: { channel: draft } })}>
+        <p className="mb-4 text-xs text-muted">
+          Running <span className="font-mono text-content">{settings.server_update.version || 'unknown'}</span> —{' '}
+          {updated}.
+        </p>
         <div className="space-y-2">
           {CHANNELS.map((c) => (
             <label key={c.value} className="flex items-start gap-2 text-sm text-content">
