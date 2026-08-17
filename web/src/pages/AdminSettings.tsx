@@ -498,26 +498,45 @@ const FORGES: {
     key: 'gitlab',
     label: 'GitLab',
     description:
-      'Read pipeline status from GitLab \u2014 gitlab.com or an instance you host yourself. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search for a repo instead of typing its path. Read-only, nothing is ever written back.',
+      'Read pipeline status from GitLab — gitlab.com or an instance you host yourself. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search for a repo instead of typing its path. Read-only, nothing is ever written back.',
     urlLabel: 'GitLab URL',
     urlHint: 'Leave empty for gitlab.com. For your own instance, its base URL.',
     placeholder: 'https://gitlab.com',
     tokenHint: 'A personal, group or project token with the read_api scope',
     help: (
       <>
-        <p className="text-content">Personal access token, which covers every project you can see</p>
+        <p className="text-content">Personal access token — covers every project you can see</p>
         <ol className="ml-4 list-decimal space-y-1">
-          <li>Open your avatar \u2192 <span className="text-content">Edit profile</span> \u2192 <span className="text-content">Access tokens</span>.</li>
-          <li><span className="text-content">Add new token</span>, name it <span className="font-mono">reeve</span>, pick an expiry.</li>
-          <li>Tick the <span className="font-mono">read_api</span> scope. Nothing else is needed.</li>
-          <li>Create it and copy the <span className="font-mono">glpat-\u2026</span> value \u2014 GitLab shows it once.</li>
+          <li>
+            Open <HelpPath>{'<your-gitlab>/-/user_settings/personal_access_tokens'}</HelpPath> — on
+            gitlab.com that is{' '}
+            <HelpPath>https://gitlab.com/-/user_settings/personal_access_tokens</HelpPath>.
+          </li>
+          <li>
+            <span className="text-content">Add new token</span>, name it{' '}
+            <span className="font-mono">reeve</span>, pick an expiry.
+          </li>
+          <li>
+            Tick <span className="font-mono">read_api</span> and nothing else.
+          </li>
+          <li>
+            Copy the <span className="font-mono">glpat-…</span> value — GitLab shows it once.
+          </li>
         </ol>
-        <p className="text-content">Group access token, scoped to one group and its subgroups</p>
+        <p className="text-content">Group access token — scoped to one group and its subgroups</p>
         <ol className="ml-4 list-decimal space-y-1">
-          <li>Group \u2192 <span className="text-content">Settings</span> \u2192 <span className="text-content">Access tokens</span>.</li>
-          <li>Role <span className="font-mono">Reporter</span>, scope <span className="font-mono">read_api</span>.</li>
+          <li>
+            Open <HelpPath>{'<your-gitlab>/groups/<group>/-/settings/access_tokens'}</HelpPath>.
+          </li>
+          <li>
+            Role <span className="font-mono">Reporter</span>, scope{' '}
+            <span className="font-mono">read_api</span>.
+          </li>
         </ol>
-        <p>A self-managed instance can have group tokens turned off; a personal token always works.</p>
+        <p>
+          Group tokens are not on every instance: gitlab.com needs a paid tier for them, and a
+          self-managed instance can have them turned off. A personal token always works.
+        </p>
       </>
     ),
   },
@@ -525,26 +544,47 @@ const FORGES: {
     key: 'github',
     label: 'GitHub',
     description:
-      'Read Actions workflow runs from GitHub \u2014 github.com or an Enterprise Server. The latest run of each repo in a group shows up beside your GitLab pipelines, in the same words.',
+      'Read Actions workflow runs from GitHub — github.com or an Enterprise Server. The latest run of each repo in a group shows up beside your GitLab pipelines, in the same words.',
     urlLabel: 'GitHub API URL',
     urlHint: 'Leave empty for github.com. Enterprise Server is https://ghe.example.com/api/v3.',
     placeholder: 'https://api.github.com',
     tokenHint: 'A token that can read Actions on the repos you want',
     help: (
       <>
-        <p className="text-content">Fine-grained token, which is the narrower one</p>
+        <p className="text-content">Fine-grained token — the narrower one</p>
         <ol className="ml-4 list-decimal space-y-1">
-          <li>Avatar \u2192 <span className="text-content">Settings</span> \u2192 <span className="text-content">Developer settings</span> \u2192 <span className="text-content">Personal access tokens</span> \u2192 <span className="text-content">Fine-grained tokens</span>.</li>
-          <li><span className="text-content">Generate new token</span>, then under <span className="text-content">Repository access</span> pick the repos, or all repos in an org.</li>
-          <li>Under <span className="text-content">Permissions \u2192 Repository</span> set <span className="font-mono">Actions: Read-only</span> and <span className="font-mono">Metadata: Read-only</span>.</li>
-          <li>Generate it and copy the <span className="font-mono">github_pat_\u2026</span> value.</li>
+          <li>
+            Open <HelpPath>https://github.com/settings/personal-access-tokens</HelpPath> and{' '}
+            <span className="text-content">Generate new token</span>.
+          </li>
+          <li>
+            Under <span className="text-content">Repository access</span> pick the repos, or all
+            repos in an org.
+          </li>
+          <li>
+            Under <span className="text-content">Permissions → Repository</span> set{' '}
+            <span className="font-mono">Actions: Read-only</span> and{' '}
+            <span className="font-mono">Metadata: Read-only</span>.
+          </li>
+          <li>
+            Copy the <span className="font-mono">github_pat_…</span> value.
+          </li>
         </ol>
         <p className="text-content">Classic token</p>
         <ol className="ml-4 list-decimal space-y-1">
-          <li>Same menu \u2192 <span className="text-content">Tokens (classic)</span> \u2192 <span className="text-content">Generate new token</span>.</li>
-          <li>Tick <span className="font-mono">repo</span> for private repos, or <span className="font-mono">public_repo</span> for public ones only.</li>
+          <li>
+            Open <HelpPath>https://github.com/settings/tokens</HelpPath>.
+          </li>
+          <li>
+            Tick <span className="font-mono">repo</span> for private repos, or{' '}
+            <span className="font-mono">public_repo</span> for public ones only.
+          </li>
         </ol>
-        <p>An org that restricts token access has to approve the token before it can read anything, under Organization \u2192 Settings \u2192 Personal access tokens.</p>
+        <p>
+          On Enterprise Server the same paths hang off your own host. An org that restricts token
+          access has to approve the token before it can read anything, under the org's{' '}
+          <span className="text-content">Settings → Personal access tokens</span>.
+        </p>
       </>
     ),
   },
@@ -666,6 +706,17 @@ export function Section({
       </p>
       <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+// A path to paste into the address bar. Instructions name a URL rather than walk
+// a menu, because both forges move their menus between versions and neither
+// moves these paths.
+function HelpPath({ children }: { children: ReactNode }) {
+  return (
+    <span className="select-all whitespace-nowrap rounded-button border border-hairline bg-canvas px-1.5 py-0.5 font-mono text-[11px] text-content">
+      {children}
+    </span>
   );
 }
 
