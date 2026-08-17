@@ -1,22 +1,51 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type PipelineGroupRecord, type PipelineProject } from '../api';
-import { Button, Card, ErrorText, Form, Input, Section } from '../components/ui';
+import { Link } from 'react-router-dom';
+import {
+  api,
+  type PipelineGroupRecord,
+  type PipelineProject,
+  type Provider,
+  type Settings,
+} from '../api';
+import { Button, Card, ErrorText, Form, Input, Pill, Section } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import ConfirmModal from '../components/ConfirmModal';
 
-// How long the picker waits after the last keystroke before asking GitLab. Long
-// enough that typing a repo name is one search, short enough to feel live.
+// How long the picker waits after the last keystroke before asking the forge.
+// Long enough that typing a repo name is one search, short enough to feel live.
 const SEARCH_DEBOUNCE_MS = 250;
+
+const PROVIDER_LABEL: Record<Provider, string> = { gitlab: 'GitLab', github: 'GitHub' };
 
 export default function PipelineGroups() {
   const [groups, setGroups] = useState<PipelineGroupRecord[]>([]);
+  const [connected, setConnected] = useState<Provider[]>([]);
   const [name, setName] = useState('');
+  const [provider, setProvider] = useState<Provider>('gitlab');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setGroups(await api.get<PipelineGroupRecord[]>('/api/pipeline-groups'));
+      const [rows, settings] = await Promise.all([
+        api.get<PipelineGroupRecord[]>('/api/pipeline-groups'),
+        api.get<Settings>('/api/admin/settings'),
+      ]);
+      setGroups(rows);
+      const live: Provider[] = [];
+      if (settings.gitlab.enabled && settings.gitlab.token_set) {
+        live.push('gitlab');
+      }
+      if (settings.github.enabled && settings.github.token_set) {
+        live.push('github');
+      }
+      setConnected(live);
+      setProvider((p) => {
+        if (live.includes(p) || live.length === 0) {
+          return p;
+        }
+        return live[0];
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not load groups');
     }
@@ -32,7 +61,7 @@ export default function PipelineGroups() {
     }
     setError('');
     try {
-      await api.post('/api/admin/pipeline-groups', { name: name.trim() });
+      await api.post('/api/admin/pipeline-groups', { name: name.trim(), provider });
       setName('');
       await load();
     } catch (e) {
@@ -44,35 +73,65 @@ export default function PipelineGroups() {
     <div>
       <PageHeader
         title="Pipeline groups"
-        subtitle="Your own sets of GitLab repos. A group is watched together on the Pipelines page, whatever GitLab group each repo actually lives in."
+        subtitle="Your own sets of repos. A group is watched together on the Pipelines page, whatever GitLab group or GitHub org each repo actually lives in."
       />
       <div className="mt-3">
         <ErrorText>{error}</ErrorText>
       </div>
 
-      <Card className="mt-6 p-5">
-        <Form onSubmit={create}>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1">
-              <Input
-                value={name}
-                placeholder="Firmware"
-                aria-label="New group name"
-                onChange={(e) => setName(e.target.value)}
-              />
+      {connected.length === 0 ? (
+        <div className="mt-6">
+          <EmptyState
+            title="No forge connected"
+            description="Connect GitLab or GitHub before building a group — the picker searches the forge for repos, so it needs a token first."
+            action={
+              <Link to="/admin/settings">
+                <Button>Open settings</Button>
+              </Link>
+            }
+          />
+        </div>
+      ) : (
+        <Card className="mt-6 p-5">
+          <Form onSubmit={create}>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-64 flex-1">
+                <Input
+                  value={name}
+                  placeholder="Firmware"
+                  aria-label="New group name"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              {connected.length > 1 && (
+                <div className="flex items-center gap-4">
+                  {connected.map((p) => (
+                    <label key={p} className="flex items-center gap-2 text-sm text-content">
+                      <input
+                        type="radio"
+                        name="new-group-provider"
+                        className="h-4 w-4 accent-accent"
+                        checked={provider === p}
+                        onChange={() => setProvider(p)}
+                      />
+                      {PROVIDER_LABEL[p]}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <Button type="submit" disabled={!name.trim()}>
+                New {connected.length === 1 ? PROVIDER_LABEL[connected[0]] : ''} group
+              </Button>
             </div>
-            <Button type="submit" disabled={!name.trim()}>
-              New group
-            </Button>
-          </div>
-        </Form>
-      </Card>
+          </Form>
+        </Card>
+      )}
 
       <div className="mt-8 space-y-8">
-        {groups.length === 0 && (
+        {groups.length === 0 && connected.length > 0 && (
           <EmptyState
             title="No groups yet"
-            description="Name a group above, then search GitLab for the repos that belong in it."
+            description="Name a group above, then search the forge for the repos that belong in it."
           />
         )}
         {groups.map((g) => (
@@ -108,9 +167,12 @@ function GroupEditor({ group, onChanged }: { group: PipelineGroupRecord; onChang
       title={group.name}
       count={group.projects.length}
       action={
-        <Button variant="danger" onClick={() => setConfirming(true)}>
-          Delete group
-        </Button>
+        <>
+          <Pill>{PROVIDER_LABEL[group.provider]}</Pill>
+          <Button variant="danger" onClick={() => setConfirming(true)}>
+            Delete group
+          </Button>
+        </>
       }
     >
       <Card className="p-5">
@@ -151,7 +213,7 @@ function GroupEditor({ group, onChanged }: { group: PipelineGroupRecord; onChang
       {confirming && (
         <ConfirmModal
           title={`Delete ${group.name}?`}
-          body="The group and its list of repos go away. Nothing in GitLab is touched."
+          body="The group and its list of repos go away. Nothing on the forge is touched."
           confirmLabel="Delete group"
           onConfirm={() => run(() => api.del(`/api/admin/pipeline-groups/${group.id}`))}
           onClose={() => setConfirming(false)}
@@ -161,9 +223,9 @@ function GroupEditor({ group, onChanged }: { group: PipelineGroupRecord; onChang
   );
 }
 
-// ProjectPicker searches GitLab itself rather than filtering a list Reeve holds:
-// there is no local copy of what repos exist, and typing a full path from memory
-// is exactly what this page is here to avoid.
+// ProjectPicker searches the group's own forge rather than filtering a list Reeve
+// holds: there is no local copy of what repos exist, and typing a full path from
+// memory is exactly what this page is here to avoid.
 function ProjectPicker({
   group,
   onAdd,
@@ -181,7 +243,9 @@ function ProjectPicker({
     setSearching(true);
     const id = window.setTimeout(() => {
       api
-        .get<PipelineProject[]>(`/api/admin/gitlab/projects?q=${encodeURIComponent(query)}`)
+        .get<PipelineProject[]>(
+          `/api/admin/repo-search?provider=${group.provider}&q=${encodeURIComponent(query)}`,
+        )
         .then((r) => {
           if (live) {
             setResults(r);
@@ -204,7 +268,7 @@ function ProjectPicker({
       live = false;
       window.clearTimeout(id);
     };
-  }, [query]);
+  }, [query, group.provider]);
 
   const inGroup = new Set(group.projects);
   const offered = results.filter((p) => !inGroup.has(p.path));
@@ -213,15 +277,15 @@ function ProjectPicker({
   if (searching) {
     note = 'Searching…';
   } else if (offered.length === 0 && !error) {
-    note = 'Nothing new matches. GitLab shows the most recently active repos when the box is empty.';
+    note = `Nothing new matches. ${PROVIDER_LABEL[group.provider]} lists the most recently active repos when the box is empty.`;
   }
 
   return (
     <div>
       <Input
         value={query}
-        placeholder="Search GitLab repos to add…"
-        aria-label="Search GitLab repos"
+        placeholder={`Search ${PROVIDER_LABEL[group.provider]} repos to add…`}
+        aria-label={`Search ${PROVIDER_LABEL[group.provider]} repos`}
         onChange={(e) => setQuery(e.target.value)}
       />
       <ErrorText>{error}</ErrorText>

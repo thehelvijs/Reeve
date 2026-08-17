@@ -74,9 +74,9 @@ export default function Layout() {
           {primaryNav.map((item) => (
             <NavSection key={item.to} item={item} records={records[item.to] ?? []} />
           ))}
-          {/* An admin keeps the link whether or not GitLab is connected: the page
+          {/* An admin keeps the link whether or not a forge is connected: the page
               is where the empty state points them at the setting. */}
-          {(status.gitlab_enabled || user?.role === 'admin') && (
+          {(status.pipelines_enabled || user?.role === 'admin') && (
             <NavItem to="/pipelines" label="Pipelines" icon="pipelines" end={false} />
           )}
           {moderates && <NavItem to="/admin/groups" label="User groups" icon="groups" end={false} />}

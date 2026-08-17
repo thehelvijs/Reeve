@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   api,
-  type GitLabInput,
+  type ForgeInput,
+  type ForgeSettings,
   type GoogleInput,
   type Settings,
   type SettingsInput,
@@ -82,7 +84,9 @@ export default function AdminSettings() {
 
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
-      <GitLabSection settings={settings} onSave={save} />
+      {FORGES.map((f) => (
+        <ForgeSection key={f.key} forge={f} settings={settings} onSave={save} />
+      ))}
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
       <ServerUpdateSection settings={settings} onSave={save} />
@@ -473,32 +477,114 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
   );
 }
 
-function gitlabDraft(g: Settings['gitlab']): GitLabInput {
-  return { enabled: g.enabled, url: g.url, token: '' };
+function forgeDraft(f: ForgeSettings): ForgeInput {
+  return { enabled: f.enabled, url: f.url, token: '' };
 }
 
-function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
-  const [draft, setDraft] = useState<GitLabInput>(gitlabDraft(settings.gitlab));
-  useEffect(() => setDraft(gitlabDraft(settings.gitlab)), [settings.gitlab]);
+// Both forges take the same three fields, so they take the same section: only
+// the copy and the token instructions differ. GitLab means gitlab.com or an
+// instance you run; GitHub means github.com or an Enterprise Server.
+const FORGES: {
+  key: 'gitlab' | 'github';
+  label: string;
+  description: string;
+  urlLabel: string;
+  urlHint: string;
+  placeholder: string;
+  tokenHint: string;
+  help: ReactNode;
+}[] = [
+  {
+    key: 'gitlab',
+    label: 'GitLab',
+    description:
+      'Read pipeline status from GitLab \u2014 gitlab.com or an instance you host yourself. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search for a repo instead of typing its path. Read-only, nothing is ever written back.',
+    urlLabel: 'GitLab URL',
+    urlHint: 'Leave empty for gitlab.com. For your own instance, its base URL.',
+    placeholder: 'https://gitlab.com',
+    tokenHint: 'A personal, group or project token with the read_api scope',
+    help: (
+      <>
+        <p className="text-content">Personal access token, which covers every project you can see</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>Open your avatar \u2192 <span className="text-content">Edit profile</span> \u2192 <span className="text-content">Access tokens</span>.</li>
+          <li><span className="text-content">Add new token</span>, name it <span className="font-mono">reeve</span>, pick an expiry.</li>
+          <li>Tick the <span className="font-mono">read_api</span> scope. Nothing else is needed.</li>
+          <li>Create it and copy the <span className="font-mono">glpat-\u2026</span> value \u2014 GitLab shows it once.</li>
+        </ol>
+        <p className="text-content">Group access token, scoped to one group and its subgroups</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>Group \u2192 <span className="text-content">Settings</span> \u2192 <span className="text-content">Access tokens</span>.</li>
+          <li>Role <span className="font-mono">Reporter</span>, scope <span className="font-mono">read_api</span>.</li>
+        </ol>
+        <p>A self-managed instance can have group tokens turned off; a personal token always works.</p>
+      </>
+    ),
+  },
+  {
+    key: 'github',
+    label: 'GitHub',
+    description:
+      'Read Actions workflow runs from GitHub \u2014 github.com or an Enterprise Server. The latest run of each repo in a group shows up beside your GitLab pipelines, in the same words.',
+    urlLabel: 'GitHub API URL',
+    urlHint: 'Leave empty for github.com. Enterprise Server is https://ghe.example.com/api/v3.',
+    placeholder: 'https://api.github.com',
+    tokenHint: 'A token that can read Actions on the repos you want',
+    help: (
+      <>
+        <p className="text-content">Fine-grained token, which is the narrower one</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>Avatar \u2192 <span className="text-content">Settings</span> \u2192 <span className="text-content">Developer settings</span> \u2192 <span className="text-content">Personal access tokens</span> \u2192 <span className="text-content">Fine-grained tokens</span>.</li>
+          <li><span className="text-content">Generate new token</span>, then under <span className="text-content">Repository access</span> pick the repos, or all repos in an org.</li>
+          <li>Under <span className="text-content">Permissions \u2192 Repository</span> set <span className="font-mono">Actions: Read-only</span> and <span className="font-mono">Metadata: Read-only</span>.</li>
+          <li>Generate it and copy the <span className="font-mono">github_pat_\u2026</span> value.</li>
+        </ol>
+        <p className="text-content">Classic token</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>Same menu \u2192 <span className="text-content">Tokens (classic)</span> \u2192 <span className="text-content">Generate new token</span>.</li>
+          <li>Tick <span className="font-mono">repo</span> for private repos, or <span className="font-mono">public_repo</span> for public ones only.</li>
+        </ol>
+        <p>An org that restricts token access has to approve the token before it can read anything, under Organization \u2192 Settings \u2192 Personal access tokens.</p>
+      </>
+    ),
+  },
+];
+
+function ForgeSection({
+  forge,
+  settings,
+  onSave,
+}: {
+  forge: (typeof FORGES)[number];
+  settings: Settings;
+  onSave: (patch: SettingsInput) => Promise<void>;
+}) {
+  const stored = settings[forge.key];
+  const [draft, setDraft] = useState<ForgeInput>(forgeDraft(stored));
+  useEffect(() => setDraft(forgeDraft(stored)), [stored]);
+
+  let tokenHint = forge.tokenHint;
+  if (stored.token_set) {
+    tokenHint = 'Stored; leave empty to keep it';
+  }
 
   return (
     <Section
-      title="GitLab"
-      description="The connection to a self-hosted GitLab. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search GitLab for a repo instead of typing its path. Read-only, nothing is ever written back."
+      title={forge.label}
+      description={forge.description}
+      help={forge.help}
+      helpLabel={'How do I create a ' + forge.label + ' access token?'}
     >
-      <Form onSubmit={() => onSave({ gitlab: draft })}>
+      <Form onSubmit={() => onSave({ [forge.key]: draft })}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="GitLab URL">
+          <Field label={forge.urlLabel} hint={forge.urlHint}>
             <Input
               value={draft.url}
-              placeholder="https://gitlab.example.com"
+              placeholder={forge.placeholder}
               onChange={(e) => setDraft({ ...draft, url: e.target.value })}
             />
           </Field>
-          <Field
-            label="Access token"
-            hint={settings.gitlab.token_set ? 'Stored; leave empty to keep it' : 'A personal, group or project token with the read_api scope'}
-          >
+          <Field label="Access token" hint={tokenHint}>
             <Input
               type="password"
               value={draft.token}
@@ -515,9 +601,9 @@ function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patc
               checked={draft.enabled}
               onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
             />
-            Show the Pipelines page
+            Use {forge.label} for pipeline groups
           </label>
-          <Button type="submit">Save GitLab</Button>
+          <Button type="submit">Save {forge.label}</Button>
         </div>
       </Form>
     </Section>
@@ -551,20 +637,51 @@ function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: 
   );
 }
 
+// A section's description runs the full width of its card: clipping it to a
+// column left two thirds of the card empty and wrapped the sentence early.
+//
+// `help` answers "where do I get this", which is a paragraph nobody needs until
+// they need it. It hangs off a "?" beside the description as a native
+// disclosure, so the keyboard and a screen reader handle it for free and it
+// expands in place instead of floating over the form it explains.
 export function Section({
   title,
   description,
+  help,
+  helpLabel,
   children,
 }: {
   title: string;
   description: string;
+  help?: ReactNode;
+  helpLabel?: string;
   children: React.ReactNode;
 }) {
   return (
     <Card className="mt-6 p-5">
       <h2 className="text-sm font-medium text-content">{title}</h2>
-      <p className="mt-1 max-w-2xl text-xs text-muted">{description}</p>
+      <p className="mt-1 text-xs text-muted">
+        {description}
+        {help && <HelpDisclosure label={helpLabel ?? 'More about this'}>{help}</HelpDisclosure>}
+      </p>
       <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+function HelpDisclosure({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <details className="inline align-middle">
+      <summary
+        aria-label={label}
+        title={label}
+        className="ml-1 inline-flex h-4 w-4 cursor-pointer list-none items-center justify-center rounded-pill border border-hairline-strong align-middle text-[10px] font-semibold text-muted transition-colors hover:border-accent hover:text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link [&::-webkit-details-marker]:hidden"
+      >
+        ?
+      </summary>
+      <span className="mt-3 block space-y-2 rounded-card border border-hairline bg-surface-1 p-4 text-xs text-muted">
+        {children}
+      </span>
+    </details>
   );
 }

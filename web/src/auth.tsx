@@ -6,7 +6,7 @@ interface AuthStatus {
   signup_enabled: boolean;
   password_reset_enabled: boolean;
   google_enabled: boolean;
-  gitlab_enabled: boolean;
+  pipelines_enabled: boolean;
 }
 
 interface AuthState {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signup_enabled: true,
     password_reset_enabled: false,
     google_enabled: false,
-    gitlab_enabled: false,
+    pipelines_enabled: false,
   });
 
   useEffect(() => {

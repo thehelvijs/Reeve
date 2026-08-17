@@ -20,7 +20,7 @@ export default function Pipelines() {
 
   const load = useCallback(() => {
     api
-      .get<PipelineOverview>('/api/gitlab/pipelines')
+      .get<PipelineOverview>('/api/pipelines')
       .then((d) => {
         setData(d);
         setError('');
@@ -69,11 +69,11 @@ export default function Pipelines() {
       {data && !data.configured && (
         <div className="mt-6">
           <EmptyState
-            title="No GitLab connection"
+            title="No forge connected"
             description={
               user?.role === 'admin'
-                ? 'Add the server URL, an access token and the groups to watch in Settings.'
-                : 'An admin has not connected a GitLab server yet.'
+                ? 'Connect GitLab or GitHub in Settings, then group the repos you want to watch.'
+                : 'An admin has not connected GitLab or GitHub yet.'
             }
             action={
               user?.role === 'admin' ? (
@@ -115,7 +115,11 @@ function GroupSection({ group, search }: { group: PipelineGroup; search: string 
   const shown = group.projects.filter((p) => matchesQuery(search, p.name, p.path, p.status, p.ref));
 
   return (
-    <Section title={group.name} count={group.projects.length}>
+    <Section
+      title={group.name}
+      count={group.projects.length}
+      action={<Pill>{group.provider === 'github' ? 'GitHub' : 'GitLab'}</Pill>}
+    >
       {group.error && <ErrorText>{group.error}</ErrorText>}
       {!group.error && shown.length === 0 && (
         <EmptyState title="No repos" description="Nothing in this group matches." />

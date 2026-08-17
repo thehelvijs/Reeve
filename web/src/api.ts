@@ -98,17 +98,24 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
-export interface GitLabSettings {
+// One connected forge. GitLab is gitlab.com or any instance you run; GitHub is
+// github.com or an Enterprise Server. Only the URL tells them apart, and an
+// empty URL means the hosted one.
+export interface ForgeSettings {
   enabled: boolean;
   url: string;
   token_set: boolean;
 }
 
-export interface GitLabInput extends Omit<GitLabSettings, 'token_set'> {
+export interface ForgeInput extends Omit<ForgeSettings, 'token_set'> {
   token: string;
 }
 
-// A GitLab pipeline status, lowercased. Empty when the project has never run one.
+// Which forge a pipeline group's paths belong to.
+export type Provider = 'gitlab' | 'github';
+
+// The state of a repo's latest run, lowercased. Both forges are reported in
+// GitLab's vocabulary, so one status has one meaning. Empty means never run.
 export type PipelineStatus = string;
 
 export interface PipelineProject {
@@ -128,6 +135,7 @@ export interface PipelineProject {
 export interface PipelineGroup {
   id: string;
   name: string;
+  provider: Provider;
   projects: PipelineProject[];
   // This group's own failure; the other groups still rendered.
   error?: string;
@@ -138,6 +146,7 @@ export interface PipelineGroup {
 export interface PipelineGroupRecord {
   id: string;
   name: string;
+  provider: Provider;
   projects: string[];
 }
 
@@ -180,7 +189,8 @@ export interface Settings {
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
-  gitlab: GitLabSettings;
+  gitlab: ForgeSettings;
+  github: ForgeSettings;
   agent_update: AgentUpdateSettings;
   server_update: ServerUpdateSettings;
 }
@@ -191,7 +201,8 @@ export interface SettingsInput {
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;
-  gitlab?: GitLabInput;
+  gitlab?: ForgeInput;
+  github?: ForgeInput;
   agent_update?: AgentUpdateSettings;
   server_update?: ServerUpdateSettings;
 }
