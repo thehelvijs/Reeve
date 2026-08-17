@@ -353,6 +353,56 @@ sends. A stored channel the running build does not recognise reads back as
 `release`, so a downgrade cannot leave an instance chasing a tag nothing
 publishes.
 
+## GitLab pipelines
+
+### Settings: `gitlab`
+
+`GET/PUT /api/admin/settings` carries the connection to a self-hosted GitLab:
+
+```json
+{ "gitlab": {"enabled": true, "url": "https://gitlab.example.com",
+             "groups": "firmware, tools/lidar", "token": "glpat-…"} }
+```
+
+`groups` is a comma-separated list of group full paths; subgroups are always
+included, so one path covers everything under it. `token` is write-only: it is
+sealed with the master key and reads back as `token_set` only. An enabled
+connection must carry an absolute `url`, at least one group and a token
+(stored or supplied), otherwise `400 invalid_gitlab`; a disabled one is saved
+as written so it can be filled in over more than one visit.
+
+The token needs the `read_api` scope. Nothing is ever written back to GitLab.
+
+### `GET /api/gitlab/pipelines`
+
+Any signed-in account. One GraphQL call per configured group returns its
+projects with the latest pipeline of each:
+
+```json
+{
+  "configured": true,
+  "groups": [{
+    "path": "firmware",
+    "url": "https://gitlab.example.com/groups/firmware",
+    "truncated": false,
+    "projects": [{
+      "name": "Powerboard5", "path": "firmware/Powerboard5",
+      "url": "https://gitlab.example.com/firmware/Powerboard5",
+      "status": "failed", "ref": "develop",
+      "updated_at": "2026-08-17T09:00:00Z",
+      "pipeline_url": "https://gitlab.example.com/firmware/Powerboard5/-/pipelines/9"
+    }]
+  }]
+}
+```
+
+`status` is GitLab's pipeline status lowercased, empty for a project that has
+never run one. Projects come back failed-first, then by name. `truncated` says
+the group holds more projects than the 100 one page reports. An instance with
+no connection answers `200` with `configured: false` rather than an error, and
+a group that GitLab cannot answer for carries its own `error` string while the
+others still render.
+
 ## Notification channels (admin)
 
 `GET/POST /admin/webhooks`, `PATCH/DELETE /admin/webhooks/{id}`,

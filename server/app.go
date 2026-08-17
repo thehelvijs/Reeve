@@ -167,6 +167,10 @@ func (a *app) routes() http.Handler {
 	mux.Handle("DELETE /api/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionVisibility)))
 	mux.Handle("GET /api/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
 
+	// Pipelines. Configuring the connection is admin-only; reading it is not,
+	// because the point is the whole team seeing what is red.
+	mux.Handle("GET /api/gitlab/pipelines", authed(http.HandlerFunc(a.handleGitLabPipelines)))
+
 	// Groups a moderator manages. The list is scoped to the caller, and every
 	// membership write is gated on admin-or-moderator-of-that-group inside the
 	// handler, which is why these sit outside /api/admin.
