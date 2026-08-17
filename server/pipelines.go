@@ -196,6 +196,28 @@ func (a *app) pipelinesConfigured() bool {
 	return false
 }
 
+// handleDisconnectForge forgets one forge's token and URL. An empty value is
+// how a secret is removed: the settings PUT keeps the stored token when the
+// field is left blank, so there is no other way to clear it.
+func (a *app) handleDisconnectForge(w http.ResponseWriter, r *http.Request) {
+	provider := r.PathValue("provider")
+	if !validProvider(provider) {
+		writeError(w, http.StatusBadRequest, "invalid_provider", "provider must be gitlab or github")
+		return
+	}
+	keys := []string{settingGitLabToken, settingGitLabURL}
+	if provider == providerGitHub {
+		keys = []string{settingGitHubToken, settingGitHubURL}
+	}
+	for _, k := range keys {
+		if err := a.db.SetSetting(k, ""); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not clear the connection")
+			return
+		}
+	}
+	a.handleGetSettings(w, r)
+}
+
 // handleSearchRepos offers repos on one provider for the group editor.
 func (a *app) handleSearchRepos(w http.ResponseWriter, r *http.Request) {
 	provider := r.URL.Query().Get("provider")

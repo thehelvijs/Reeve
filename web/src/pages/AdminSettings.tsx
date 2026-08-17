@@ -12,6 +12,7 @@ import {
 } from '../api';
 import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Retention is stored in seconds but only ever reasoned about in hours or days.
 const RETENTION_CHOICES: { label: string; secs: number }[] = [
@@ -42,6 +43,12 @@ export default function AdminSettings() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save settings');
     }
+  };
+
+  // This one throws rather than reporting into the page: it runs behind a
+  // confirm dialog, which keeps itself open to show what went wrong.
+  const disconnectForge = async (key: 'gitlab' | 'github') => {
+    setSettings(await api.del<Settings>(`/api/admin/forge/${key}`));
   };
 
   if (!settings) {
@@ -85,7 +92,13 @@ export default function AdminSettings() {
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
       {FORGES.map((f) => (
-        <ForgeSection key={f.key} forge={f} settings={settings} onSave={save} />
+        <ForgeSection
+          key={f.key}
+          forge={f}
+          settings={settings}
+          onSave={save}
+          onDisconnect={() => disconnectForge(f.key)}
+        />
       ))}
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
@@ -590,13 +603,16 @@ function ForgeSection({
   forge,
   settings,
   onSave,
+  onDisconnect,
 }: {
   forge: (typeof FORGES)[number];
   settings: Settings;
   onSave: (patch: SettingsInput) => Promise<void>;
+  onDisconnect: () => Promise<void>;
 }) {
   const stored = settings[forge.key];
   const [draft, setDraft] = useState<ForgeInput>(forgeDraft(stored));
+  const [confirming, setConfirming] = useState(false);
   useEffect(() => setDraft(forgeDraft(stored)), [stored]);
 
   let connectionNote = `Save a token and ${forge.label} groups can be built on the Pipelines page.`;
@@ -630,9 +646,26 @@ function ForgeSection({
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted">{connectionNote}</p>
-          <Button type="submit">Save {forge.label}</Button>
+          <div className="flex items-center gap-2">
+            {stored.token_set && (
+              <Button type="button" variant="danger" onClick={() => setConfirming(true)}>
+                Disconnect
+              </Button>
+            )}
+            <Button type="submit">Save {forge.label}</Button>
+          </div>
         </div>
       </Form>
+
+      {confirming && (
+        <ConfirmModal
+          title={`Disconnect ${forge.label}?`}
+          body={`The token and URL are forgotten. Groups on ${forge.label} stay, and start reporting again once you connect it back.`}
+          confirmLabel="Disconnect"
+          onConfirm={onDisconnect}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </Section>
   );
 }

@@ -172,6 +172,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/pipelines", authed(http.HandlerFunc(a.handlePipelines)))
 	mux.Handle("GET /api/pipeline-groups", authed(http.HandlerFunc(a.handleListPipelineGroups)))
 	mux.Handle("GET /api/admin/repo-search", admin(http.HandlerFunc(a.handleSearchRepos)))
+	mux.Handle("DELETE /api/admin/forge/{provider}", admin(http.HandlerFunc(a.handleDisconnectForge)))
 	mux.Handle("POST /api/admin/pipeline-groups", admin(http.HandlerFunc(a.handleCreatePipelineGroup)))
 	mux.Handle("PATCH /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleRenamePipelineGroup)))
 	mux.Handle("DELETE /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleDeletePipelineGroup)))

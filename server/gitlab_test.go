@@ -376,6 +376,39 @@ func TestGitLabSettingsRejectRelativeURL(t *testing.T) {
 	}
 }
 
+// Disconnecting is the only way to remove a token, since a blank token field
+// means "keep the stored one" everywhere else.
+func TestForgeDisconnectClearsTheToken(t *testing.T) {
+	stub := newGitLabStub(t, gitlabAliasedReply, gitlabSearchReply)
+	ts := newTestServer(t)
+	c := connectGitLab(t, ts, stub)
+	id := createGroup(t, ts, c, "Firmware")
+	addProject(t, ts, c, id, "firmware/Powerboard5")
+
+	resp, data := ts.do(t, c, http.MethodDelete, "/api/admin/forge/gitlab", nil, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("disconnect status = %d, want 200: %s", resp.StatusCode, data)
+	}
+	var v settingsView
+	if err := json.Unmarshal(data, &v); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if v.GitLab.TokenSet || v.GitLab.URL != "https://gitlab.com" {
+		t.Errorf("gitlab after disconnect = %+v", v.GitLab)
+	}
+
+	// The group survives; it just has nothing to read it with.
+	out := getPipelines(t, ts, c)
+	if out.Configured || len(out.Groups) != 1 || !strings.Contains(out.Groups[0].Error, "not connected") {
+		t.Fatalf("reply = %+v", out)
+	}
+
+	resp, _ = ts.do(t, c, http.MethodDelete, "/api/admin/forge/bitbucket", nil, nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("unknown provider status = %d, want 400", resp.StatusCode)
+	}
+}
+
 func TestBuildPipelineQueryNamesEveryPath(t *testing.T) {
 	q := buildPipelineQuery([]string{"a/b", `we"ird/path`})
 	if !strings.Contains(q, `p0: project(fullPath: "a/b")`) {
