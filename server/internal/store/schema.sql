@@ -425,3 +425,19 @@ INSERT OR IGNORE INTO alert_thresholds(host_id, metric, enabled, threshold) VALU
     ('', 'temp', 1, 80),
     ('', 'load', 0, 4),
     ('', 'net', 0, 104857600);
+
+-- A pipeline group is an operator's own set of GitLab projects. It is named
+-- here rather than in GitLab because the repos worth watching together rarely
+-- line up with one GitLab group, and moving a project between GitLab groups is
+-- not a thing an operator should have to do to get a dashboard.
+CREATE TABLE IF NOT EXISTS pipeline_groups (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_group_projects (
+    group_id     TEXT NOT NULL REFERENCES pipeline_groups(id) ON DELETE CASCADE,
+    project_path TEXT NOT NULL,
+    PRIMARY KEY (group_id, project_path)
+);

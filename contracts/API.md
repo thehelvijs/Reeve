@@ -360,31 +360,59 @@ publishes.
 `GET/PUT /api/admin/settings` carries the connection to a self-hosted GitLab:
 
 ```json
-{ "gitlab": {"enabled": true, "url": "https://gitlab.example.com",
-             "groups": "firmware, tools/lidar", "token": "glpat-…"} }
+{ "gitlab": {"enabled": true, "url": "https://gitlab.example.com", "token": "glpat-…"} }
 ```
 
-`groups` is a comma-separated list of group full paths; subgroups are always
-included, so one path covers everything under it. `token` is write-only: it is
-sealed with the master key and reads back as `token_set` only. An enabled
-connection must carry an absolute `url`, at least one group and a token
-(stored or supplied), otherwise `400 invalid_gitlab`; a disabled one is saved
-as written so it can be filled in over more than one visit.
+`token` is write-only: it is sealed with the master key and reads back as
+`token_set` only. An enabled connection must carry an absolute `url` and a
+token (stored or supplied), otherwise `400 invalid_gitlab`; a disabled one is
+saved as written so it can be filled in over more than one visit. The token
+needs the `read_api` scope, and nothing is ever written back to GitLab.
 
-The token needs the `read_api` scope. Nothing is ever written back to GitLab.
+What to watch is not part of the connection: that is the pipeline groups below.
+
+### Pipeline groups
+
+A pipeline group is an operator's own named set of GitLab project paths, so a
+dashboard does not depend on how the repos are arranged in GitLab.
+
+`GET /api/pipeline-groups` (any signed-in account) lists them as stored, with
+no call to GitLab behind it:
+
+```json
+[{"id": "3f2a…", "name": "Firmware", "projects": ["firmware/Powerboard5"]}]
+```
+
+The writes are admin-only:
+
+- `POST /api/admin/pipeline-groups` `{"name": "Firmware"}` → `201` with the
+  record. A name is unique; a repeat is `409 name_taken`.
+- `PATCH /api/admin/pipeline-groups/{id}` `{"name": "…"}` → `204`.
+- `DELETE /api/admin/pipeline-groups/{id}` → `204`; membership cascades.
+- `POST|DELETE /api/admin/pipeline-groups/{id}/projects` `{"path": "group/repo"}`
+  → `204`. The path rides in the body because a GitLab full path carries
+  slashes of its own. Adding is idempotent. A path with no slash is
+  `400 invalid_path`, an unknown group is `404`, and a group already holding 200
+  projects is `400 group_full`.
+
+### `GET /api/admin/gitlab/projects?q=`
+
+Admin only. Proxies GitLab's project search so the group editor can offer repos
+by name instead of asking for a full path. Returns up to 20, most recently
+active first, as `{"name", "path", "url"}`. With no connection configured it is
+`412 gitlab_not_configured`; a GitLab that refuses is `502 gitlab_failed`.
 
 ### `GET /api/gitlab/pipelines`
 
-Any signed-in account. One GraphQL call per configured group returns its
-projects with the latest pipeline of each:
+Any signed-in account. One GraphQL call per group — each member project under
+its own alias — returns the latest pipeline of each:
 
 ```json
 {
   "configured": true,
   "groups": [{
-    "path": "firmware",
-    "url": "https://gitlab.example.com/groups/firmware",
-    "truncated": false,
+    "id": "3f2a…",
+    "name": "Firmware",
     "projects": [{
       "name": "Powerboard5", "path": "firmware/Powerboard5",
       "url": "https://gitlab.example.com/firmware/Powerboard5",
@@ -397,11 +425,11 @@ projects with the latest pipeline of each:
 ```
 
 `status` is GitLab's pipeline status lowercased, empty for a project that has
-never run one. Projects come back failed-first, then by name. `truncated` says
-the group holds more projects than the 100 one page reports. An instance with
-no connection answers `200` with `configured: false` rather than an error, and
-a group that GitLab cannot answer for carries its own `error` string while the
-others still render.
+never run one. Projects come back failed-first, then by name. An instance with
+no connection answers `200` with `configured: false` rather than an error; a
+group GitLab cannot answer for at all carries its own `error` string, and a
+single project GitLab will not answer for carries `error` on that project while
+its group still renders. An empty group costs no call to GitLab.
 
 ## Notification channels (admin)
 

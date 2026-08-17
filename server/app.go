@@ -167,9 +167,16 @@ func (a *app) routes() http.Handler {
 	mux.Handle("DELETE /api/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionVisibility)))
 	mux.Handle("GET /api/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
 
-	// Pipelines. Configuring the connection is admin-only; reading it is not,
-	// because the point is the whole team seeing what is red.
+	// Pipelines. Reading is open to any account, because the point is the whole
+	// team seeing what is red; the connection and the groups are an admin's.
 	mux.Handle("GET /api/gitlab/pipelines", authed(http.HandlerFunc(a.handleGitLabPipelines)))
+	mux.Handle("GET /api/pipeline-groups", authed(http.HandlerFunc(a.handleListPipelineGroups)))
+	mux.Handle("GET /api/admin/gitlab/projects", admin(http.HandlerFunc(a.handleSearchGitLabProjects)))
+	mux.Handle("POST /api/admin/pipeline-groups", admin(http.HandlerFunc(a.handleCreatePipelineGroup)))
+	mux.Handle("PATCH /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleRenamePipelineGroup)))
+	mux.Handle("DELETE /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleDeletePipelineGroup)))
+	mux.Handle("POST /api/admin/pipeline-groups/{id}/projects", admin(http.HandlerFunc(a.handleAddPipelineGroupProject)))
+	mux.Handle("DELETE /api/admin/pipeline-groups/{id}/projects", admin(http.HandlerFunc(a.handleRemovePipelineGroupProject)))
 
 	// Groups a moderator manages. The list is scoped to the caller, and every
 	// membership write is gated on admin-or-moderator-of-that-group inside the
