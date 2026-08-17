@@ -273,6 +273,16 @@ function ProjectPicker({
   const inGroup = new Set(group.projects);
   const offered = results.filter((p) => !inGroup.has(p.path));
 
+  // A search can come up empty for reasons the picker cannot fix: a token that
+  // cannot list, a repo past the search cap, an instance that answers slowly.
+  // The path is what a group stores, so typing one has to keep working.
+  const typedPath = query.trim().replace(/^\/+|\/+$/g, '');
+  const canAddTyped =
+    !searching &&
+    typedPath.includes('/') &&
+    !inGroup.has(typedPath) &&
+    !offered.some((p) => p.path === typedPath);
+
   let note = '';
   if (searching) {
     note = 'Searching…';
@@ -284,12 +294,20 @@ function ProjectPicker({
     <div>
       <Input
         value={query}
-        placeholder={`Search ${PROVIDER_LABEL[group.provider]} repos to add…`}
+        placeholder={`Search ${PROVIDER_LABEL[group.provider]} repos, or paste a full path…`}
         aria-label={`Search ${PROVIDER_LABEL[group.provider]} repos`}
         onChange={(e) => setQuery(e.target.value)}
       />
       <ErrorText>{error}</ErrorText>
       {note && <p className="mt-2 text-xs text-muted">{note}</p>}
+      {canAddTyped && (
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-card border border-hairline px-3 py-2">
+          <span className="min-w-0 truncate font-mono text-xs text-content">{typedPath}</span>
+          <Button variant="secondary" onClick={() => onAdd(typedPath)}>
+            Add this path
+          </Button>
+        </div>
+      )}
       {offered.length > 0 && (
         <ul className="mt-2 max-h-64 overflow-y-auto rounded-card border border-hairline">
           {offered.map((p) => (
