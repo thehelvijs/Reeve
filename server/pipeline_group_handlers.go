@@ -9,18 +9,22 @@ import (
 )
 
 // maxPipelineGroupProjects bounds one group, because every member costs a field
-// in the single GraphQL call that reads the group.
+// in the GraphQL call that reads a GitLab group, and a request of its own on
+// GitHub.
 const maxPipelineGroupProjects = 200
 
 type pipelineGroupRecord struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	// Projects are GitLab full paths, "group/subgroup/project".
+	// Provider is the forge the paths belong to: "gitlab" or "github".
+	Provider string `json:"provider"`
+	// Projects are full paths: "group/subgroup/project" on GitLab,
+	// "owner/repo" on GitHub.
 	Projects []string `json:"projects"`
 }
 
 func pipelineGroupToRecord(g store.PipelineGroup) pipelineGroupRecord {
-	return pipelineGroupRecord{ID: g.ID, Name: g.Name, Projects: g.Projects}
+	return pipelineGroupRecord{ID: g.ID, Name: g.Name, Provider: g.Provider, Projects: g.Projects}
 }
 
 // handleListPipelineGroups returns the groups and their members without calling
@@ -41,7 +45,8 @@ func (a *app) handleListPipelineGroups(w http.ResponseWriter, _ *http.Request) {
 
 func (a *app) handleCreatePipelineGroup(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		Provider string `json:"provider"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
@@ -52,7 +57,11 @@ func (a *app) handleCreatePipelineGroup(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "invalid_name", "a group needs a name")
 		return
 	}
-	g, err := a.db.CreatePipelineGroup(name)
+	if !validProvider(in.Provider) {
+		writeError(w, http.StatusBadRequest, "invalid_provider", "provider must be gitlab or github")
+		return
+	}
+	g, err := a.db.CreatePipelineGroup(name, in.Provider)
 	if err != nil {
 		writeError(w, http.StatusConflict, "name_taken", "a group with that name already exists")
 		return

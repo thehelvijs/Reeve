@@ -5,20 +5,24 @@ import (
 	"time"
 )
 
-// PipelineGroup is a named set of GitLab project paths an operator watches
-// together, such as every firmware repo regardless of where it lives in GitLab.
+// PipelineGroup is a named set of repo paths an operator watches together, such
+// as every firmware repo regardless of which GitLab group or GitHub org holds
+// it.
 type PipelineGroup struct {
-	ID        string
-	Name      string
+	ID   string
+	Name string
+	// Provider is "gitlab" or "github": which forge the paths belong to.
+	Provider  string
 	CreatedAt time.Time
-	// Projects are full paths, "group/subgroup/project", ordered by path.
+	// Projects are full paths, "group/subgroup/project" or "owner/repo",
+	// ordered by path.
 	Projects []string
 }
 
 // ListPipelineGroups returns every group with its members, ordered by name. The
 // membership comes back in one query rather than one per group.
 func (db *DB) ListPipelineGroups() ([]PipelineGroup, error) {
-	rows, err := db.sql.Query(`SELECT id, name, created_at FROM pipeline_groups ORDER BY name`)
+	rows, err := db.sql.Query(`SELECT id, name, provider, created_at FROM pipeline_groups ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +32,7 @@ func (db *DB) ListPipelineGroups() ([]PipelineGroup, error) {
 	for rows.Next() {
 		var g PipelineGroup
 		var created string
-		if err := rows.Scan(&g.ID, &g.Name, &created); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Provider, &created); err != nil {
 			return nil, err
 		}
 		g.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
@@ -58,11 +62,14 @@ func (db *DB) ListPipelineGroups() ([]PipelineGroup, error) {
 	return groups, members.Err()
 }
 
-// CreatePipelineGroup inserts an empty group.
-func (db *DB) CreatePipelineGroup(name string) (PipelineGroup, error) {
-	g := PipelineGroup{ID: NewID(), Name: name, CreatedAt: time.Now().UTC(), Projects: []string{}}
-	_, err := db.sql.Exec(`INSERT INTO pipeline_groups(id, name, created_at) VALUES (?,?,?)`,
-		g.ID, g.Name, g.CreatedAt.Format(time.RFC3339Nano))
+// CreatePipelineGroup inserts an empty group on one provider.
+func (db *DB) CreatePipelineGroup(name, provider string) (PipelineGroup, error) {
+	g := PipelineGroup{
+		ID: NewID(), Name: name, Provider: provider,
+		CreatedAt: time.Now().UTC(), Projects: []string{},
+	}
+	_, err := db.sql.Exec(`INSERT INTO pipeline_groups(id, name, provider, created_at) VALUES (?,?,?,?)`,
+		g.ID, g.Name, g.Provider, g.CreatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return PipelineGroup{}, err
 	}

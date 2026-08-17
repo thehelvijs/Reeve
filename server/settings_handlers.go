@@ -93,6 +93,7 @@ type settingsView struct {
 	SMTP          smtpView         `json:"smtp"`
 	Google        googleAuthView   `json:"google"`
 	GitLab        gitlabView       `json:"gitlab"`
+	GitHub        githubView       `json:"github"`
 	AgentUpdate   agentUpdateView  `json:"agent_update"`
 	ServerUpdate  serverUpdateView `json:"server_update"`
 }
@@ -111,6 +112,7 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 		SMTP:        a.smtpView(),
 		Google:      a.googleAuthView(),
 		GitLab:      a.gitlabView(),
+		GitHub:      a.githubView(),
 		AgentUpdate:  agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
 		ServerUpdate: a.serverUpdateView(),
 	})
@@ -129,6 +131,7 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		SMTP        *smtpInput   `json:"smtp"`
 		Google      *googleInput `json:"google"`
 		GitLab      *gitlabInput `json:"gitlab"`
+		GitHub      *githubInput `json:"github"`
 		AgentUpdate *struct {
 			Enabled     bool `json:"enabled"`
 			Concurrency int  `json:"concurrency"`
@@ -185,6 +188,12 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if in.GitLab != nil {
 		if err := a.saveGitLabSettings(*in.GitLab); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid_gitlab", err.Error())
+			return
+		}
+	}
+	if in.GitHub != nil {
+		if err := a.saveGitHubSettings(*in.GitHub); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_github", err.Error())
 			return
 		}
 	}

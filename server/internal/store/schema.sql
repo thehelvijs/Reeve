@@ -426,13 +426,18 @@ INSERT OR IGNORE INTO alert_thresholds(host_id, metric, enabled, threshold) VALU
     ('', 'load', 0, 4),
     ('', 'net', 0, 104857600);
 
--- A pipeline group is an operator's own set of GitLab projects. It is named
--- here rather than in GitLab because the repos worth watching together rarely
--- line up with one GitLab group, and moving a project between GitLab groups is
--- not a thing an operator should have to do to get a dashboard.
+-- A pipeline group is an operator's own set of repos. It is named here rather
+-- than on the forge because the repos worth watching together rarely line up
+-- with one GitLab group or GitHub org, and moving a repo between them is not a
+-- thing an operator should have to do to get a dashboard.
+--
+-- The provider is the group's, not the instance's: a team with firmware on
+-- GitLab and tooling on GitHub watches both on one page.
 CREATE TABLE IF NOT EXISTS pipeline_groups (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL UNIQUE,
+    provider   TEXT NOT NULL DEFAULT 'gitlab'
+                 CHECK (provider IN ('gitlab', 'github')),
     created_at TEXT NOT NULL
 );
 

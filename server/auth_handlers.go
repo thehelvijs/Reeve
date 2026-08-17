@@ -48,13 +48,12 @@ func (a *app) handleAuthStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 	_, mailReady := a.mailConfig()
 	_, googleReady := a.googleConfig()
-	_, gitlabReady := a.gitlabConfig()
 	writeJSON(w, http.StatusOK, map[string]bool{
 		"setup_required":         count == 0,
 		"signup_enabled":         a.db.GetBoolSetting(settingSignupEnabled, true),
 		"password_reset_enabled": mailReady,
 		"google_enabled":         googleReady,
-		"gitlab_enabled":         gitlabReady,
+		"pipelines_enabled":      a.pipelinesConfigured(),
 	})
 }
 

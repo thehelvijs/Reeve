@@ -169,9 +169,9 @@ func (a *app) routes() http.Handler {
 
 	// Pipelines. Reading is open to any account, because the point is the whole
 	// team seeing what is red; the connection and the groups are an admin's.
-	mux.Handle("GET /api/gitlab/pipelines", authed(http.HandlerFunc(a.handleGitLabPipelines)))
+	mux.Handle("GET /api/pipelines", authed(http.HandlerFunc(a.handlePipelines)))
 	mux.Handle("GET /api/pipeline-groups", authed(http.HandlerFunc(a.handleListPipelineGroups)))
-	mux.Handle("GET /api/admin/gitlab/projects", admin(http.HandlerFunc(a.handleSearchGitLabProjects)))
+	mux.Handle("GET /api/admin/repo-search", admin(http.HandlerFunc(a.handleSearchRepos)))
 	mux.Handle("POST /api/admin/pipeline-groups", admin(http.HandlerFunc(a.handleCreatePipelineGroup)))
 	mux.Handle("PATCH /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleRenamePipelineGroup)))
 	mux.Handle("DELETE /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleDeletePipelineGroup)))

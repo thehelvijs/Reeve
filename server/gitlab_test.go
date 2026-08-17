@@ -66,7 +66,7 @@ type pipelinesReply struct {
 
 func getPipelines(t *testing.T, ts *testServer, c *http.Client) pipelinesReply {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodGet, "/api/gitlab/pipelines", nil, nil)
+	resp, data := ts.do(t, c, http.MethodGet, "/api/pipelines", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, data)
 	}
@@ -100,7 +100,7 @@ func connectGitLab(t *testing.T, ts *testServer, stub *gitlabStub) *http.Client 
 // createGroup makes a group and returns its id.
 func createGroup(t *testing.T, ts *testServer, c *http.Client, name string) string {
 	t.Helper()
-	resp, data := ts.do(t, c, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": name}, nil)
+	resp, data := ts.do(t, c, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": name, "provider": "gitlab"}, nil)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create status = %d, want 201: %s", resp.StatusCode, data)
 	}
@@ -137,7 +137,7 @@ func TestPipelineGroupCRUD(t *testing.T) {
 	id := createGroup(t, ts, c, "Firmware")
 
 	// A name is taken once, so two groups cannot answer to the same thing.
-	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": "Firmware"}, nil)
+	resp, _ := ts.do(t, c, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": "Firmware", "provider": "gitlab"}, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("duplicate name status = %d, want 409", resp.StatusCode)
 	}
@@ -219,11 +219,11 @@ func TestPipelineGroupsAdminOnly(t *testing.T) {
 	if resp = addProject(t, ts, basic, id, "firmware/x"); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic add status = %d, want 403", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, basic, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": "Nope"}, nil)
+	resp, _ = ts.do(t, basic, http.MethodPost, "/api/admin/pipeline-groups", map[string]any{"name": "Nope", "provider": "gitlab"}, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic create status = %d, want 403", resp.StatusCode)
 	}
-	resp, _ = ts.do(t, basic, http.MethodGet, "/api/admin/gitlab/projects?q=x", nil, nil)
+	resp, _ = ts.do(t, basic, http.MethodGet, "/api/admin/repo-search?provider=gitlab&q=x", nil, nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("basic search status = %d, want 403", resp.StatusCode)
 	}
@@ -261,7 +261,7 @@ func TestGitLabPipelinesReportsEachGroupsProjects(t *testing.T) {
 	}
 	// The project GitLab would not answer for reports its own error and keeps
 	// its place, rather than silently vanishing from the group.
-	var gone *gitlabProject
+	var gone *repoProject
 	for i := range g.Projects {
 		if g.Projects[i].Path == "firmware/gone" {
 			gone = &g.Projects[i]
@@ -304,11 +304,11 @@ func TestGitLabProjectSearch(t *testing.T) {
 	ts := newTestServer(t)
 	c := connectGitLab(t, ts, stub)
 
-	resp, data := ts.do(t, c, http.MethodGet, "/api/admin/gitlab/projects?q=encoder", nil, nil)
+	resp, data := ts.do(t, c, http.MethodGet, "/api/admin/repo-search?provider=gitlab&q=encoder", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", resp.StatusCode, data)
 	}
-	var found []gitlabProject
+	var found []repoProject
 	if err := json.Unmarshal(data, &found); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestGitLabProjectSearchNeedsAConnection(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
-	resp, _ := ts.do(t, c, http.MethodGet, "/api/admin/gitlab/projects?q=x", nil, nil)
+	resp, _ := ts.do(t, c, http.MethodGet, "/api/admin/repo-search?provider=gitlab&q=x", nil, nil)
 	if resp.StatusCode != http.StatusPreconditionFailed {
 		t.Errorf("status = %d, want 412", resp.StatusCode)
 	}
@@ -350,13 +350,14 @@ func TestGitLabSettingsRejectIncomplete(t *testing.T) {
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
+	// The token case runs first: a later one supplying a token would store it and
+	// leave nothing missing to reject.
 	cases := []struct {
 		name string
 		in   map[string]any
 	}{
-		{"no url", map[string]any{"enabled": true, "url": "", "token": "t"}},
-		{"relative url", map[string]any{"enabled": true, "url": "gitlab.example.com", "token": "t"}},
 		{"no token", map[string]any{"enabled": true, "url": "https://gitlab.example.com", "token": ""}},
+		{"relative url", map[string]any{"enabled": true, "url": "gitlab.example.com", "token": "t"}},
 	}
 	for _, tc := range cases {
 		resp, _ := putSettings(t, ts, c, map[string]any{"gitlab": tc.in})
@@ -371,6 +372,15 @@ func TestGitLabSettingsRejectIncomplete(t *testing.T) {
 		"enabled": false, "url": "https://gitlab.example.com", "token": "",
 	}})
 	if resp.StatusCode != http.StatusOK || v.GitLab.URL != "https://gitlab.example.com" {
+		t.Fatalf("status = %d, view = %+v", resp.StatusCode, v.GitLab)
+	}
+
+	// An empty URL is the hosted instance, not an error: gitlab.com is a GitLab
+	// like any other and only the URL tells them apart.
+	resp, v = putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
+		"enabled": true, "url": "", "token": "glpat-x",
+	}})
+	if resp.StatusCode != http.StatusOK || v.GitLab.URL != "https://gitlab.com" {
 		t.Fatalf("status = %d, view = %+v", resp.StatusCode, v.GitLab)
 	}
 }
