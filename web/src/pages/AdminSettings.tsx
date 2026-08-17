@@ -10,7 +10,7 @@ import {
   type SMTPInput,
   type UpdateChannel,
 } from '../api';
-import { Button, Card, ErrorText, Field, Form, Input } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 
 // Retention is stored in seconds but only ever reasoned about in hours or days.
@@ -364,14 +364,12 @@ function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch
           <Field label="Username" hint="Leave empty for a relay that needs no auth">
             <Input value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
           </Field>
-          <Field label="Password" hint={settings.smtp.password_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-            <Input
-              type="password"
-              value={draft.password}
-              autoComplete="new-password"
-              onChange={(e) => setDraft({ ...draft, password: e.target.value })}
-            />
-          </Field>
+          <SecretField
+            label="Password"
+            set={settings.smtp.password_set}
+            value={draft.password}
+            onChange={(v) => setDraft({ ...draft, password: v })}
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <label className="flex items-center gap-2 text-sm text-content">
@@ -438,14 +436,12 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
           <Field label="Client ID">
             <Input value={draft.client_id} onChange={(e) => setDraft({ ...draft, client_id: e.target.value })} />
           </Field>
-          <Field label="Client secret" hint={settings.google.secret_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-            <Input
-              type="password"
-              value={draft.client_secret}
-              autoComplete="new-password"
-              onChange={(e) => setDraft({ ...draft, client_secret: e.target.value })}
-            />
-          </Field>
+          <SecretField
+            label="Client secret"
+            set={settings.google.secret_set}
+            value={draft.client_secret}
+            onChange={(v) => setDraft({ ...draft, client_secret: v })}
+          />
         </div>
         <div className="mt-3">
           <Field
@@ -478,7 +474,7 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
 }
 
 function forgeDraft(f: ForgeSettings): ForgeInput {
-  return { enabled: f.enabled, url: f.url, token: '' };
+  return { url: f.url, token: '' };
 }
 
 // Both forges take the same three fields, so they take the same section: only
@@ -603,9 +599,9 @@ function ForgeSection({
   const [draft, setDraft] = useState<ForgeInput>(forgeDraft(stored));
   useEffect(() => setDraft(forgeDraft(stored)), [stored]);
 
-  let tokenHint = forge.tokenHint;
+  let connectionNote = `Save a token and ${forge.label} groups can be built on the Pipelines page.`;
   if (stored.token_set) {
-    tokenHint = 'Stored; leave empty to keep it';
+    connectionNote = `Connected. Build ${forge.label} groups on the Pipelines page.`;
   }
 
   return (
@@ -624,25 +620,16 @@ function ForgeSection({
               onChange={(e) => setDraft({ ...draft, url: e.target.value })}
             />
           </Field>
-          <Field label="Access token" hint={tokenHint}>
-            <Input
-              type="password"
-              value={draft.token}
-              autoComplete="new-password"
-              onChange={(e) => setDraft({ ...draft, token: e.target.value })}
-            />
-          </Field>
+          <SecretField
+            label="Access token"
+            set={stored.token_set}
+            hint={forge.tokenHint}
+            value={draft.token}
+            onChange={(v) => setDraft({ ...draft, token: v })}
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm text-content">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-accent"
-              checked={draft.enabled}
-              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
-            />
-            Use {forge.label} for pipeline groups
-          </label>
+          <p className="text-xs text-muted">{connectionNote}</p>
           <Button type="submit">Save {forge.label}</Button>
         </div>
       </Form>
@@ -684,6 +671,48 @@ function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: 
 // they need it. It hangs off a "?" beside the description as a native
 // disclosure, so the keyboard and a screen reader handle it for free and it
 // expands in place instead of floating over the form it explains.
+// The server never sends a secret back, so an empty box reads as "nothing is
+// set". The pill and the dots say what is stored without revealing it.
+function SecretField({
+  label,
+  set,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  set: boolean;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  let placeholder = 'Not set';
+  let text = hint ?? '';
+  if (set) {
+    placeholder = '••••••••••••';
+    text = 'Stored; leave empty to keep it';
+  }
+  return (
+    <Field
+      label={
+        <span className="flex items-center gap-2">
+          {label}
+          {set && <Pill tone="up">Active</Pill>}
+        </span>
+      }
+      hint={text}
+    >
+      <Input
+        type="password"
+        value={value}
+        placeholder={placeholder}
+        autoComplete="new-password"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </Field>
+  );
+}
+
 export function Section({
   title,
   description,

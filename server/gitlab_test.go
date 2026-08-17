@@ -83,7 +83,7 @@ func connectGitLab(t *testing.T, ts *testServer, stub *gitlabStub) *http.Client 
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 	resp, v := putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
-		"enabled": true, "url": stub.srv.URL, "token": "glpat-secret",
+		"url": stub.srv.URL, "token": "glpat-secret",
 	}})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("save status = %d, want 200", resp.StatusCode)
@@ -345,31 +345,22 @@ func TestGitLabPipelinesGroupError(t *testing.T) {
 	}
 }
 
-func TestGitLabSettingsRejectIncomplete(t *testing.T) {
+func TestGitLabSettingsRejectRelativeURL(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
-	// The token case runs first: a later one supplying a token would store it and
-	// leave nothing missing to reject.
-	cases := []struct {
-		name string
-		in   map[string]any
-	}{
-		{"no token", map[string]any{"enabled": true, "url": "https://gitlab.example.com", "token": ""}},
-		{"relative url", map[string]any{"enabled": true, "url": "gitlab.example.com", "token": "t"}},
-	}
-	for _, tc := range cases {
-		resp, _ := putSettings(t, ts, c, map[string]any{"gitlab": tc.in})
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Errorf("%s: status = %d, want 400", tc.name, resp.StatusCode)
-		}
+	resp, _ := putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
+		"url": "gitlab.example.com", "token": "t",
+	}})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("relative url status = %d, want 400", resp.StatusCode)
 	}
 
-	// Disabled config is saved as written, so an operator can fill it in over
-	// more than one visit.
+	// A URL without a token is saved as written, so an operator can fill the
+	// connection in over more than one visit.
 	resp, v := putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
-		"enabled": false, "url": "https://gitlab.example.com", "token": "",
+		"url": "https://gitlab.example.com", "token": "",
 	}})
 	if resp.StatusCode != http.StatusOK || v.GitLab.URL != "https://gitlab.example.com" {
 		t.Fatalf("status = %d, view = %+v", resp.StatusCode, v.GitLab)
@@ -378,7 +369,7 @@ func TestGitLabSettingsRejectIncomplete(t *testing.T) {
 	// An empty URL is the hosted instance, not an error: gitlab.com is a GitLab
 	// like any other and only the URL tells them apart.
 	resp, v = putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
-		"enabled": true, "url": "", "token": "glpat-x",
+		"url": "", "token": "glpat-x",
 	}})
 	if resp.StatusCode != http.StatusOK || v.GitLab.URL != "https://gitlab.com" {
 		t.Fatalf("status = %d, view = %+v", resp.StatusCode, v.GitLab)

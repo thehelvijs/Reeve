@@ -102,7 +102,6 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
 // github.com or an Enterprise Server. Only the URL tells them apart, and an
 // empty URL means the hosted one.
 export interface ForgeSettings {
-  enabled: boolean;
   url: string;
   token_set: boolean;
 }

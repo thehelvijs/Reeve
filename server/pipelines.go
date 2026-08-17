@@ -57,8 +57,9 @@ type forgeConfig struct {
 	WebURL string
 }
 
-// forge returns the connection for one provider, reporting false when it is off
-// or incomplete, so a broken config degrades to "not connected".
+// forge returns the connection for one provider, reporting false when no token
+// is stored or the URL is unusable, so a broken config degrades to "not
+// connected".
 func (a *app) forge(provider string) (forgeConfig, bool) {
 	if provider == providerGitHub {
 		return a.githubConfig()

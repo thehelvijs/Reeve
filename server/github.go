@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -13,9 +11,8 @@ import (
 // Server, told apart by the API base URL. The token is sealed with the master
 // key.
 const (
-	settingGitHubEnabled = "github.enabled"
-	settingGitHubURL     = "github.url"
-	settingGitHubToken   = "github.token"
+	settingGitHubURL   = "github.url"
+	settingGitHubToken = "github.token"
 )
 
 // githubDefaultURL is the hosted API. Enterprise Server puts its own host in
@@ -29,51 +26,36 @@ const githubDefaultURL = "https://api.github.com"
 const githubSearchPages = 3
 
 type githubView struct {
-	Enabled  bool   `json:"enabled"`
 	URL      string `json:"url"`
 	TokenSet bool   `json:"token_set"`
 }
 
 // githubInput is the write shape; an empty token keeps the stored one.
 type githubInput struct {
-	Enabled bool   `json:"enabled"`
-	URL     string `json:"url"`
-	Token   string `json:"token"`
+	URL   string `json:"url"`
+	Token string `json:"token"`
 }
 
 func (a *app) githubView() githubView {
 	_, hasToken := a.sealedSetting(settingGitHubToken)
 	return githubView{
-		Enabled:  a.db.GetBoolSetting(settingGitHubEnabled, false),
 		URL:      a.settingOr(settingGitHubURL, githubDefaultURL),
 		TokenSet: hasToken,
 	}
 }
 
-// saveGitHubSettings validates and persists the connection.
+// saveGitHubSettings validates and persists the connection. A stored token is
+// the connection: there is no second switch to forget to flip.
 func (a *app) saveGitHubSettings(in githubInput) error {
 	in.URL = strings.TrimRight(strings.TrimSpace(in.URL), "/")
 	if in.URL == "" {
 		in.URL = githubDefaultURL
 	}
-	if in.Enabled {
-		if err := validateForgeURL(in.URL, "GitHub", githubDefaultURL); err != nil {
-			return err
-		}
-		if in.Token == "" {
-			if _, ok := a.sealedSetting(settingGitHubToken); !ok {
-				return errors.New("an access token that can read Actions is required")
-			}
-		}
+	if err := validateForgeURL(in.URL, "GitHub", githubDefaultURL); err != nil {
+		return err
 	}
-	writes := map[string]string{
-		settingGitHubEnabled: strconv.FormatBool(in.Enabled),
-		settingGitHubURL:     in.URL,
-	}
-	for k, v := range writes {
-		if err := a.db.SetSetting(k, v); err != nil {
-			return err
-		}
+	if err := a.db.SetSetting(settingGitHubURL, in.URL); err != nil {
+		return err
 	}
 	if in.Token != "" {
 		return a.setSealedSetting(settingGitHubToken, in.Token)
@@ -82,9 +64,6 @@ func (a *app) saveGitHubSettings(in githubInput) error {
 }
 
 func (a *app) githubConfig() (forgeConfig, bool) {
-	if !a.db.GetBoolSetting(settingGitHubEnabled, false) {
-		return forgeConfig{}, false
-	}
 	v := a.githubView()
 	token, _ := a.sealedSetting(settingGitHubToken)
 	cfg := forgeConfig{

@@ -90,7 +90,7 @@ export default function Pipelines() {
         <div className="mt-6">
           <EmptyState
             title="No groups yet"
-            description="A group is your own set of GitLab repos, watched together here."
+            description="A group is your own set of repos, watched together here."
             action={
               user?.role === 'admin' ? (
                 <Link to="/pipelines/groups">

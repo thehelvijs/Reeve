@@ -84,7 +84,15 @@ export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSe
 // full width: a bare <span> shares a line with a <select>, which put "Auto-update"
 // to the left of its dropdown while every other field in the app labelled from
 // above.
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <label className="block space-y-1.5">
       <span className="block text-xs font-semibold text-content">{label}</span>

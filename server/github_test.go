@@ -61,7 +61,7 @@ func connectGitHub(t *testing.T, ts *testServer, stub *githubStub) *http.Client 
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 	resp, v := putSettings(t, ts, c, map[string]any{"github": map[string]any{
-		"enabled": true, "url": stub.srv.URL, "token": "ghp-secret",
+		"url": stub.srv.URL, "token": "ghp-secret",
 	}})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("save status = %d, want 200", resp.StatusCode)
@@ -184,7 +184,7 @@ func TestPipelinesMixesProviders(t *testing.T) {
 	ts := newTestServer(t)
 	c := connectGitHub(t, ts, gh)
 	putSettings(t, ts, c, map[string]any{"gitlab": map[string]any{
-		"enabled": true, "url": gl.srv.URL, "token": "glpat-secret",
+		"url": gl.srv.URL, "token": "glpat-secret",
 	}})
 
 	ghGroup := createProviderGroup(t, ts, c, "Tooling", "github")
@@ -244,28 +244,22 @@ func TestGitHubWebURL(t *testing.T) {
 	}
 }
 
-func TestGitHubSettingsRejectIncomplete(t *testing.T) {
+func TestGitHubSettingsRejectRelativeURL(t *testing.T) {
 	ts := newTestServer(t)
 	c := ts.client(t)
 	signup(t, ts, c, "boss@example.com", "password123")
 
 	resp, _ := putSettings(t, ts, c, map[string]any{"github": map[string]any{
-		"enabled": true, "url": "api.github.com", "token": "t",
+		"url": "api.github.com", "token": "t",
 	}})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("relative url status = %d, want 400", resp.StatusCode)
-	}
-	resp, _ = putSettings(t, ts, c, map[string]any{"github": map[string]any{
-		"enabled": true, "url": "", "token": "",
-	}})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("no token status = %d, want 400", resp.StatusCode)
 	}
 
 	// An empty URL defaults to the hosted API rather than failing, so the common
 	// case is one token and nothing else.
 	resp, v := putSettings(t, ts, c, map[string]any{"github": map[string]any{
-		"enabled": true, "url": "", "token": "ghp-x",
+		"url": "", "token": "ghp-x",
 	}})
 	if resp.StatusCode != http.StatusOK || v.GitHub.URL != "https://api.github.com" {
 		t.Fatalf("status = %d, view = %+v", resp.StatusCode, v.GitHub)

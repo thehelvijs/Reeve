@@ -33,10 +33,10 @@ export default function PipelineGroups() {
       ]);
       setGroups(rows);
       const live: Provider[] = [];
-      if (settings.gitlab.enabled && settings.gitlab.token_set) {
+      if (settings.gitlab.token_set) {
         live.push('gitlab');
       }
-      if (settings.github.enabled && settings.github.token_set) {
+      if (settings.github.token_set) {
         live.push('github');
       }
       setConnected(live);
