@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   api,
+  type GitLabInput,
   type GoogleInput,
   type Settings,
   type SettingsInput,
@@ -81,6 +82,7 @@ export default function AdminSettings() {
 
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
+      <GitLabSection settings={settings} onSave={save} />
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
       <ServerUpdateSection settings={settings} onSave={save} />
@@ -465,6 +467,69 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
             Offer Google sign-in on the login screen
           </label>
           <Button type="submit">Save Google</Button>
+        </div>
+      </Form>
+    </Section>
+  );
+}
+
+function gitlabDraft(g: Settings['gitlab']): GitLabInput {
+  return { enabled: g.enabled, url: g.url, groups: g.groups, token: '' };
+}
+
+function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
+  const [draft, setDraft] = useState<GitLabInput>(gitlabDraft(settings.gitlab));
+  useEffect(() => setDraft(gitlabDraft(settings.gitlab)), [settings.gitlab]);
+
+  return (
+    <Section
+      title="GitLab"
+      description="Point Reeve at a self-hosted GitLab and the Pipelines page shows every project in the groups you list, with its latest pipeline. Read-only: nothing is ever written back."
+    >
+      <Form onSubmit={() => onSave({ gitlab: draft })}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="GitLab URL">
+            <Input
+              value={draft.url}
+              placeholder="https://gitlab.example.com"
+              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Access token"
+            hint={settings.gitlab.token_set ? 'Stored; leave empty to keep it' : 'A personal, group or project token with the read_api scope'}
+          >
+            <Input
+              type="password"
+              value={draft.token}
+              autoComplete="new-password"
+              onChange={(e) => setDraft({ ...draft, token: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="mt-3">
+          <Field
+            label="Groups"
+            hint="Comma separated full paths, such as firmware, tools/lidar. Subgroups are included, so one path covers everything under it."
+          >
+            <Input
+              value={draft.groups}
+              placeholder="firmware"
+              onChange={(e) => setDraft({ ...draft, groups: e.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-content">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-accent"
+              checked={draft.enabled}
+              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+            />
+            Show the Pipelines page
+          </label>
+          <Button type="submit">Save GitLab</Button>
         </div>
       </Form>
     </Section>

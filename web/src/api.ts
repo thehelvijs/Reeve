@@ -98,6 +98,46 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
+export interface GitLabSettings {
+  enabled: boolean;
+  url: string;
+  // Group full paths, one per line or comma separated.
+  groups: string;
+  token_set: boolean;
+}
+
+export interface GitLabInput extends Omit<GitLabSettings, 'token_set'> {
+  token: string;
+}
+
+// A GitLab pipeline status, lowercased. Empty when the project has never run one.
+export type PipelineStatus = string;
+
+export interface PipelineProject {
+  name: string;
+  path: string;
+  url: string;
+  status: PipelineStatus;
+  ref?: string;
+  updated_at?: string;
+  pipeline_url?: string;
+}
+
+export interface PipelineGroup {
+  path: string;
+  url?: string;
+  projects: PipelineProject[];
+  // More projects exist than one page reports.
+  truncated: boolean;
+  // This group's own failure; the other groups still rendered.
+  error?: string;
+}
+
+export interface PipelineOverview {
+  configured: boolean;
+  groups: PipelineGroup[];
+}
+
 export interface StalledHost {
   id: string;
   name: string;
@@ -132,6 +172,7 @@ export interface Settings {
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
+  gitlab: GitLabSettings;
   agent_update: AgentUpdateSettings;
   server_update: ServerUpdateSettings;
 }
@@ -142,6 +183,7 @@ export interface SettingsInput {
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;
+  gitlab?: GitLabInput;
   agent_update?: AgentUpdateSettings;
   server_update?: ServerUpdateSettings;
 }
