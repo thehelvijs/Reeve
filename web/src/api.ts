@@ -101,8 +101,6 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
 export interface GitLabSettings {
   enabled: boolean;
   url: string;
-  // Group full paths, one per line or comma separated.
-  groups: string;
   token_set: boolean;
 }
 
@@ -121,16 +119,26 @@ export interface PipelineProject {
   ref?: string;
   updated_at?: string;
   pipeline_url?: string;
+  // This project alone could not be read; the rest of its group still renders.
+  error?: string;
 }
 
+// A group as the pipelines page sees it: the operator's name with each member's
+// latest pipeline attached.
 export interface PipelineGroup {
-  path: string;
-  url?: string;
+  id: string;
+  name: string;
   projects: PipelineProject[];
-  // More projects exist than one page reports.
-  truncated: boolean;
   // This group's own failure; the other groups still rendered.
   error?: string;
+}
+
+// A group as it is stored: the membership an admin edits, with no call to
+// GitLab behind it.
+export interface PipelineGroupRecord {
+  id: string;
+  name: string;
+  projects: string[];
 }
 
 export interface PipelineOverview {

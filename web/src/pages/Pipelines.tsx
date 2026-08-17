@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type PipelineGroup, type PipelineOverview, type PipelineProject } from '../api';
 import { useAuth } from '../auth';
-import { ErrorText, Pill, Section, Table, Td, Th, Tr } from '../components/ui';
+import { Button, ErrorText, Pill, Section, Table, Td, Th, Tr } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { pipelineTone } from '../lib/statusTone';
@@ -40,9 +40,18 @@ export default function Pipelines() {
     0,
   );
 
-  let subtitle = 'Latest pipeline for every project in the configured GitLab groups.';
+  let subtitle = 'Latest pipeline for every repo in your groups.';
   if (failing > 0) {
-    subtitle = `${failing} project${failing === 1 ? '' : 's'} failing.`;
+    subtitle = `${failing} repo${failing === 1 ? '' : 's'} failing.`;
+  }
+
+  let action;
+  if (user?.role === 'admin') {
+    action = (
+      <Link to="/pipelines/groups">
+        <Button variant="secondary">Manage groups</Button>
+      </Link>
+    );
   }
 
   return (
@@ -50,7 +59,8 @@ export default function Pipelines() {
       <PageHeader
         title="Pipelines"
         subtitle={subtitle}
-        search={{ value: search, onChange: setSearch, placeholder: 'Search projects…' }}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search repos…' }}
+        action={action}
       />
       <div className="mt-3">
         <ErrorText>{error}</ErrorText>
@@ -76,9 +86,25 @@ export default function Pipelines() {
         </div>
       )}
 
+      {data?.configured && groups.length === 0 && (
+        <div className="mt-6">
+          <EmptyState
+            title="No groups yet"
+            description="A group is your own set of GitLab repos, watched together here."
+            action={
+              user?.role === 'admin' ? (
+                <Link to="/pipelines/groups">
+                  <Button>Make one</Button>
+                </Link>
+              ) : undefined
+            }
+          />
+        </div>
+      )}
+
       <div className="mt-6 space-y-8">
         {groups.map((g) => (
-          <GroupSection key={g.path} group={g} search={search} />
+          <GroupSection key={g.id} group={g} search={search} />
         ))}
       </div>
     </div>
@@ -88,32 +114,11 @@ export default function Pipelines() {
 function GroupSection({ group, search }: { group: PipelineGroup; search: string }) {
   const shown = group.projects.filter((p) => matchesQuery(search, p.name, p.path, p.status, p.ref));
 
-  let description: string | undefined;
-  if (group.truncated) {
-    description = `Showing the first ${group.projects.length} projects; the group holds more.`;
-  }
-
   return (
-    <Section
-      title={group.path}
-      count={group.projects.length}
-      description={description}
-      action={
-        group.url && (
-          <a
-            href={group.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-link underline underline-offset-2 hover:text-link-hover"
-          >
-            Open in GitLab
-          </a>
-        )
-      }
-    >
+    <Section title={group.name} count={group.projects.length}>
       {group.error && <ErrorText>{group.error}</ErrorText>}
       {!group.error && shown.length === 0 && (
-        <EmptyState title="No projects" description="Nothing under this group matches." />
+        <EmptyState title="No repos" description="Nothing in this group matches." />
       )}
       {shown.length > 0 && (
         <Table
@@ -137,7 +142,9 @@ function GroupSection({ group, search }: { group: PipelineGroup; search: string 
 
 function ProjectRow({ project }: { project: PipelineProject }) {
   let status = <Pill tone="muted">never run</Pill>;
-  if (project.status) {
+  if (project.error) {
+    status = <Pill tone="down">unreadable</Pill>;
+  } else if (project.status) {
     status = <Pill tone={pipelineTone(project.status)}>{project.status.replace(/_/g, ' ')}</Pill>;
   }
 
@@ -146,18 +153,28 @@ function ProjectRow({ project }: { project: PipelineProject }) {
     ran = new Date(project.updated_at).toLocaleString();
   }
 
+  // A repo GitLab would not answer for has no URL to link to, so its name stays
+  // plain text and the reason sits under it.
+  let title = <span className="text-content">{project.name}</span>;
+  if (project.url) {
+    title = (
+      <a
+        href={project.url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-link underline underline-offset-2 hover:text-link-hover"
+      >
+        {project.name}
+      </a>
+    );
+  }
+
   return (
     <Tr>
       <Td>
-        <a
-          href={project.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-link underline underline-offset-2 hover:text-link-hover"
-        >
-          {project.name}
-        </a>
+        {title}
         <span className="block text-xs text-muted">{project.path}</span>
+        {project.error && <span className="block text-xs text-down">{project.error}</span>}
       </Td>
       <Td>
         {project.pipeline_url ? (

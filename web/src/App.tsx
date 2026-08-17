@@ -16,6 +16,7 @@ import Hosts from './pages/Hosts';
 import HostInventory from './pages/HostInventory';
 import Requests from './pages/Requests';
 import Pipelines from './pages/Pipelines';
+import PipelineGroups from './pages/PipelineGroups';
 import AdminUsers from './pages/AdminUsers';
 import AdminGroups from './pages/AdminGroups';
 import AdminWebhooks from './pages/AdminWebhooks';
@@ -85,6 +86,14 @@ export default function App() {
         <Route path="/hosts/:id" element={<HostInventory />} />
         <Route path="/requests" element={<Requests />} />
         <Route path="/pipelines" element={<Pipelines />} />
+        <Route
+          path="/pipelines/groups"
+          element={
+            <Protected admin>
+              <PipelineGroups />
+            </Protected>
+          }
+        />
         <Route
           path="/admin/users"
           element={

@@ -474,7 +474,7 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
 }
 
 function gitlabDraft(g: Settings['gitlab']): GitLabInput {
-  return { enabled: g.enabled, url: g.url, groups: g.groups, token: '' };
+  return { enabled: g.enabled, url: g.url, token: '' };
 }
 
 function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
@@ -484,7 +484,7 @@ function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patc
   return (
     <Section
       title="GitLab"
-      description="Point Reeve at a self-hosted GitLab and the Pipelines page shows every project in the groups you list, with its latest pipeline. Read-only: nothing is ever written back."
+      description="The connection to a self-hosted GitLab. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search GitLab for a repo instead of typing its path. Read-only, nothing is ever written back."
     >
       <Form onSubmit={() => onSave({ gitlab: draft })}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -504,18 +504,6 @@ function GitLabSection({ settings, onSave }: { settings: Settings; onSave: (patc
               value={draft.token}
               autoComplete="new-password"
               onChange={(e) => setDraft({ ...draft, token: e.target.value })}
-            />
-          </Field>
-        </div>
-        <div className="mt-3">
-          <Field
-            label="Groups"
-            hint="Comma separated full paths, such as firmware, tools/lidar. Subgroups are included, so one path covers everything under it."
-          >
-            <Input
-              value={draft.groups}
-              placeholder="firmware"
-              onChange={(e) => setDraft({ ...draft, groups: e.target.value })}
             />
           </Field>
         </div>
