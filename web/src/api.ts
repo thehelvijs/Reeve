@@ -181,6 +181,9 @@ export interface ServerUpdateSettings {
   // Read-only: the build running now, and when it replaced a different one.
   version?: string;
   updated_at?: string;
+  // Read-only: whether an updater watches this deployment. False means the
+  // channel is recorded and nothing acts on it.
+  managed?: boolean;
 }
 
 export interface Settings {
@@ -416,6 +419,7 @@ export interface AccessRequest {
   host_id: string;
   host_name: string;
   requester_id: string;
+  requester_name: string;
   status: 'pending' | 'approved' | 'denied';
   note: string;
   created_at: string;

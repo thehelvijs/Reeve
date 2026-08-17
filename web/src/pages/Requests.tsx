@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type AccessRequest } from '../api';
-import { Button, Card, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Pill } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import { matchesQuery } from '../lib/search';
@@ -10,16 +10,25 @@ export default function Requests() {
   const [box, setBox] = useState<'inbox' | 'mine'>('inbox');
   const [reqs, setReqs] = useState<AccessRequest[]>([]);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    api.get<AccessRequest[]>(`/api/access-requests?box=${box}`).then((r) => setReqs(r ?? []));
+    api
+      .get<AccessRequest[]>(`/api/access-requests?box=${box}`)
+      .then((r) => setReqs(r ?? []))
+      .catch((e) => setError(e instanceof Error ? e.message : 'could not load requests'));
   }, [box]);
   useEffect(() => {
     load();
   }, [load]);
 
   const decide = async (id: string, action: 'approve' | 'deny') => {
-    await api.post(`/api/access-requests/${id}/${action}`, {});
+    setError('');
+    try {
+      await api.post(`/api/access-requests/${id}/${action}`, {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `could not ${action} that request`);
+    }
     load();
   };
 
@@ -27,7 +36,9 @@ export default function Requests() {
   if (box === 'inbox') {
     emptyTitle = 'Nothing to review';
   }
-  const shown = reqs.filter((r) => matchesQuery(search, r.host_name, r.host_id, r.note, r.status));
+  const shown = reqs.filter((r) =>
+    matchesQuery(search, r.host_name, r.host_id, r.requester_name, r.note, r.status),
+  );
   let emptyDescription = 'Credential access you request will show up here.';
   if (box === 'inbox') {
     emptyDescription = 'Requests to reveal host credentials will show up here.';
@@ -51,6 +62,8 @@ export default function Requests() {
         </Tab>
       </div>
 
+      <ErrorText>{error}</ErrorText>
+
       <div className="mt-6 space-y-2">
         {shown.length === 0 && <EmptyState title={emptyTitle} description={emptyDescription} />}
         {shown.map((r) => (
@@ -59,6 +72,9 @@ export default function Requests() {
               <Link to={`/hosts/${r.host_id}`} className="text-sm text-link underline underline-offset-2 hover:text-link-hover">
                 {r.host_name || r.host_id}
               </Link>
+              {box === 'inbox' && (
+                <p className="truncate text-xs text-content">{r.requester_name || r.requester_id}</p>
+              )}
               {r.note && <p className="truncate text-xs text-muted">“{r.note}”</p>}
               <p className="text-xs text-muted">{new Date(r.created_at).toLocaleString()}</p>
             </div>
