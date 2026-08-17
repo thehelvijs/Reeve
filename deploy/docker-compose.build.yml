@@ -19,6 +19,10 @@ services:
     # The base file pulls on every up; a locally built tag exists nowhere to pull
     # from, and `always` would fail the whole command trying.
     pull_policy: build
+    environment:
+      # No updater on this path, so Settings says the channel is recorded and
+      # nothing acts on it rather than promising a restart that never comes.
+      REEVE_SELF_UPDATE: "false"
 
   agent:
     build:

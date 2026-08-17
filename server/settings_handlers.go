@@ -85,6 +85,9 @@ type serverUpdateView struct {
 	// one, absent on an instance that has never been updated.
 	Version   string `json:"version"`
 	UpdatedAt string `json:"updated_at,omitempty"`
+	// Managed is whether an updater watches this deployment at all. False means
+	// the channel is recorded and nothing acts on it.
+	Managed bool `json:"managed"`
 }
 
 type settingsView struct {

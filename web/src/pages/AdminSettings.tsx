@@ -10,7 +10,7 @@ import {
   type SMTPInput,
   type UpdateChannel,
 } from '../api';
-import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, SecretField } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -138,6 +138,16 @@ function ServerUpdateSection({
     updated = `last updated ${new Date(settings.server_update.updated_at).toLocaleString()}`;
   }
 
+  let switchNote =
+    'This runs code that has not been through a release. The server restarts to pick it up, and this page will reconnect on its own.';
+  if (backwards) {
+    switchNote =
+      'Moving to a less current channel downgrades this server: it will run an older binary against a database a newer build has already opened.';
+  }
+  if (!settings.server_update.managed) {
+    switchNote = 'Recorded only: no updater is watching this deployment, so nothing changes now.';
+  }
+
   return (
     <Section
       title="Server updates"
@@ -148,6 +158,13 @@ function ServerUpdateSection({
           Running <span className="font-mono text-content">{settings.server_update.version || 'unknown'}</span> —{' '}
           {updated}.
         </p>
+        {!settings.server_update.managed && (
+          <p className="mb-4 text-xs text-warn">
+            No updater watches this deployment, so nothing here updates the server. The channel is
+            recorded and takes effect if one is ever added; until then this build changes when
+            whoever deployed it rebuilds or repulls it.
+          </p>
+        )}
         <div className="space-y-2">
           {CHANNELS.map((c) => (
             <label key={c.value} className="flex items-start gap-2 text-sm text-content">
@@ -168,13 +185,7 @@ function ServerUpdateSection({
           ))}
         </div>
 
-        {draft !== current && (
-          <p className="mt-4 text-xs text-warn">
-            {backwards
-              ? 'Moving to a less current channel downgrades this server: it will run an older binary against a database a newer build has already opened.'
-              : 'This runs code that has not been through a release. The server restarts to pick it up, and this page will reconnect on its own.'}
-          </p>
-        )}
+        {draft !== current && <p className="mt-4 text-xs text-warn">{switchNote}</p>}
 
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={draft === current}>
@@ -704,48 +715,6 @@ function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: 
 // they need it. It hangs off a "?" beside the description as a native
 // disclosure, so the keyboard and a screen reader handle it for free and it
 // expands in place instead of floating over the form it explains.
-// The server never sends a secret back, so an empty box reads as "nothing is
-// set". The pill and the dots say what is stored without revealing it.
-function SecretField({
-  label,
-  set,
-  hint,
-  value,
-  onChange,
-}: {
-  label: string;
-  set: boolean;
-  hint?: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  let placeholder = 'Not set';
-  let text = hint ?? '';
-  if (set) {
-    placeholder = '••••••••••••';
-    text = 'Stored; leave empty to keep it';
-  }
-  return (
-    <Field
-      label={
-        <span className="flex items-center gap-2">
-          {label}
-          {set && <Pill tone="up">Active</Pill>}
-        </span>
-      }
-      hint={text}
-    >
-      <Input
-        type="password"
-        value={value}
-        placeholder={placeholder}
-        autoComplete="new-password"
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </Field>
-  );
-}
-
 export function Section({
   title,
   description,

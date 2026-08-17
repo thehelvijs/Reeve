@@ -33,6 +33,11 @@ type config struct {
 	// AllowedOrigins are extra origins the same-origin check accepts, for a
 	// dev UI served from a different port than the API.
 	AllowedOrigins []string
+	// SelfUpdate says an updater sidecar is watching this deployment. The server
+	// has no Docker socket and cannot find out for itself, so the deploy that
+	// runs the updater declares it; without it the settings page would promise
+	// an update nothing performs.
+	SelfUpdate bool
 }
 
 // app wires the store, cipher, and config for the HTTP handlers.

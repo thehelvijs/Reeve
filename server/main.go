@@ -59,6 +59,7 @@ func run() error {
 
 		TrustProxyHeaders: os.Getenv("REEVE_TRUST_PROXY") == "true",
 		AllowedOrigins:    splitList(os.Getenv("REEVE_ALLOWED_ORIGINS")),
+		SelfUpdate:        os.Getenv("REEVE_SELF_UPDATE") == "true",
 	}
 
 	// The container healthcheck runs this binary rather than adding curl to the

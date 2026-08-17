@@ -32,6 +32,10 @@ services:
       REEVE_PUBLIC_URL: ${REEVE_PUBLIC_URL:-}
       # Set to true when a reverse proxy terminates HTTPS in front of this.
       REEVE_COOKIE_SECURE: ${REEVE_COOKIE_SECURE:-false}
+      # The updater below watches this deployment. The server cannot see it —
+      # it has no Docker socket — so the deploy says so, and Settings reports
+      # whether switching a channel actually leads anywhere.
+      REEVE_SELF_UPDATE: "true"
     volumes:
       - reeve-data:/data
     restart: unless-stopped

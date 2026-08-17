@@ -11,7 +11,7 @@ import {
   type Tool,
   type Webhook,
 } from '../api';
-import { Button, Card, ErrorText, Field, Form, Input, Pill } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, Pill, SecretField } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import { matchesQuery } from '../lib/search';
 import { EVENT_LABEL, FORMAT_LABEL, extraConfigKey, formatNeedsTemplate } from '../lib/channelFormat';
@@ -378,10 +378,12 @@ function ChannelFields({
   draft,
   onChange,
   meta,
+  tokenSet = false,
 }: {
   draft: Draft;
   onChange: (d: Draft) => void;
   meta: ChannelFormats | null;
+  tokenSet?: boolean;
 }) {
   const formats = meta?.formats ?? (['auto', 'generic', 'custom'] as ChannelKind[]);
   const extraKey = extraConfigKey(draft.format);
@@ -437,14 +439,13 @@ function ChannelFields({
       )}
 
       <div className="mt-3">
-        <Field label="Bearer token (optional)">
-          <Input
-            type="password"
-            value={draft.token}
-            onChange={(e) => onChange({ ...draft, token: e.target.value })}
-            placeholder="Leave blank to keep the stored one"
-          />
-        </Field>
+        <SecretField
+          label="Bearer token (optional)"
+          set={tokenSet}
+          hint="Sent as an Authorization header. Only receivers that ask for one need it."
+          value={draft.token}
+          onChange={(token) => onChange({ ...draft, token })}
+        />
       </div>
 
       {extraKey && (
@@ -585,7 +586,12 @@ function ChannelEditor({
   return (
     <div className="mt-3 border-t border-hairline pt-3">
       <Form onSubmit={save}>
-        <ChannelFields draft={draft} onChange={setDraft} meta={meta} />
+        <ChannelFields
+          draft={draft}
+          onChange={setDraft}
+          meta={meta}
+          tokenSet={Boolean(hook.config.token)}
+        />
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel

@@ -102,6 +102,49 @@ export function Field({
   );
 }
 
+// SecretField is the box for a value the server takes but never gives back: a
+// token, a password, a client secret. An empty box would read as "nothing is
+// set", so the pill and the dots say what is stored without revealing it.
+export function SecretField({
+  label,
+  set,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  set: boolean;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  let placeholder = 'Not set';
+  let text = hint ?? '';
+  if (set) {
+    placeholder = '••••••••••••';
+    text = 'Stored; leave empty to keep it';
+  }
+  return (
+    <Field
+      label={
+        <span className="flex items-center gap-2">
+          {label}
+          {set && <Pill tone="up">Active</Pill>}
+        </span>
+      }
+      hint={text}
+    >
+      <Input
+        type="password"
+        value={value}
+        placeholder={placeholder}
+        autoComplete="new-password"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </Field>
+  );
+}
+
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div className={`rounded-card border border-hairline bg-canvas ${className}`}>{children}</div>
