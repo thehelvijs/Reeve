@@ -170,6 +170,11 @@ func TestParseDockerPSReadsTheNameFromLabels(t *testing.T) {
 	if got[0].DisplayName != "billing-api" {
 		t.Errorf("DisplayName = %q, want billing-api", got[0].DisplayName)
 	}
+	// The namespace of the label that named it, which is what the UI groups a
+	// deployer's containers under.
+	if got[0].ManagedBy != "coolify" {
+		t.Errorf("ManagedBy = %q, want coolify", got[0].ManagedBy)
+	}
 	// The identity a tool links and a command acts on must not move.
 	if got[0].Name != "vgs4kw8-063455" || got[0].ID != "a1" {
 		t.Errorf("labels overwrote the container identity: %+v", got[0])
@@ -193,8 +198,8 @@ func TestParseDockerPSSurvivesAwkwardLabels(t *testing.T) {
 		if len(got) != 1 {
 			t.Fatalf("labels %q parsed %d containers, want 1", labels, len(got))
 		}
-		if got[0].DisplayName != "" {
-			t.Errorf("labels %q invented the name %q", labels, got[0].DisplayName)
+		if got[0].DisplayName != "" || got[0].ManagedBy != "" {
+			t.Errorf("labels %q invented %q/%q", labels, got[0].DisplayName, got[0].ManagedBy)
 		}
 	}
 }

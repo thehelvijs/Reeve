@@ -328,6 +328,7 @@ type inventoryResponse struct {
 	Services   []inventoryItem `json:"services"`
 	Containers []inventoryItem `json:"containers"`
 	CronJobs   []inventoryItem `json:"cron_jobs"`
+	Processes  []inventoryItem `json:"processes"`
 }
 
 type inventoryItem struct {
@@ -340,6 +341,10 @@ type inventoryItem struct {
 	State  string `json:"state"`
 	Detail string `json:"detail"`
 	Linked bool   `json:"linked"`
+	// ManagedBy groups an item under something that owns it rather than its kind:
+	// the deployer that put a container here, or the container a process runs
+	// inside. Empty for everything the machine runs on its own account.
+	ManagedBy string `json:"managed_by,omitempty"`
 }
 
 func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
@@ -352,8 +357,12 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 	services, _ := a.db.ListServiceStatus(id)
 	containers, _ := a.db.ListContainerStatus(id)
 	crons, _ := a.db.ListCronJobs(id)
+	procs, _ := a.db.LatestHostProcesses(id)
 
-	resp := inventoryResponse{Services: []inventoryItem{}, Containers: []inventoryItem{}, CronJobs: []inventoryItem{}}
+	resp := inventoryResponse{
+		Services: []inventoryItem{}, Containers: []inventoryItem{},
+		CronJobs: []inventoryItem{}, Processes: []inventoryItem{},
+	}
 	for _, s := range services {
 		resp.Services = append(resp.Services, inventoryItem{
 			SourceType: "systemd", SourceRef: s.Unit, Name: s.Unit,
@@ -370,12 +379,27 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 		resp.Containers = append(resp.Containers, inventoryItem{
 			SourceType: "docker", SourceRef: c.ContainerID, Name: name,
 			State: c.State, Detail: detail, Linked: linked["docker:"+c.ContainerID],
+			ManagedBy: c.ManagedBy,
 		})
 	}
 	for _, c := range crons {
 		resp.CronJobs = append(resp.CronJobs, inventoryItem{
 			SourceType: "cron", SourceRef: c.Name, Name: c.Name,
 			Detail: c.Schedule, Linked: linked["cron:"+c.Name],
+		})
+	}
+	// A command appears once however many copies of it are running: it is what a
+	// process tool is linked by, and a worker pool is one thing to monitor.
+	seen := map[string]bool{}
+	for _, p := range procs.Procs {
+		if p.Command == "" || seen[p.Command] {
+			continue
+		}
+		seen[p.Command] = true
+		resp.Processes = append(resp.Processes, inventoryItem{
+			SourceType: "process", SourceRef: p.Command, Name: p.Command,
+			State: "running", Detail: p.User, Linked: linked["process:"+p.Command],
+			ManagedBy: p.Container,
 		})
 	}
 	writeJSON(w, http.StatusOK, resp)

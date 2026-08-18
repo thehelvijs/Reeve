@@ -227,7 +227,8 @@ func (a *app) handleCreateTool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validSourceType(in.SourceType) {
-		writeError(w, http.StatusBadRequest, "invalid_source_type", "source_type must be manual, systemd, docker, or cron")
+		writeError(w, http.StatusBadRequest, "invalid_source_type",
+			"source_type must be manual, systemd, docker, cron, or process")
 		return
 	}
 	if !validVisibility(in.Visibility) {
@@ -421,7 +422,7 @@ func (a *app) resolveSlug(w http.ResponseWriter, requested, name, excludeID stri
 
 func validSourceType(s string) bool {
 	switch s {
-	case "", "manual", "systemd", "docker", "cron":
+	case "", "manual", "systemd", "docker", "cron", "process":
 		return true
 	}
 	return false
@@ -509,6 +510,16 @@ func (a *app) agentToolStatus(t store.Tool, hosts map[string]store.Host, now tim
 			return contracts.StatusUp
 		}
 		return contracts.StatusUnknown
+	case "process":
+		// Absent from the snapshot is down, not unknown: the push that carries
+		// processes carries all of them, so a command missing from it is a command
+		// not running. Only the top processes are reported, though, so a process
+		// this quiet has dropped off the list rather than died — which is why the
+		// snapshot is the whole answer and its age is the host's online state.
+		if _, running := a.db.LookupProcessRunning(t.HostID, t.SourceRef); running {
+			return contracts.StatusUp
+		}
+		return contracts.StatusDown
 	}
 	return contracts.StatusUnknown
 }

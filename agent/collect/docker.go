@@ -20,21 +20,23 @@ type dockerPSLine struct {
 
 // displayNameLabels are the labels a deployer leaves behind saying what it just
 // deployed, best first. Coolify spells it differently across versions, so all
-// three are tried; a key a future version adds is one line here.
+// three are tried; a key a future version adds is one line here. The namespace
+// ahead of the dot names the deployer itself.
 var displayNameLabels = []string{
 	"coolify.name",
 	"coolify.resourceName",
 	"coolify.serviceName",
 }
 
-// containerDisplayName reads the friendliest name a container's labels carry.
+// containerDisplayName reads the friendliest name a container's labels carry,
+// with the deployer that wrote it.
 //
 // Docker flattens labels into one comma-separated k=v string, and a value may
 // itself contain a comma, so this is best-effort by construction: a segment that
 // splits wrong simply fails to match a key we asked for.
-func containerDisplayName(labels string) string {
+func containerDisplayName(labels string) (name, managedBy string) {
 	if labels == "" {
-		return ""
+		return "", ""
 	}
 	found := map[string]string{}
 	for _, pair := range strings.Split(labels, ",") {
@@ -46,10 +48,11 @@ func containerDisplayName(labels string) string {
 	}
 	for _, key := range displayNameLabels {
 		if v := found[key]; v != "" {
-			return v
+			namespace, _, _ := strings.Cut(key, ".")
+			return v, namespace
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // ParseDockerPS parses newline-delimited JSON from `docker ps -a --format
@@ -65,11 +68,13 @@ func ParseDockerPS(output string) []contracts.ContainerState {
 		if err := json.Unmarshal([]byte(line), &d); err != nil {
 			continue
 		}
+		name, managedBy := containerDisplayName(d.Labels)
 		out = append(out, contracts.ContainerState{
 			ID:          d.ID,
 			Name:        d.Names,
 			Image:       d.Image,
-			DisplayName: containerDisplayName(d.Labels),
+			DisplayName: name,
+			ManagedBy:   managedBy,
 			State:       d.State,
 			Health:      healthFromStatus(d.Status),
 		})

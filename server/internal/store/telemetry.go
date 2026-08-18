@@ -103,15 +103,15 @@ func replaceContainerStatus(w writer, hostID string, states []contracts.Containe
 		return nil
 	}
 	stmt, err := w.Prepare(
-		`INSERT INTO container_status(host_id, container_id, name, display_name, image, state, health, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?)`)
+		`INSERT INTO container_status(host_id, container_id, name, display_name, managed_by, image, state, health, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 	ts := now.UTC().Format(time.RFC3339Nano)
 	for _, c := range states {
-		if _, err := stmt.Exec(hostID, c.ID, c.Name, c.DisplayName, c.Image, c.State, c.Health, ts); err != nil {
+		if _, err := stmt.Exec(hostID, c.ID, c.Name, c.DisplayName, c.ManagedBy, c.Image, c.State, c.Health, ts); err != nil {
 			return err
 		}
 	}
@@ -177,6 +177,7 @@ type InventoryContainer struct {
 	ContainerID string `json:"container_id"`
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
+	ManagedBy   string `json:"managed_by,omitempty"`
 	Image       string `json:"image"`
 	State       string `json:"state"`
 	Health      string `json:"health"`
@@ -210,7 +211,7 @@ func (db *DB) ListServiceStatus(hostID string) ([]InventoryService, error) {
 // ListContainerStatus returns a host's containers.
 func (db *DB) ListContainerStatus(hostID string) ([]InventoryContainer, error) {
 	rows, err := db.sql.Query(
-		`SELECT container_id, name, display_name, image, state, health FROM container_status
+		`SELECT container_id, name, display_name, managed_by, image, state, health FROM container_status
 		 WHERE host_id = ? ORDER BY CASE WHEN display_name = '' THEN name ELSE display_name END`, hostID)
 	if err != nil {
 		return nil, err
@@ -219,7 +220,7 @@ func (db *DB) ListContainerStatus(hostID string) ([]InventoryContainer, error) {
 	var out []InventoryContainer
 	for rows.Next() {
 		var c InventoryContainer
-		if err := rows.Scan(&c.ContainerID, &c.Name, &c.DisplayName, &c.Image, &c.State, &c.Health); err != nil {
+		if err := rows.Scan(&c.ContainerID, &c.Name, &c.DisplayName, &c.ManagedBy, &c.Image, &c.State, &c.Health); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

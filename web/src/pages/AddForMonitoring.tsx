@@ -13,19 +13,35 @@ import { matchesQuery } from '../lib/search';
 // prefilled service form. It replaced a modal that could only show one host at a
 // time, which meant knowing which machine a thing was on before looking for it.
 
-type Kind = 'all' | 'systemd' | 'docker' | 'cron';
+// A tab is a source type, or a deployer when one claimed the thing: a host
+// running a PaaS carries dozens of its containers beside the machine's own, and
+// reading them in one list is what the tabs exist to avoid.
+type Kind = string;
 
 const KINDS: { key: Kind; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'systemd', label: 'Systemd units' },
   { key: 'docker', label: 'Containers' },
   { key: 'cron', label: 'Cron jobs' },
+  { key: 'process', label: 'Processes' },
 ];
+
+function tabKey(item: InventoryItem): string {
+  if (item.managed_by) {
+    return item.managed_by;
+  }
+  return item.source_type;
+}
+
+function tabLabel(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
 
 const KIND_LABEL: Record<string, string> = {
   systemd: 'Systemd unit',
   docker: 'Container',
   cron: 'Cron job',
+  process: 'Process',
 };
 
 interface Found {
@@ -66,7 +82,12 @@ export default function AddForMonitoring() {
           list.map(async (host) => {
             try {
               const inv = await api.get<HostInventory>(`/api/hosts/${host.id}/inventory`);
-              return [...(inv.services ?? []), ...(inv.containers ?? []), ...(inv.cron_jobs ?? [])].map(
+              return [
+                ...(inv.services ?? []),
+                ...(inv.containers ?? []),
+                ...(inv.cron_jobs ?? []),
+                ...(inv.processes ?? []),
+              ].map(
                 (item) => ({ host, item }),
               );
             } catch {
@@ -103,7 +124,7 @@ export default function AddForMonitoring() {
       matchesQuery(search, f.item.name, f.item.detail, f.host.name, KIND_LABEL[f.item.source_type]),
     );
   }, [found, search]);
-  const shown = matched.filter((f) => kind === 'all' || f.item.source_type === kind);
+  const shown = matched.filter((f) => kind === 'all' || tabKey(f.item) === kind);
 
   let emptyTitle = 'Nothing discovered yet';
   let emptyBody =
@@ -113,10 +134,11 @@ export default function AddForMonitoring() {
     emptyBody = 'Add a machine and install its agent, or add a service by hand and point it at any address.';
   }
 
-  const tabs = KINDS.map((k) => ({
+  const deployers = [...new Set(matched.map((f) => f.item.managed_by).filter(Boolean))].sort();
+  const tabs = [...KINDS, ...deployers.map((d) => ({ key: d as string, label: tabLabel(d as string) }))].map((k) => ({
     key: k.key,
     label: k.label,
-    count: matched.filter((f) => k.key === 'all' || f.item.source_type === k.key).length,
+    count: matched.filter((f) => k.key === 'all' || tabKey(f.item) === k.key).length,
   }));
 
   return (

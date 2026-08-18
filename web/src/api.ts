@@ -527,12 +527,16 @@ export interface InventoryItem {
   state: string;
   detail: string;
   linked: boolean;
+  // The deployer that put this container here, when its labels say. Absent for
+  // everything a machine runs on its own account.
+  managed_by?: string;
 }
 
 export interface HostInventory {
   services: InventoryItem[];
   containers: InventoryItem[];
   cron_jobs: InventoryItem[];
+  processes: InventoryItem[];
 }
 
 export interface UptimeSummary {

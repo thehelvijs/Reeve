@@ -59,7 +59,7 @@ import ThresholdFields, {
 
 const REFRESH_MS = 15000;
 
-const EMPTY_INV: Inv = { services: [], containers: [], cron_jobs: [] };
+const EMPTY_INV: Inv = { services: [], containers: [], cron_jobs: [], processes: [] };
 
 // The host page is five pages: what it is doing now, what it has been doing,
 // what it runs, what it costs to log in to, and how it is configured. The tab
@@ -137,7 +137,8 @@ export default function HostInventory() {
   }
   const setTab = (next: HostTab) => setParams({ tab: next }, { replace: true });
 
-  const inventoryCount = inv.services.length + inv.containers.length + inv.cron_jobs.length;
+  const inventoryCount =
+    inv.services.length + inv.containers.length + inv.cron_jobs.length + inv.processes.length;
   const tabs: { key: HostTab; label: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'metrics', label: 'Metrics' },
@@ -224,6 +225,14 @@ export default function HostInventory() {
               onCreate={createFrom}
               hostName={hostLabel}
               emptyDescription="No scheduled job is set up for any user on this machine."
+            />
+            <InventorySection
+              title="Processes"
+              detailLabel="User"
+              items={inv.processes}
+              onCreate={createFrom}
+              hostName={hostLabel}
+              emptyDescription="This machine has reported no processes yet."
             />
           </>
         )}

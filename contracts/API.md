@@ -550,8 +550,9 @@ receiver that answers badly is not an API failure: the response is `200` with
   on that machine (see `enroll-token` below) and it reports inventory, runs
   commands and joins the rollout like any other. Until one is installed the
   server samples that machine itself, so the row still carries metrics, disks
-  and a heartbeat but no inventory; the first agent push stands that sampling
-  down for good. It cannot be deleted.
+  and a heartbeat but no inventory; an agent reporting stands that sampling down,
+  and going quiet past the row's offline window hands it back. It cannot be
+  deleted.
 - Hosts: `GET /hosts`, `/hosts/{id}/inventory`, `/hosts/{id}/events`,
   `/hosts/{id}/uptime`, `/hosts/{id}/metrics` (the metrics response also
   carries `processes`, the latest top-by-CPU-and-memory snapshot).
@@ -574,6 +575,12 @@ receiver that answers badly is not an API failure: the response is `200` with
   named as that container is listed, and omits it when it runs on the host. That
   is what tells php-fpm belonging to one deployment from php-fpm belonging to
   another on a machine hosting several.
+  The inventory carries a fourth list, `processes`, alongside `services`,
+  `containers` and `cron_jobs`. A process is linked by its command, not its pid,
+  so a restart is the same thing still running, and one entry stands for however
+  many copies of that command are up. `managed_by` on a container is the deployer
+  that put it there and on a process is the container it runs inside, so a client
+  can group either under what owns it.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each

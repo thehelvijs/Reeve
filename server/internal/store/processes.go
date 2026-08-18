@@ -129,6 +129,25 @@ func (db *DB) ProcessUsageSince(hostID string, since time.Time, limit int) ([]Pr
 	return out, nil
 }
 
+// LookupProcessRunning reports whether a command is running in a host's latest
+// snapshot, and the container it runs inside when it has one.
+//
+// The command is the identity, not the pid: a process that restarts is the same
+// thing to whoever is monitoring it, which is the same reason process_usage
+// buckets by command.
+func (db *DB) LookupProcessRunning(hostID, command string) (container string, ok bool) {
+	snap, found := db.LatestHostProcesses(hostID)
+	if !found {
+		return "", false
+	}
+	for _, p := range snap.Procs {
+		if p.Command == command {
+			return p.Container, true
+		}
+	}
+	return "", false
+}
+
 // LatestHostProcesses returns a host's stored snapshot, false when it has none.
 func (db *DB) LatestHostProcesses(hostID string) (HostProcesses, bool) {
 	var ts, body string

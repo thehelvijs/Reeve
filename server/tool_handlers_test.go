@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/thehelvijs/Reeve/contracts"
 	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
@@ -279,5 +280,73 @@ func TestToolUpdateRejectsScriptSchemes(t *testing.T) {
 	json.Unmarshal(data, &after)
 	if after.URL != "" {
 		t.Errorf("rejected update still changed the stored URL to %q", after.URL)
+	}
+}
+
+// A process is monitored like any other source: the command is what a tool links
+// to, so a restart under a new pid is still the same thing running.
+func TestProcessToolStatusFollowsTheSnapshot(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	hostID, token := enrollHost(t, ts, admin, "app-box")
+
+	push := samplePush()
+	push.Processes = []contracts.ProcessSample{
+		{PID: 41, User: "root", Command: "php-fpm: pool www", Container: "billing-api"},
+	}
+	if resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + token}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+	}
+
+	// The inventory offers it, tagged with the container it belongs to.
+	_, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/inventory", nil, nil)
+	var inv inventoryResponse
+	if err := json.Unmarshal(data, &inv); err != nil {
+		t.Fatal(err)
+	}
+	if len(inv.Processes) != 1 {
+		t.Fatalf("inventory processes = %+v", inv.Processes)
+	}
+	if inv.Processes[0].SourceRef != "php-fpm: pool www" || inv.Processes[0].ManagedBy != "billing-api" {
+		t.Errorf("process item = %+v", inv.Processes[0])
+	}
+
+	resp, data := ts.do(t, admin, http.MethodPost, "/api/tools", map[string]any{
+		"name": "Billing worker", "host_id": hostID,
+		"source_type": "process", "source_ref": "php-fpm: pool www",
+		"visibility": "restricted",
+	}, nil)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create process tool = %d: %s", resp.StatusCode, data)
+	}
+
+	statusOf := func() contracts.ToolStatus {
+		_, body := ts.do(t, admin, http.MethodGet, "/api/tools", nil, nil)
+		var tools []toolResponse
+		if err := json.Unmarshal(body, &tools); err != nil {
+			t.Fatal(err)
+		}
+		for _, tv := range tools {
+			if tv.Name == "Billing worker" {
+				return tv.Status
+			}
+		}
+		t.Fatal("the tool is missing from the catalog")
+		return ""
+	}
+	if got := statusOf(); got != contracts.StatusUp {
+		t.Errorf("status while running = %q, want %q", got, contracts.StatusUp)
+	}
+
+	// The next push no longer carries it: reported processes are the whole answer,
+	// so a command absent from one is a command not running.
+	push.Processes = []contracts.ProcessSample{{PID: 42, User: "root", Command: "nginx: master"}}
+	if resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + token}); resp.StatusCode != http.StatusOK {
+		t.Fatalf("second ingest = %d: %s", resp.StatusCode, data)
+	}
+	if got := statusOf(); got != contracts.StatusDown {
+		t.Errorf("status after it vanished = %q, want %q", got, contracts.StatusDown)
 	}
 }

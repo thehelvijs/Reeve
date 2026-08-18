@@ -164,8 +164,12 @@ type ContainerState struct {
 	// would recognise in a label. Empty when nothing did, and never an identity —
 	// Name and ID stay what everything joins on.
 	DisplayName string `json:"display_name,omitempty"`
-	State       string `json:"state"`
-	Health      string `json:"health"`
+	// ManagedBy is what deployed this, when the label that named it says so — a
+	// host running a PaaS carries dozens of its containers beside its own, and
+	// they are a different list to read.
+	ManagedBy string `json:"managed_by,omitempty"`
+	State     string `json:"state"`
+	Health    string `json:"health"`
 }
 
 // CronState is a cron job with a best-effort last-run heuristic.
