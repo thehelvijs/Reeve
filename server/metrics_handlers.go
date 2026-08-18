@@ -7,7 +7,6 @@ import (
 
 	"github.com/thehelvijs/Reeve/contracts"
 	"github.com/thehelvijs/Reeve/server/internal/rbac"
-	"github.com/thehelvijs/Reeve/server/internal/store"
 )
 
 // rangeSpec maps a UI range to a lookback window and the resolution that keeps
@@ -21,31 +20,6 @@ var rangeSpec = map[string]struct {
 	"24h": {24 * time.Hour, "raw"},
 	"7d":  {7 * 24 * time.Hour, "5m"},
 	"30d": {30 * 24 * time.Hour, "1h"},
-}
-
-// handleServerMetrics returns the Reeve server's own metric history,
-// recorded under the reserved self-monitoring host.
-func (a *app) handleServerMetrics(w http.ResponseWriter, r *http.Request) {
-	spec, ok := rangeSpec[r.URL.Query().Get("range")]
-	if !ok {
-		spec = rangeSpec["24h"]
-	}
-	since := time.Now().UTC().Add(-spec.window)
-	host, err := a.db.QueryHostMetrics(store.ServerHostID, spec.resolution, since)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal", "could not read metrics")
-		return
-	}
-	disks, _ := a.db.LatestHostDisks(store.ServerHostID)
-	if disks.Disks == nil {
-		disks.Disks = []contracts.DiskUsage{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"resolution": spec.resolution,
-		"host":       host,
-		"containers": []any{},
-		"disks":      disks,
-	})
 }
 
 func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +39,17 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read metrics")
 		return
 	}
-	containers, err := a.db.QueryContainerStats(id, spec.resolution, since)
+	// One point draws nothing, and a coarser tier holds fewer points rather than
+	// more, so telling the reader to pick a longer range is advice that cannot
+	// work on a host that started reporting minutes ago. Show everything kept
+	// instead, and say which resolution it came back at.
+	resolution := spec.resolution
+	if len(host) < 2 && resolution != "raw" {
+		if all, err := a.db.QueryHostMetrics(id, "raw", time.Time{}); err == nil && len(all) > len(host) {
+			host, resolution, since = all, "raw", time.Time{}
+		}
+	}
+	containers, err := a.db.QueryContainerStats(id, resolution, since)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not read container metrics")
 		return
@@ -81,7 +65,7 @@ func (a *app) handleHostMetrics(w http.ResponseWriter, r *http.Request) {
 		disks.Disks = []contracts.DiskUsage{}
 	}
 	out := map[string]any{
-		"resolution": spec.resolution,
+		"resolution": resolution,
 		"host":       host,
 		"disks":      disks,
 	}

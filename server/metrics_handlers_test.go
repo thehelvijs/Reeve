@@ -194,7 +194,7 @@ func TestServerMetricsEndpointAndListedHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/server-metrics?range=24h", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+store.ServerHostID+"/metrics?range=24h", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("server-metrics = %d: %s", resp.StatusCode, data)
 	}
@@ -232,12 +232,22 @@ func TestServerMetricsEndpointAndListedHost(t *testing.T) {
 		t.Fatalf("delete server host = %d, want 409: %s", delResp.StatusCode, delData)
 	}
 
-	// Non-admins cannot read server metrics.
+	// The server's row reads like any other host: its whole-machine series is for
+	// everyone, and naming the processes and containers behind it is not.
 	basic := ts.client(t)
 	signup(t, ts, basic, "dev@example.com", "password123")
-	resp2, _ := ts.do(t, basic, http.MethodGet, "/api/admin/server-metrics", nil, nil)
-	if resp2.StatusCode != http.StatusForbidden {
-		t.Fatalf("basic server-metrics = %d, want 403", resp2.StatusCode)
+	resp2, data2 := ts.do(t, basic, http.MethodGet, "/api/hosts/"+store.ServerHostID+"/metrics", nil, nil)
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("basic server metrics = %d, want 200", resp2.StatusCode)
+	}
+	var seen map[string]any
+	if err := json.Unmarshal(data2, &seen); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"processes", "containers"} {
+		if _, ok := seen[key]; ok {
+			t.Errorf("a basic account was served %q for the server host", key)
+		}
 	}
 }
 
@@ -367,7 +377,7 @@ func TestServerMetricsCarriesDisks(t *testing.T) {
 		t.Fatalf("store server disks: %v", err)
 	}
 
-	resp, data := ts.do(t, admin, http.MethodGet, "/api/admin/server-metrics?range=1h", nil, nil)
+	resp, data := ts.do(t, admin, http.MethodGet, "/api/hosts/"+store.ServerHostID+"/metrics?range=1h", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("server-metrics = %d: %s", resp.StatusCode, data)
 	}

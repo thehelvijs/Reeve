@@ -249,7 +249,6 @@ func (a *app) routes() http.Handler {
 	mux.Handle("POST /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreUpload)))
 	mux.Handle("DELETE /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreCancel)))
 	mux.Handle("GET /api/admin/server-info", admin(http.HandlerFunc(a.handleServerInfo)))
-	mux.Handle("GET /api/admin/server-metrics", admin(http.HandlerFunc(a.handleServerMetrics)))
 	// Embedded SPA: least-specific pattern, so all API routes above win.
 	mux.Handle("/", a.uiHandler())
 	mux.Handle("POST /api/admin/hosts", admin(http.HandlerFunc(a.handleCreateHost)))

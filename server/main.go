@@ -175,35 +175,41 @@ func every(ctx context.Context, d time.Duration, fn func()) {
 	}
 }
 
-// runServerSampleLoop records the server's own machine metrics, and heartbeats
-// its host row, until an agent is installed on that machine.
+// runServerSampleLoop records the server's own machine metrics and heartbeats its
+// host row while no agent is doing it.
 //
-// It stands down for good once one has reported: an agent reads the machine
+// It stands down while an agent is reporting: the agent reads the machine
 // itself, while this reads it through the server's container, and two writers
-// would fight over one filesystem snapshot. A machine whose agent is later
-// removed then reads offline like any other, which is the honest answer — put
-// the agent back to fix it.
+// would fight over one filesystem snapshot. It picks the row back up once that
+// agent has gone quiet past its offline window — the machine is plainly up, since
+// this code is what answers the request that says so, and a row that reads
+// offline while its server serves the page is a lie that also pages someone.
 func (a *app) runServerSampleLoop(ctx context.Context) {
-	sample := func() {
-		if h, err := a.db.GetHost(store.ServerHostID); err == nil && h.AgentVersion != "" {
-			return
-		}
-		now := time.Now().UTC()
-		m := a.sampleHost()
-		if err := a.db.InsertHostMetric(store.ServerHostID, m, now); err != nil {
-			log.Printf("server sample: %v", err)
-		}
-		// Nothing pushes for this row yet, so its filesystem snapshot has to be
-		// written here or the page shows charts and no disks.
-		if err := a.db.ReplaceHostDisks(store.ServerHostID, m.Disks, now); err != nil {
-			log.Printf("server sample disks: %v", err)
-		}
-		if err := a.db.MarkHostSeen(store.ServerHostID); err != nil {
-			log.Printf("server sample touch: %v", err)
-		}
-	}
+	sample := func() { a.sampleServerHost(time.Now().UTC()) }
 	sample()
 	every(ctx, 30*time.Second, sample)
+}
+
+// sampleServerHost writes one self-sample unless an agent is reporting for the
+// row. Taking the row over clears the agent version with the same write: the
+// version is what says an agent is live, so leaving a stale one there would flip
+// this loop off again on its next tick, and the row would flap between the two.
+func (a *app) sampleServerHost(now time.Time) {
+	if h, err := a.db.GetHost(store.ServerHostID); err == nil && h.AgentVersion != "" && h.Online(now) {
+		return
+	}
+	m := a.sampleHost()
+	if err := a.db.InsertHostMetric(store.ServerHostID, m, now); err != nil {
+		log.Printf("server sample: %v", err)
+	}
+	// Nothing pushes for this row, so its filesystem snapshot has to be written
+	// here or the page shows charts and no disks.
+	if err := a.db.ReplaceHostDisks(store.ServerHostID, m.Disks, now); err != nil {
+		log.Printf("server sample disks: %v", err)
+	}
+	if err := a.db.TouchHost(store.ServerHostID, ""); err != nil {
+		log.Printf("server sample touch: %v", err)
+	}
 }
 
 // runRollupLoop periodically aggregates and prunes metric time-series, and
