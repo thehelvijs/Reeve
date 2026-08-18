@@ -186,6 +186,10 @@ export interface ServerUpdateSettings {
   managed?: boolean;
 }
 
+// The reserved host row for the machine Reeve runs on. It answers the ordinary
+// host routes, so the Server page reads the same endpoints every host page does.
+export const SERVER_HOST_ID = '__server__';
+
 export interface Settings {
   signup_enabled: boolean;
   public_url: string;

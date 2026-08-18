@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
-import { api } from '../api';
+import { api, SERVER_HOST_ID } from '../api';
 import { Button, buttonBox, Card, ErrorText } from '../components/ui';
 import PageHeader from '../components/PageHeader';
 import MetricBar from '../components/MetricBar';
@@ -55,7 +55,7 @@ export default function AdminServerInfo() {
       </Card>
 
       <div className="mt-6">
-        <HostMetrics path="/api/admin/server-metrics" />
+        <HostMetrics path={`/api/hosts/${SERVER_HOST_ID}/metrics`} />
       </div>
 
       <h2 className="mt-8 text-sm font-medium text-content">Details</h2>
