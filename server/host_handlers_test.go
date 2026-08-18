@@ -470,3 +470,46 @@ func mustCreateHost(t *testing.T, ts *testServer, name string) string {
 	}
 	return h.ID
 }
+
+// A container whose labels name it reads by that name, while the raw name stays
+// on the row for anyone who has to type it at a docker command, and source_ref
+// stays the id everything links on.
+func TestInventoryPrefersTheLabelledContainerName(t *testing.T) {
+	ts := newTestServer(t)
+	admin := adminClient(t, ts)
+	hostID, token := enrollHost(t, ts, admin, "coolify-box")
+
+	push := samplePush()
+	push.Containers = []contracts.ContainerState{
+		{ID: "c1", Name: "vgs4kw8-063455", DisplayName: "billing-api", Image: "app:latest", State: "running"},
+		{ID: "c2", Name: "plain-container", Image: "redis", State: "running"},
+	}
+	resp, data := ts.do(t, nil, http.MethodPost, "/api/ingest", push,
+		map[string]string{"Authorization": "Bearer " + token})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ingest = %d: %s", resp.StatusCode, data)
+	}
+
+	_, data = ts.do(t, admin, http.MethodGet, "/api/hosts/"+hostID+"/inventory", nil, nil)
+	var inv inventoryResponse
+	if err := json.Unmarshal(data, &inv); err != nil {
+		t.Fatal(err)
+	}
+	byRef := map[string]inventoryItem{}
+	for _, c := range inv.Containers {
+		byRef[c.SourceRef] = c
+	}
+	labelled, ok := byRef["c1"]
+	if !ok {
+		t.Fatalf("the labelled container is missing: %+v", inv.Containers)
+	}
+	if labelled.Name != "billing-api" {
+		t.Errorf("name = %q, want the label", labelled.Name)
+	}
+	if !strings.Contains(labelled.Detail, "vgs4kw8-063455") {
+		t.Errorf("detail %q dropped the container's own name", labelled.Detail)
+	}
+	if plain := byRef["c2"]; plain.Name != "plain-container" || plain.Detail != "redis" {
+		t.Errorf("an unlabelled container changed shape: %+v", plain)
+	}
+}

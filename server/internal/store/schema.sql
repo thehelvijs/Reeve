@@ -246,6 +246,9 @@ CREATE TABLE IF NOT EXISTS container_status (
     host_id      TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
     container_id TEXT NOT NULL,
     name         TEXT NOT NULL DEFAULT '',
+    -- What the container's labels call it, when they call it anything. Cosmetic:
+    -- name and container_id remain what tools link and commands act on.
+    display_name TEXT NOT NULL DEFAULT '',
     image        TEXT NOT NULL DEFAULT '',
     state        TEXT NOT NULL DEFAULT '',
     health       TEXT NOT NULL DEFAULT '',

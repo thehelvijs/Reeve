@@ -156,3 +156,45 @@ func TestParseDockerStats(t *testing.T) {
 		t.Errorf("sample0 mem wrong: used=%d limit=%d", s[0].MemUsed, s[0].MemLimit)
 	}
 }
+
+// A PaaS names the container by uuid and puts the recognisable name in a label,
+// which is the whole reason this field exists: without it an operator reads a
+// list of uuids and cannot tell which app is which.
+func TestParseDockerPSReadsTheNameFromLabels(t *testing.T) {
+	line := `{"ID":"a1","Names":"vgs4kw8-063455","Image":"app:latest","State":"running",` +
+		`"Status":"Up 3 hours (healthy)","Labels":"coolify.managed=true,coolify.name=billing-api"}`
+	got := ParseDockerPS(line)
+	if len(got) != 1 {
+		t.Fatalf("parsed %d containers, want 1", len(got))
+	}
+	if got[0].DisplayName != "billing-api" {
+		t.Errorf("DisplayName = %q, want billing-api", got[0].DisplayName)
+	}
+	// The identity a tool links and a command acts on must not move.
+	if got[0].Name != "vgs4kw8-063455" || got[0].ID != "a1" {
+		t.Errorf("labels overwrote the container identity: %+v", got[0])
+	}
+	if got[0].Health != "healthy" {
+		t.Errorf("Health = %q, want healthy", got[0].Health)
+	}
+}
+
+// Labels are one flat comma-separated string, so a value carrying a comma splits
+// wrong. That may cost the name, never a bogus one.
+func TestParseDockerPSSurvivesAwkwardLabels(t *testing.T) {
+	for _, labels := range []string{
+		"",
+		"coolify.managed=true",
+		"traefik.http.routers.x.rule=Host(`a.example.com`) || Host(`b.example.com`)",
+		"=,==,a=",
+	} {
+		line := `{"ID":"a1","Names":"raw-name","State":"running","Labels":"` + labels + `"}`
+		got := ParseDockerPS(line)
+		if len(got) != 1 {
+			t.Fatalf("labels %q parsed %d containers, want 1", labels, len(got))
+		}
+		if got[0].DisplayName != "" {
+			t.Errorf("labels %q invented the name %q", labels, got[0].DisplayName)
+		}
+	}
+}

@@ -361,9 +361,15 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	for _, c := range containers {
+		// The label wins the name, and the container's own name joins the detail
+		// line: a person who asked for logs by that name still has to find it.
+		name, detail := c.Name, c.Image
+		if c.DisplayName != "" {
+			name, detail = c.DisplayName, c.Name+" · "+c.Image
+		}
 		resp.Containers = append(resp.Containers, inventoryItem{
-			SourceType: "docker", SourceRef: c.ContainerID, Name: c.Name,
-			State: c.State, Detail: c.Image, Linked: linked["docker:"+c.ContainerID],
+			SourceType: "docker", SourceRef: c.ContainerID, Name: name,
+			State: c.State, Detail: detail, Linked: linked["docker:"+c.ContainerID],
 		})
 	}
 	for _, c := range crons {

@@ -15,6 +15,41 @@ type dockerPSLine struct {
 	Image  string `json:"Image"`
 	State  string `json:"State"`
 	Status string `json:"Status"`
+	Labels string `json:"Labels"`
+}
+
+// displayNameLabels are the labels a deployer leaves behind saying what it just
+// deployed, best first. Coolify spells it differently across versions, so all
+// three are tried; a key a future version adds is one line here.
+var displayNameLabels = []string{
+	"coolify.name",
+	"coolify.resourceName",
+	"coolify.serviceName",
+}
+
+// containerDisplayName reads the friendliest name a container's labels carry.
+//
+// Docker flattens labels into one comma-separated k=v string, and a value may
+// itself contain a comma, so this is best-effort by construction: a segment that
+// splits wrong simply fails to match a key we asked for.
+func containerDisplayName(labels string) string {
+	if labels == "" {
+		return ""
+	}
+	found := map[string]string{}
+	for _, pair := range strings.Split(labels, ",") {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
+			continue
+		}
+		found[strings.TrimSpace(key)] = strings.TrimSpace(value)
+	}
+	for _, key := range displayNameLabels {
+		if v := found[key]; v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // ParseDockerPS parses newline-delimited JSON from `docker ps -a --format
@@ -31,11 +66,12 @@ func ParseDockerPS(output string) []contracts.ContainerState {
 			continue
 		}
 		out = append(out, contracts.ContainerState{
-			ID:     d.ID,
-			Name:   d.Names,
-			Image:  d.Image,
-			State:  d.State,
-			Health: healthFromStatus(d.Status),
+			ID:          d.ID,
+			Name:        d.Names,
+			Image:       d.Image,
+			DisplayName: containerDisplayName(d.Labels),
+			State:       d.State,
+			Health:      healthFromStatus(d.Status),
 		})
 	}
 	return out

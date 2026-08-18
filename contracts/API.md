@@ -565,7 +565,11 @@ receiver that answers badly is not an API failure: the response is `200` with
   An inventory item is `{source_type, source_ref, name, state, detail, linked}`.
   `state` is what the machine says the thing is doing — a systemd active state or
   a container state, empty for a cron job. `detail` is the sub-state, the image,
-  or the schedule.
+  or the schedule. A container whose labels name it — `coolify.name` and
+  friends, which a PaaS sets because the container name it generates is a uuid —
+  reads under that name, with its own name joining the image in `detail`.
+  `source_ref` is the container id either way: the name is cosmetic, and nothing
+  links or acts on it.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each

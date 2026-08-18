@@ -156,11 +156,16 @@ type ServiceState struct {
 
 // ContainerState is a Docker container's current state and health.
 type ContainerState struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Image  string `json:"image"`
-	State  string `json:"state"`
-	Health string `json:"health"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Image string `json:"image"`
+	// DisplayName is what the container's labels call it, when they call it
+	// anything: a PaaS names the container by uuid and puts the name a person
+	// would recognise in a label. Empty when nothing did, and never an identity —
+	// Name and ID stay what everything joins on.
+	DisplayName string `json:"display_name,omitempty"`
+	State       string `json:"state"`
+	Health      string `json:"health"`
 }
 
 // CronState is a cron job with a best-effort last-run heuristic.

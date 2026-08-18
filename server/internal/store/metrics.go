@@ -248,7 +248,7 @@ func (db *DB) QueryHostMetrics(hostID, resolution string, since time.Time) ([]Me
 // since a cutoff, oldest first.
 func (db *DB) QueryContainerStats(hostID, resolution string, since time.Time) ([]ContainerPoint, error) {
 	rows, err := db.sql.Query(
-		`SELECT container_stats.container_id, cs.name, container_stats.ts,
+		`SELECT container_stats.container_id, COALESCE(NULLIF(cs.display_name, ''), cs.name), container_stats.ts,
 			container_stats.cpu_pct, `+intCols("container_stats.mem_used", "container_stats.mem_limit")+`
 		 FROM container_stats
 		 LEFT JOIN container_status cs ON cs.host_id = container_stats.host_id
