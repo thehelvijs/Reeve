@@ -57,7 +57,7 @@ func TestCoolifyNamesContainersByUUID(t *testing.T) {
 	containers := []contracts.ContainerState{
 		{ID: "c1", Name: "web-oy26vjo0k3r6yxdiu2fywqzt-112139724840"},
 		{ID: "c2", Name: "coolify-db"},
-		{ID: "c3", Name: "web-svc9911-99", DisplayName: "named-by-label", ManagedBy: "coolify"},
+		{ID: "c3", Name: "web-svc9911-99", DisplayName: "web-svc9911-99", ManagedBy: "coolify"},
 	}
 	nameCoolifyContainers(containers, names)
 	if containers[0].DisplayName != "billing-api" || containers[0].ManagedBy != "coolify" {
@@ -66,8 +66,10 @@ func TestCoolifyNamesContainersByUUID(t *testing.T) {
 	if containers[1].DisplayName != "" || containers[1].ManagedBy != "" {
 		t.Errorf("Coolify's own container was renamed: %+v", containers[1])
 	}
-	if containers[2].DisplayName != "named-by-label" {
-		t.Errorf("a label already named this one: %+v", containers[2])
+	// A label had already named this one after the container itself, which is the
+	// string the connection exists to replace.
+	if containers[2].DisplayName != "mailpit" {
+		t.Errorf("the API name lost to a label: %+v", containers[2])
 	}
 
 	// Cached: a second read inside the TTL asks Coolify nothing.

@@ -624,8 +624,17 @@ function CoolifySection({ settings, onSave }: { settings: Settings; onSave: (pat
   const test = async () => {
     setTesting('asking Coolify');
     try {
-      const r = await api.post<{ resources: number }>('/api/admin/settings/test-coolify');
-      setTesting(`${r.resources} resource${r.resources === 1 ? '' : 's'} named`);
+      const r = await api.post<{
+        url: string;
+        resources: number;
+        lists: { path: string; found: number; error?: string }[];
+      }>('/api/admin/settings/test-coolify');
+      // Per list, not just a total: a token that can read applications but not
+      // databases looks like a working connection that names half of what it should.
+      const detail = r.lists
+        .map((l) => `${l.path.replace('/api/v1/', '')}: ${l.error ?? l.found}`)
+        .join(', ');
+      setTesting(`${r.url} — ${r.resources} named (${detail})`);
     } catch (e) {
       setTesting(e instanceof Error ? e.message : 'could not reach Coolify');
     }

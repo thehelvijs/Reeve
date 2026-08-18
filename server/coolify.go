@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -123,7 +124,14 @@ func (a *app) coolifyResourceNames(ctx context.Context) map[string]string {
 	c.inflight = true
 	c.mu.Unlock()
 
-	names, err := fetchCoolifyNames(ctx, base, token)
+	names, lists, err := fetchCoolifyNames(ctx, base, token)
+	// The push path has nobody to report to, so a list that refused says so in the
+	// log rather than only under a button an admin has to press.
+	for _, l := range lists {
+		if l.Error != "" {
+			log.Printf("coolify: %s: %s", l.Path, l.Error)
+		}
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -139,25 +147,38 @@ func (a *app) coolifyResourceNames(ctx context.Context) map[string]string {
 // fetchCoolifyNames asks one instance for every resource it can name. A path
 // that errors is skipped; only a total failure is an error, since an instance
 // with no databases answers that list with a 404 on some versions.
-func fetchCoolifyNames(ctx context.Context, base, token string) (map[string]string, error) {
+func fetchCoolifyNames(ctx context.Context, base, token string) (map[string]string, []coolifyList, error) {
 	names := map[string]string{}
+	lists := make([]coolifyList, 0, len(coolifyPaths))
 	var lastErr error
 	for _, path := range coolifyPaths {
 		var found []coolifyResource
 		if err := coolifyGet(ctx, base, token, path, &found); err != nil {
 			lastErr = err
+			lists = append(lists, coolifyList{Path: path, Error: err.Error()})
 			continue
 		}
+		named := 0
 		for _, r := range found {
 			if r.UUID != "" && r.Name != "" {
 				names[r.UUID] = r.Name
+				named++
 			}
 		}
+		lists = append(lists, coolifyList{Path: path, Found: named})
 	}
 	if len(names) == 0 && lastErr != nil {
-		return nil, lastErr
+		return nil, lists, lastErr
 	}
-	return names, nil
+	return names, lists, nil
+}
+
+// coolifyList is what one resource list answered, so a report can say which one
+// came back empty rather than only how many names there are altogether.
+type coolifyList struct {
+	Path  string `json:"path"`
+	Found int    `json:"found"`
+	Error string `json:"error,omitempty"`
 }
 
 func coolifyGet(ctx context.Context, base, token, path string, dst any) error {
@@ -200,6 +221,11 @@ func coolifyGet(ctx context.Context, base, token, path string, dst any) error {
 // name on all of them, so those keep the part that tells them apart. A resource
 // with one container reads as its plain name, which is the common case and the
 // point of the exercise.
+//
+// What Coolify's API says beats what a label said. The labels are read by the
+// agent with no connection to ask, and one of them carries the same generated
+// string as the container name — so honouring a label here left the uuid on
+// screen with the real name one call away.
 func nameCoolifyContainers(containers []contracts.ContainerState, names map[string]string) {
 	if len(names) == 0 {
 		return
@@ -207,9 +233,6 @@ func nameCoolifyContainers(containers []contracts.ContainerState, names map[stri
 	matched := make([]string, len(containers))
 	perResource := map[string]int{}
 	for i := range containers {
-		if containers[i].DisplayName != "" {
-			continue
-		}
 		for _, part := range strings.Split(containers[i].Name, "-") {
 			if _, ok := names[part]; ok {
 				matched[i] = part
@@ -288,10 +311,14 @@ func (a *app) handleTestCoolify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "no_coolify", "save a Coolify URL and token first")
 		return
 	}
-	names, err := fetchCoolifyNames(r.Context(), base, token)
+	names, lists, err := fetchCoolifyNames(r.Context(), base, token)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "coolify_failed", err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]int{"resources": len(names)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"url":       base,
+		"resources": len(names),
+		"lists":     lists,
+	})
 }
