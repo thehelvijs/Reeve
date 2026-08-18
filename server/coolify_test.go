@@ -156,3 +156,38 @@ func TestRenameProcessContainersFollowsTheContainer(t *testing.T) {
 		t.Errorf("host process = %q, want empty", procs[2].Container)
 	}
 }
+
+// A database's container is the bare uuid and what fronts it is "<uuid>-proxy", so
+// one resource can own several containers on one machine. They must not all read
+// as the same name, and a resource with one container must not pick up a suffix
+// it does not need.
+func TestCoolifyNamesSiblingContainersApart(t *testing.T) {
+	names := map[string]string{
+		"ijcxohcv4zrsijh0ripypsvm": "posgresql",
+		"oy26vjo0k3r6yxdiu2fywqzt": "Web app",
+	}
+	containers := []contracts.ContainerState{
+		{ID: "c1", Name: "ijcxohcv4zrsijh0ripypsvm"},
+		{ID: "c2", Name: "ijcxohcv4zrsijh0ripypsvm-proxy"},
+		{ID: "c3", Name: "web-oy26vjo0k3r6yxdiu2fywqzt-112139724840"},
+		{ID: "c4", Name: "unrelated-ijcxohcv4zrsijh0ripypsvmx"},
+	}
+	nameCoolifyContainers(containers, names)
+
+	got := map[string]string{}
+	for _, c := range containers {
+		got[c.ID] = c.DisplayName
+	}
+	want := map[string]string{
+		"c1": "posgresql",
+		"c2": "posgresql (proxy)",
+		"c3": "Web app",
+		// The uuid is a substring of this one's name, not a part of it.
+		"c4": "",
+	}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("container %s named %q, want %q", id, got[id], w)
+		}
+	}
+}

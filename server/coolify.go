@@ -21,6 +21,11 @@ const (
 	settingCoolifyToken = "coolify.token"
 )
 
+// coolifyDefaultURL is where Coolify answers on the machine it was installed on,
+// which is the machine Reeve is usually watching. The server reaches it over the
+// host network, so loopback is the address that works without asking anyone.
+const coolifyDefaultURL = "http://127.0.0.1:8000"
+
 // coolifyPaths are the resource lists worth naming. Each is optional: an
 // instance that does not answer one still names what it does answer.
 var coolifyPaths = []string{"/api/v1/applications", "/api/v1/services", "/api/v1/databases"}
@@ -50,17 +55,19 @@ type coolifyInput struct {
 
 func (a *app) coolifyView() coolifyView {
 	_, hasToken := a.sealedSetting(settingCoolifyToken)
-	return coolifyView{URL: a.settingOr(settingCoolifyURL, ""), TokenSet: hasToken}
+	return coolifyView{URL: a.settingOr(settingCoolifyURL, coolifyDefaultURL), TokenSet: hasToken}
 }
 
-// saveCoolifySettings validates and persists the connection. A stored URL and
-// token are the connection; clearing the URL turns it off.
+// saveCoolifySettings validates and persists the connection. The token is the
+// connection: an empty URL means the usual one, not off, so pasting a token is
+// the whole setup on the machine Coolify was installed on.
 func (a *app) saveCoolifySettings(in coolifyInput) error {
 	in.URL = strings.TrimRight(strings.TrimSpace(in.URL), "/")
-	if in.URL != "" {
-		if err := validateForgeURL(in.URL, "Coolify", "http://10.0.0.5:8000"); err != nil {
-			return err
-		}
+	if in.URL == "" {
+		in.URL = coolifyDefaultURL
+	}
+	if err := validateForgeURL(in.URL, "Coolify", coolifyDefaultURL); err != nil {
+		return err
 	}
 	if err := a.db.SetSetting(settingCoolifyURL, in.URL); err != nil {
 		return err
@@ -74,7 +81,7 @@ func (a *app) saveCoolifySettings(in coolifyInput) error {
 func (a *app) coolifyConfig() (url, token string, ok bool) {
 	v := a.coolifyView()
 	token, _ = a.sealedSetting(settingCoolifyToken)
-	if v.URL == "" || token == "" {
+	if token == "" {
 		return "", "", false
 	}
 	return v.URL, token, true
@@ -183,26 +190,69 @@ func coolifyGet(ctx context.Context, base, token, path string, dst any) error {
 // nameCoolifyContainers gives every container Coolify deployed the name Coolify
 // calls it.
 //
-// The join is the uuid: Coolify names a container after the resource it belongs
-// to and appends its own suffixes, so the uuid appears inside the container name
-// and nothing else on the machine carries it. A label, where one exists, has
-// already named the container and is left alone.
+// The join is the uuid: Coolify builds a container name out of the resource uuid
+// plus its own parts — the uuid alone for a database, "<uuid>-proxy" for what
+// fronts it, "<service>-<uuid>-<deploy>" for a compose service. Matching the uuid
+// as one of those parts rather than anywhere in the string keeps a name that
+// merely contains it from being claimed.
+//
+// A resource with several containers on one machine would otherwise put the same
+// name on all of them, so those keep the part that tells them apart. A resource
+// with one container reads as its plain name, which is the common case and the
+// point of the exercise.
 func nameCoolifyContainers(containers []contracts.ContainerState, names map[string]string) {
 	if len(names) == 0 {
 		return
 	}
+	matched := make([]string, len(containers))
+	perResource := map[string]int{}
 	for i := range containers {
 		if containers[i].DisplayName != "" {
 			continue
 		}
-		for uuid, name := range names {
-			if strings.Contains(containers[i].Name, uuid) {
-				containers[i].DisplayName = name
-				containers[i].ManagedBy = "coolify"
+		for _, part := range strings.Split(containers[i].Name, "-") {
+			if _, ok := names[part]; ok {
+				matched[i] = part
+				perResource[part]++
 				break
 			}
 		}
 	}
+	for i, uuid := range matched {
+		if uuid == "" {
+			continue
+		}
+		name := names[uuid]
+		if perResource[uuid] > 1 {
+			if role := containerRole(containers[i].Name, uuid); role != "" {
+				name += " (" + role + ")"
+			}
+		}
+		containers[i].DisplayName = name
+		containers[i].ManagedBy = "coolify"
+	}
+}
+
+// containerRole is what is left of a container name once the resource uuid and
+// the deploy number are taken out: the compose service, or the sidecar's job.
+func containerRole(container, uuid string) string {
+	var parts []string
+	for _, part := range strings.Split(container, "-") {
+		if part == uuid || part == "" || isAllDigits(part) {
+			continue
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, "-")
+}
+
+func isAllDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // renameProcessContainers re-points each process at whatever its container ended

@@ -642,8 +642,9 @@ function CoolifySection({ settings, onSave }: { settings: Settings; onSave: (pat
             Reeve lists applications, services and databases and nothing else, and never writes back.
           </p>
           <p className="mt-2">
-            Names refresh about once a minute, on the pushes that use them. Clearing the URL turns it off, and the
-            containers go back to the names Docker reports.
+            The token is the connection: paste it and the URL can stay empty. Names refresh about once a minute, on the
+            pushes that use them. Clear the token to turn it off, and the containers go back to the names Docker
+            reports.
           </p>
         </>
       }
@@ -651,10 +652,10 @@ function CoolifySection({ settings, onSave }: { settings: Settings; onSave: (pat
     >
       <Form onSubmit={() => onSave({ coolify: { ...draft, url: draft.url.trim() } })}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Coolify URL" hint="Its base URL, including the port. Empty turns this off.">
+          <Field label="Coolify URL" hint="Leave empty for http://127.0.0.1:8000, where Coolify answers on this machine.">
             <Input
               value={draft.url}
-              placeholder="http://10.26.18.104:8000"
+              placeholder="http://127.0.0.1:8000"
               onChange={(e) => setDraft({ ...draft, url: e.target.value })}
             />
           </Field>
@@ -667,7 +668,7 @@ function CoolifySection({ settings, onSave }: { settings: Settings; onSave: (pat
         </div>
         <div className="mt-4 flex items-center justify-end gap-3">
           {testing && <span className="text-xs text-muted">{testing}</span>}
-          <Button variant="secondary" disabled={!settings.coolify.url || !settings.coolify.token_set} onClick={test}>
+          <Button variant="secondary" disabled={!settings.coolify.token_set} onClick={test}>
             Test connection
           </Button>
           <Button type="submit">Save Coolify</Button>
