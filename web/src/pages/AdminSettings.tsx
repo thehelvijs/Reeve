@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   api,
+  type CoolifyInput,
   type ForgeInput,
   type ForgeSettings,
   type GoogleInput,
@@ -102,6 +103,7 @@ export default function AdminSettings() {
           onDisconnect={() => disconnectForge(f.key)}
         />
       ))}
+      <CoolifySection settings={settings} onSave={save} />
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
       <ServerUpdateSection settings={settings} onSave={save} />
@@ -605,6 +607,70 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
             Offer Google sign-in on the login screen
           </label>
           <Button type="submit">Save Google</Button>
+        </div>
+      </Form>
+    </Section>
+  );
+}
+
+// Coolify names what it deploys; the container it starts is named after a uuid.
+// Without this an operator reads a list of uuids and cannot tell which app is
+// which — the one thing the connection is for.
+function CoolifySection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
+  const [draft, setDraft] = useState<CoolifyInput>({ url: settings.coolify.url, token: '' });
+  const [testing, setTesting] = useState('');
+  useEffect(() => setDraft({ url: settings.coolify.url, token: '' }), [settings.coolify]);
+
+  const test = async () => {
+    setTesting('asking Coolify');
+    try {
+      const r = await api.post<{ resources: number }>('/api/admin/settings/test-coolify');
+      setTesting(`${r.resources} resource${r.resources === 1 ? '' : 's'} named`);
+    } catch (e) {
+      setTesting(e instanceof Error ? e.message : 'could not reach Coolify');
+    }
+  };
+
+  return (
+    <Section
+      title="Coolify"
+      description="Name the containers a Coolify instance deployed. Coolify names them after a uuid; this asks Coolify what it calls them, and every host reporting one of those containers shows that name instead."
+      help={
+        <>
+          <p>
+            The URL is where you reach Coolify itself, and the token comes from its Keys &amp; Tokens page. Read-only:
+            Reeve lists applications, services and databases and nothing else, and never writes back.
+          </p>
+          <p className="mt-2">
+            Names refresh about once a minute, on the pushes that use them. Clearing the URL turns it off, and the
+            containers go back to the names Docker reports.
+          </p>
+        </>
+      }
+      helpLabel="Where these come from"
+    >
+      <Form onSubmit={() => onSave({ coolify: { ...draft, url: draft.url.trim() } })}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Coolify URL" hint="Its base URL, including the port. Empty turns this off.">
+            <Input
+              value={draft.url}
+              placeholder="http://10.26.18.104:8000"
+              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            />
+          </Field>
+          <SecretField
+            label="API token"
+            set={settings.coolify.token_set}
+            value={draft.token}
+            onChange={(v) => setDraft({ ...draft, token: v })}
+          />
+        </div>
+        <div className="mt-4 flex items-center justify-end gap-3">
+          {testing && <span className="text-xs text-muted">{testing}</span>}
+          <Button variant="secondary" disabled={!settings.coolify.url || !settings.coolify.token_set} onClick={test}>
+            Test connection
+          </Button>
+          <Button type="submit">Save Coolify</Button>
         </div>
       </Form>
     </Section>

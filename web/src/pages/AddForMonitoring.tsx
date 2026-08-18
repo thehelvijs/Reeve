@@ -121,7 +121,7 @@ export default function AddForMonitoring() {
 
   const matched = useMemo(() => {
     return (found ?? []).filter((f) =>
-      matchesQuery(search, f.item.name, f.item.detail, f.host.name, KIND_LABEL[f.item.source_type]),
+      matchesQuery(search, f.item.name, f.item.detail, f.item.container, f.host.name, KIND_LABEL[f.item.source_type]),
     );
   }, [found, search]);
   const shown = matched.filter((f) => kind === 'all' || tabKey(f.item) === kind);
@@ -204,7 +204,7 @@ export default function AddForMonitoring() {
                     </span>
                   </Td>
                   <Td className="max-w-xs truncate font-mono text-xs text-muted" title={f.item.detail}>
-                    {f.item.detail}
+                    {f.item.container ? `${f.item.container} · ${f.item.detail}` : f.item.detail}
                   </Td>
                   <Td className="text-right">
                     <AddCell found={f} onAdd={() => add(f)} />

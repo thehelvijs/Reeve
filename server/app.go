@@ -68,6 +68,9 @@ type app struct {
 	seenOrigin atomic.Value
 	// googleEndpoints redirects the OAuth legs at a stub provider in tests.
 	googleEndpoints *oauthEndpoints
+	// coolify caches the deploy names of a connected Coolify, refreshed on the
+	// pushes that use them rather than on a loop of its own.
+	coolify coolifyNames
 }
 
 // sampleHost reads this machine's metrics, measuring CPU against the previous
@@ -245,6 +248,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("PUT /api/admin/settings", admin(http.HandlerFunc(a.handlePutSettings)))
 	mux.Handle("POST /api/admin/settings/test-email", admin(http.HandlerFunc(a.handleTestEmail)))
 	mux.Handle("POST /api/admin/settings/test-heartbeat", admin(http.HandlerFunc(a.handleTestHeartbeat)))
+	mux.Handle("POST /api/admin/settings/test-coolify", admin(http.HandlerFunc(a.handleTestCoolify)))
 	mux.Handle("GET /api/admin/backup", admin(http.HandlerFunc(a.handleBackupDownload)))
 	mux.Handle("POST /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreUpload)))
 	mux.Handle("DELETE /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreCancel)))

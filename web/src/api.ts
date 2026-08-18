@@ -190,6 +190,16 @@ export interface ServerUpdateSettings {
 // host routes, so the Server page reads the same endpoints every host page does.
 export const SERVER_HOST_ID = '__server__';
 
+export interface CoolifySettings {
+  url: string;
+  token_set: boolean;
+}
+
+export interface CoolifyInput {
+  url: string;
+  token: string;
+}
+
 export interface Settings {
   signup_enabled: boolean;
   public_url: string;
@@ -200,6 +210,7 @@ export interface Settings {
   google: GoogleSettings;
   gitlab: ForgeSettings;
   github: ForgeSettings;
+  coolify: CoolifySettings;
   agent_update: AgentUpdateSettings;
   server_update: ServerUpdateSettings;
 }
@@ -215,6 +226,7 @@ export interface SettingsInput {
   google?: GoogleInput;
   gitlab?: ForgeInput;
   github?: ForgeInput;
+  coolify?: CoolifyInput;
   agent_update?: AgentUpdateSettings;
   server_update?: ServerUpdateSettings;
 }
@@ -527,9 +539,11 @@ export interface InventoryItem {
   state: string;
   detail: string;
   linked: boolean;
-  // The deployer that put this container here, when its labels say. Absent for
-  // everything a machine runs on its own account.
+  // The deployer that put this container here — one value per deployer, since it
+  // is a tab. Absent for everything a machine runs on its own account.
   managed_by?: string;
+  // Where a process runs, shown beside it rather than grouping it.
+  container?: string;
 }
 
 export interface HostInventory {

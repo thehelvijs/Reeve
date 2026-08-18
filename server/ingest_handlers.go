@@ -51,6 +51,11 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Naming happens before storing, so every reader downstream — inventory,
+	// charts, the catalog — sees one name for a container rather than each
+	// deciding for itself.
+	nameCoolifyContainers(push.Containers, a.coolifyResourceNames(r.Context()))
+
 	if err := a.storePush(host.ID, push); err != nil {
 		log.Printf("ingest: store failed for host %s: %v", host.ID, err)
 		writeError(w, http.StatusInternalServerError, "internal", "could not store telemetry")

@@ -308,7 +308,7 @@ func TestProcessToolStatusFollowsTheSnapshot(t *testing.T) {
 	if len(inv.Processes) != 1 {
 		t.Fatalf("inventory processes = %+v", inv.Processes)
 	}
-	if inv.Processes[0].SourceRef != "php-fpm: pool www" || inv.Processes[0].ManagedBy != "billing-api" {
+	if inv.Processes[0].SourceRef != "php-fpm: pool www" || inv.Processes[0].Container != "billing-api" {
 		t.Errorf("process item = %+v", inv.Processes[0])
 	}
 

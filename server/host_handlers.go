@@ -341,10 +341,12 @@ type inventoryItem struct {
 	State  string `json:"state"`
 	Detail string `json:"detail"`
 	Linked bool   `json:"linked"`
-	// ManagedBy groups an item under something that owns it rather than its kind:
-	// the deployer that put a container here, or the container a process runs
-	// inside. Empty for everything the machine runs on its own account.
+	// ManagedBy is the deployer that put this here, and nothing else: it is a tab
+	// in the UI, so one value per deployer and never one per thing deployed.
 	ManagedBy string `json:"managed_by,omitempty"`
+	// Container is where a process runs, shown beside it. Not a grouping: a tab
+	// per container is a tab per row.
+	Container string `json:"container,omitempty"`
 }
 
 func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
@@ -399,7 +401,7 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 		resp.Processes = append(resp.Processes, inventoryItem{
 			SourceType: "process", SourceRef: p.Command, Name: p.Command,
 			State: "running", Detail: p.User, Linked: linked["process:"+p.Command],
-			ManagedBy: p.Container,
+			Container: p.Container,
 		})
 	}
 	writeJSON(w, http.StatusOK, resp)

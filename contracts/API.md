@@ -578,9 +578,10 @@ receiver that answers badly is not an API failure: the response is `200` with
   The inventory carries a fourth list, `processes`, alongside `services`,
   `containers` and `cron_jobs`. A process is linked by its command, not its pid,
   so a restart is the same thing still running, and one entry stands for however
-  many copies of that command are up. `managed_by` on a container is the deployer
-  that put it there and on a process is the container it runs inside, so a client
-  can group either under what owns it.
+  many copies of that command are up. `managed_by` is the deployer that put a
+  container there — one value per deployer, since a client groups by it — and a
+  process carries `container` instead, which is where it runs rather than a group
+  of its own.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each
@@ -610,6 +611,19 @@ sets what it is for, returning the updated `hostView`. Both are display only —
 tools, telemetry and grants hang off the id — so this includes the server's own
 row, whose name starts as a default. A blank name is refused; a blank
 description clears it, and `description` is omitted from a host that has none.
+
+### `POST /admin/settings/test-coolify`
+
+Asks the stored Coolify connection what it can name and answers `{resources}`,
+the count it could read across applications, services and databases. `400` when
+no URL and token are stored, `502` when Coolify refuses or cannot be reached.
+
+A connected Coolify names the containers it deployed: it names a container after
+a resource uuid and its own suffixes, so a container carrying a known uuid is
+renamed at ingest, before anything stores or reads it. The names are cached for a
+minute and a fetch that fails leaves the previous ones standing, since a Coolify
+that went away is not a reason to show uuids again. A container a label already
+named keeps that name.
 
 ### `POST /admin/hosts/{id}/enroll-token`
 
