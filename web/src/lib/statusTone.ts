@@ -58,6 +58,23 @@ export function unitStateTone(state: string): Tone {
   return UNIT_TONE[state.toLowerCase()] ?? 'muted';
 }
 
+// GitLab's pipeline states. Anything in flight is warn rather than up: a green
+// pill for a pipeline still running would read as a pass it has not earned.
+const PIPELINE_TONE: Record<string, Tone> = {
+  success: 'up',
+  failed: 'down',
+  running: 'warn',
+  pending: 'warn',
+  created: 'warn',
+  preparing: 'warn',
+  waiting_for_resource: 'warn',
+  scheduled: 'warn',
+};
+
+export function pipelineTone(status: string): Tone {
+  return PIPELINE_TONE[status] ?? 'muted';
+}
+
 // ALERT_LABEL is the operator-facing name of every alert an event can carry.
 // The raw type is a server key: `mem_high` is not a phrase, and the UI used to
 // print it with one underscore swapped for a space, which left the rest in.

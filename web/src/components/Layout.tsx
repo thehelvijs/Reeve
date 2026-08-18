@@ -34,7 +34,7 @@ const adminNav: { to: string; label: string; icon: IconName }[] = [
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, status, logout } = useAuth();
   // The same cache keys the pages read, so the sidebar's lists cost no extra
   // request and update with whatever the open page just refreshed.
   const tools = useResource<Tool[]>('/api/tools', () => api.get<Tool[]>('/api/tools')).data ?? [];
@@ -74,6 +74,11 @@ export default function Layout() {
           {primaryNav.map((item) => (
             <NavSection key={item.to} item={item} records={records[item.to] ?? []} />
           ))}
+          {/* An admin keeps the link whether or not a forge is connected: the page
+              is where the empty state points them at the setting. */}
+          {(status.pipelines_enabled || user?.role === 'admin') && (
+            <NavItem to="/pipelines" label="Pipelines" icon="pipelines" end={false} />
+          )}
           {moderates && <NavItem to="/admin/groups" label="User groups" icon="groups" end={false} />}
           {user?.role === 'admin' && (
             <>

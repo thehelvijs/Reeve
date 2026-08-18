@@ -84,13 +84,64 @@ export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSe
 // full width: a bare <span> shares a line with a <select>, which put "Auto-update"
 // to the left of its dropdown while every other field in the app labelled from
 // above.
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <label className="block space-y-1.5">
       <span className="block text-xs font-semibold text-content">{label}</span>
       {children}
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
+  );
+}
+
+// SecretField is the box for a value the server takes but never gives back: a
+// token, a password, a client secret. An empty box would read as "nothing is
+// set", so the pill and the dots say what is stored without revealing it.
+export function SecretField({
+  label,
+  set,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  set: boolean;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  let placeholder = 'Not set';
+  let text = hint ?? '';
+  if (set) {
+    placeholder = '••••••••••••';
+    text = 'Stored; leave empty to keep it';
+  }
+  return (
+    <Field
+      label={
+        <span className="flex items-center gap-2">
+          {label}
+          {set && <Pill tone="up">Active</Pill>}
+        </span>
+      }
+      hint={text}
+    >
+      <Input
+        type="password"
+        value={value}
+        placeholder={placeholder}
+        autoComplete="new-password"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </Field>
   );
 }
 

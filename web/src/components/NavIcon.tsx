@@ -6,6 +6,7 @@ export type IconName =
   | 'collections'
   | 'hosts'
   | 'requests'
+  | 'pipelines'
   | 'users'
   | 'groups'
   | 'webhooks'
@@ -48,6 +49,14 @@ const paths: Record<IconName, ReactElement> = {
     <>
       <path d="M2.5 8h3l1 2h3l1-2h3" />
       <path d="M2.5 8 4 3.5h8L13.5 8v4a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V8Z" />
+    </>
+  ),
+  pipelines: (
+    <>
+      <circle cx="4" cy="4" r="1.75" />
+      <circle cx="4" cy="12" r="1.75" />
+      <circle cx="12" cy="8" r="1.75" />
+      <path d="M5.75 4h2.75a1.5 1.5 0 0 1 1.5 1.5v.9M5.75 12H8.5a1.5 1.5 0 0 0 1.5-1.5v-.9" />
     </>
   ),
   users: (

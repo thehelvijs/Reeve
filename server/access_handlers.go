@@ -11,23 +11,34 @@ import (
 )
 
 type requestView struct {
-	ID          string `json:"id"`
-	HostID      string `json:"host_id"`
-	HostName    string `json:"host_name"`
-	RequesterID string `json:"requester_id"`
-	Status      string `json:"status"`
-	Note        string `json:"note"`
-	CreatedAt   string `json:"created_at"`
+	ID            string `json:"id"`
+	HostID        string `json:"host_id"`
+	HostName      string `json:"host_name"`
+	RequesterID   string `json:"requester_id"`
+	RequesterName string `json:"requester_name"`
+	Status        string `json:"status"`
+	Note          string `json:"note"`
+	CreatedAt     string `json:"created_at"`
 }
 
+// toRequestView resolves the asker best-effort, the way command history does:
+// approving credential access to an id nobody can read is not a decision.
 func (a *app) toRequestView(r store.AccessRequest) requestView {
 	name := ""
 	if h, err := a.db.GetHost(r.HostID); err == nil {
 		name = h.Name
 	}
+	requester := r.RequesterID
+	if u, err := a.db.GetUserByID(r.RequesterID); err == nil {
+		requester = u.Email
+		if u.DisplayName != "" {
+			requester = u.DisplayName + " (" + u.Email + ")"
+		}
+	}
 	return requestView{
 		ID: r.ID, HostID: r.HostID, HostName: name, RequesterID: r.RequesterID,
-		Status: r.Status, Note: r.Note, CreatedAt: r.CreatedAt.Format(time.RFC3339),
+		RequesterName: requester,
+		Status:        r.Status, Note: r.Note, CreatedAt: r.CreatedAt.Format(time.RFC3339),
 	}
 }
 

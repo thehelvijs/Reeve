@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   api,
+  type ForgeInput,
+  type ForgeSettings,
   type GoogleInput,
   type Settings,
   type SettingsInput,
   type SMTPInput,
   type UpdateChannel,
 } from '../api';
-import { Button, Card, ErrorText, Field, Form, Input } from '../components/ui';
+import { Button, Card, ErrorText, Field, Form, Input, SecretField } from '../components/ui';
 import PageHeader from '../components/PageHeader';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Retention is stored in seconds but only ever reasoned about in hours or days.
 const RETENTION_CHOICES: { label: string; secs: number }[] = [
@@ -39,6 +43,12 @@ export default function AdminSettings() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'could not save settings');
     }
+  };
+
+  // This one throws rather than reporting into the page: it runs behind a
+  // confirm dialog, which keeps itself open to show what went wrong.
+  const disconnectForge = async (key: 'gitlab' | 'github') => {
+    setSettings(await api.del<Settings>(`/api/admin/forge/${key}`));
   };
 
   if (!settings) {
@@ -81,6 +91,15 @@ export default function AdminSettings() {
 
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
+      {FORGES.map((f) => (
+        <ForgeSection
+          key={f.key}
+          forge={f}
+          settings={settings}
+          onSave={save}
+          onDisconnect={() => disconnectForge(f.key)}
+        />
+      ))}
       <RetentionSection settings={settings} onSave={save} />
       <AgentUpdateSection settings={settings} onSave={save} />
       <ServerUpdateSection settings={settings} onSave={save} />
@@ -119,6 +138,16 @@ function ServerUpdateSection({
     updated = `last updated ${new Date(settings.server_update.updated_at).toLocaleString()}`;
   }
 
+  let switchNote =
+    'This runs code that has not been through a release. The server restarts to pick it up, and this page will reconnect on its own.';
+  if (backwards) {
+    switchNote =
+      'Moving to a less current channel downgrades this server: it will run an older binary against a database a newer build has already opened.';
+  }
+  if (!settings.server_update.managed) {
+    switchNote = 'Recorded only: no updater is watching this deployment, so nothing changes now.';
+  }
+
   return (
     <Section
       title="Server updates"
@@ -129,6 +158,13 @@ function ServerUpdateSection({
           Running <span className="font-mono text-content">{settings.server_update.version || 'unknown'}</span> —{' '}
           {updated}.
         </p>
+        {!settings.server_update.managed && (
+          <p className="mb-4 text-xs text-warn">
+            No updater watches this deployment, so nothing here updates the server. The channel is
+            recorded and takes effect if one is ever added; until then this build changes when
+            whoever deployed it rebuilds or repulls it.
+          </p>
+        )}
         <div className="space-y-2">
           {CHANNELS.map((c) => (
             <label key={c.value} className="flex items-start gap-2 text-sm text-content">
@@ -149,13 +185,7 @@ function ServerUpdateSection({
           ))}
         </div>
 
-        {draft !== current && (
-          <p className="mt-4 text-xs text-warn">
-            {backwards
-              ? 'Moving to a less current channel downgrades this server: it will run an older binary against a database a newer build has already opened.'
-              : 'This runs code that has not been through a release. The server restarts to pick it up, and this page will reconnect on its own.'}
-          </p>
-        )}
+        {draft !== current && <p className="mt-4 text-xs text-warn">{switchNote}</p>}
 
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={draft === current}>
@@ -358,14 +388,12 @@ function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch
           <Field label="Username" hint="Leave empty for a relay that needs no auth">
             <Input value={draft.username} onChange={(e) => setDraft({ ...draft, username: e.target.value })} />
           </Field>
-          <Field label="Password" hint={settings.smtp.password_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-            <Input
-              type="password"
-              value={draft.password}
-              autoComplete="new-password"
-              onChange={(e) => setDraft({ ...draft, password: e.target.value })}
-            />
-          </Field>
+          <SecretField
+            label="Password"
+            set={settings.smtp.password_set}
+            value={draft.password}
+            onChange={(v) => setDraft({ ...draft, password: v })}
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <label className="flex items-center gap-2 text-sm text-content">
@@ -432,14 +460,12 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
           <Field label="Client ID">
             <Input value={draft.client_id} onChange={(e) => setDraft({ ...draft, client_id: e.target.value })} />
           </Field>
-          <Field label="Client secret" hint={settings.google.secret_set ? 'Stored; leave empty to keep it' : 'Not set'}>
-            <Input
-              type="password"
-              value={draft.client_secret}
-              autoComplete="new-password"
-              onChange={(e) => setDraft({ ...draft, client_secret: e.target.value })}
-            />
-          </Field>
+          <SecretField
+            label="Client secret"
+            set={settings.google.secret_set}
+            value={draft.client_secret}
+            onChange={(v) => setDraft({ ...draft, client_secret: v })}
+          />
         </div>
         <div className="mt-3">
           <Field
@@ -471,6 +497,190 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
   );
 }
 
+function forgeDraft(f: ForgeSettings): ForgeInput {
+  return { url: f.url, token: '' };
+}
+
+// Both forges take the same three fields, so they take the same section: only
+// the copy and the token instructions differ. GitLab means gitlab.com or an
+// instance you run; GitHub means github.com or an Enterprise Server.
+const FORGES: {
+  key: 'gitlab' | 'github';
+  label: string;
+  description: string;
+  urlLabel: string;
+  urlHint: string;
+  placeholder: string;
+  tokenHint: string;
+  help: ReactNode;
+}[] = [
+  {
+    key: 'gitlab',
+    label: 'GitLab',
+    description:
+      'Read pipeline status from GitLab — gitlab.com or an instance you host yourself. Which repos to watch is not set here: build those groups on the Pipelines page, where you can search for a repo instead of typing its path. Read-only, nothing is ever written back.',
+    urlLabel: 'GitLab URL',
+    urlHint: 'Leave empty for gitlab.com. For your own instance, its base URL.',
+    placeholder: 'https://gitlab.com',
+    tokenHint: 'A personal, group or project token with the read_api scope',
+    help: (
+      <>
+        <p className="text-content">Personal access token — covers every project you can see</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>
+            Open <HelpPath>{'<your-gitlab>/-/user_settings/personal_access_tokens'}</HelpPath> — on
+            gitlab.com that is{' '}
+            <HelpPath>https://gitlab.com/-/user_settings/personal_access_tokens</HelpPath>.
+          </li>
+          <li>
+            <span className="text-content">Add new token</span>, name it{' '}
+            <span className="font-mono">reeve</span>, pick an expiry.
+          </li>
+          <li>
+            Tick <span className="font-mono">read_api</span> and nothing else.
+          </li>
+          <li>
+            Copy the <span className="font-mono">glpat-…</span> value — GitLab shows it once.
+          </li>
+        </ol>
+        <p className="text-content">Group access token — scoped to one group and its subgroups</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>
+            Open <HelpPath>{'<your-gitlab>/groups/<group>/-/settings/access_tokens'}</HelpPath>.
+          </li>
+          <li>
+            Role <span className="font-mono">Reporter</span>, scope{' '}
+            <span className="font-mono">read_api</span>.
+          </li>
+        </ol>
+        <p>
+          Group tokens are not on every instance: gitlab.com needs a paid tier for them, and a
+          self-managed instance can have them turned off. A personal token always works.
+        </p>
+      </>
+    ),
+  },
+  {
+    key: 'github',
+    label: 'GitHub',
+    description:
+      'Read Actions workflow runs from GitHub — github.com or an Enterprise Server. The latest run of each repo in a group shows up beside your GitLab pipelines, in the same words.',
+    urlLabel: 'GitHub API URL',
+    urlHint: 'Leave empty for github.com. Enterprise Server is https://ghe.example.com/api/v3.',
+    placeholder: 'https://api.github.com',
+    tokenHint: 'A token that can read Actions on the repos you want',
+    help: (
+      <>
+        <p className="text-content">Fine-grained token — the narrower one</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>
+            Open <HelpPath>https://github.com/settings/personal-access-tokens</HelpPath> and{' '}
+            <span className="text-content">Generate new token</span>.
+          </li>
+          <li>
+            Under <span className="text-content">Repository access</span> pick the repos, or all
+            repos in an org.
+          </li>
+          <li>
+            Under <span className="text-content">Permissions → Repository</span> set{' '}
+            <span className="font-mono">Actions: Read-only</span> and{' '}
+            <span className="font-mono">Metadata: Read-only</span>.
+          </li>
+          <li>
+            Copy the <span className="font-mono">github_pat_…</span> value.
+          </li>
+        </ol>
+        <p className="text-content">Classic token</p>
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>
+            Open <HelpPath>https://github.com/settings/tokens</HelpPath>.
+          </li>
+          <li>
+            Tick <span className="font-mono">repo</span> for private repos, or{' '}
+            <span className="font-mono">public_repo</span> for public ones only.
+          </li>
+        </ol>
+        <p>
+          On Enterprise Server the same paths hang off your own host. An org that restricts token
+          access has to approve the token before it can read anything, under the org's{' '}
+          <span className="text-content">Settings → Personal access tokens</span>.
+        </p>
+      </>
+    ),
+  },
+];
+
+function ForgeSection({
+  forge,
+  settings,
+  onSave,
+  onDisconnect,
+}: {
+  forge: (typeof FORGES)[number];
+  settings: Settings;
+  onSave: (patch: SettingsInput) => Promise<void>;
+  onDisconnect: () => Promise<void>;
+}) {
+  const stored = settings[forge.key];
+  const [draft, setDraft] = useState<ForgeInput>(forgeDraft(stored));
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => setDraft(forgeDraft(stored)), [stored]);
+
+  let connectionNote = `Save a token and ${forge.label} groups can be built on the Pipelines page.`;
+  if (stored.token_set) {
+    connectionNote = `Connected. Build ${forge.label} groups on the Pipelines page.`;
+  }
+
+  return (
+    <Section
+      title={forge.label}
+      description={forge.description}
+      help={forge.help}
+      helpLabel={'How do I create a ' + forge.label + ' access token?'}
+    >
+      <Form onSubmit={() => onSave({ [forge.key]: draft })}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label={forge.urlLabel} hint={forge.urlHint}>
+            <Input
+              value={draft.url}
+              placeholder={forge.placeholder}
+              onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+            />
+          </Field>
+          <SecretField
+            label="Access token"
+            set={stored.token_set}
+            hint={forge.tokenHint}
+            value={draft.token}
+            onChange={(v) => setDraft({ ...draft, token: v })}
+          />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-muted">{connectionNote}</p>
+          <div className="flex items-center gap-2">
+            {stored.token_set && (
+              <Button type="button" variant="danger" onClick={() => setConfirming(true)}>
+                Disconnect
+              </Button>
+            )}
+            <Button type="submit">Save {forge.label}</Button>
+          </div>
+        </div>
+      </Form>
+
+      {confirming && (
+        <ConfirmModal
+          title={`Disconnect ${forge.label}?`}
+          body={`The token and URL are forgotten. Groups on ${forge.label} stay, and start reporting again once you connect it back.`}
+          confirmLabel="Disconnect"
+          onConfirm={onDisconnect}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+    </Section>
+  );
+}
+
 function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: number) => void }) {
   const known = RETENTION_CHOICES.some((c) => c.secs === value);
   if (!known) {
@@ -498,20 +708,62 @@ function RetentionSelect({ value, onChange }: { value: number; onChange: (secs: 
   );
 }
 
+// A section's description runs the full width of its card: clipping it to a
+// column left two thirds of the card empty and wrapped the sentence early.
+//
+// `help` answers "where do I get this", which is a paragraph nobody needs until
+// they need it. It hangs off a "?" beside the description as a native
+// disclosure, so the keyboard and a screen reader handle it for free and it
+// expands in place instead of floating over the form it explains.
 export function Section({
   title,
   description,
+  help,
+  helpLabel,
   children,
 }: {
   title: string;
   description: string;
+  help?: ReactNode;
+  helpLabel?: string;
   children: React.ReactNode;
 }) {
   return (
     <Card className="mt-6 p-5">
       <h2 className="text-sm font-medium text-content">{title}</h2>
-      <p className="mt-1 max-w-2xl text-xs text-muted">{description}</p>
+      <p className="mt-1 text-xs text-muted">
+        {description}
+        {help && <HelpDisclosure label={helpLabel ?? 'More about this'}>{help}</HelpDisclosure>}
+      </p>
       <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+// A path to paste into the address bar. Instructions name a URL rather than walk
+// a menu, because both forges move their menus between versions and neither
+// moves these paths.
+function HelpPath({ children }: { children: ReactNode }) {
+  return (
+    <span className="select-all whitespace-nowrap rounded-button border border-hairline bg-canvas px-1.5 py-0.5 font-mono text-[11px] text-content">
+      {children}
+    </span>
+  );
+}
+
+function HelpDisclosure({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <details className="inline align-middle">
+      <summary
+        aria-label={label}
+        title={label}
+        className="ml-1 inline-flex h-4 w-4 cursor-pointer list-none items-center justify-center rounded-pill border border-hairline-strong align-middle text-[10px] font-semibold text-muted transition-colors hover:border-accent hover:text-content focus:outline-none focus-visible:ring-2 focus-visible:ring-link [&::-webkit-details-marker]:hidden"
+      >
+        ?
+      </summary>
+      <span className="mt-3 block space-y-2 rounded-card border border-hairline bg-surface-1 p-4 text-xs text-muted">
+        {children}
+      </span>
+    </details>
   );
 }

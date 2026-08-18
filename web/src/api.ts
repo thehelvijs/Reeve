@@ -98,6 +98,62 @@ export interface GoogleInput extends Omit<GoogleSettings, 'secret_set' | 'redire
   client_secret: string;
 }
 
+// One connected forge. GitLab is gitlab.com or any instance you run; GitHub is
+// github.com or an Enterprise Server. Only the URL tells them apart, and an
+// empty URL means the hosted one.
+export interface ForgeSettings {
+  url: string;
+  token_set: boolean;
+}
+
+export interface ForgeInput extends Omit<ForgeSettings, 'token_set'> {
+  token: string;
+}
+
+// Which forge a pipeline group's paths belong to.
+export type Provider = 'gitlab' | 'github';
+
+// The state of a repo's latest run, lowercased. Both forges are reported in
+// GitLab's vocabulary, so one status has one meaning. Empty means never run.
+export type PipelineStatus = string;
+
+export interface PipelineProject {
+  name: string;
+  path: string;
+  url: string;
+  status: PipelineStatus;
+  ref?: string;
+  updated_at?: string;
+  pipeline_url?: string;
+  // This project alone could not be read; the rest of its group still renders.
+  error?: string;
+}
+
+// A group as the pipelines page sees it: the operator's name with each member's
+// latest pipeline attached.
+export interface PipelineGroup {
+  id: string;
+  name: string;
+  provider: Provider;
+  projects: PipelineProject[];
+  // This group's own failure; the other groups still rendered.
+  error?: string;
+}
+
+// A group as it is stored: the membership an admin edits, with no call to
+// GitLab behind it.
+export interface PipelineGroupRecord {
+  id: string;
+  name: string;
+  provider: Provider;
+  projects: string[];
+}
+
+export interface PipelineOverview {
+  configured: boolean;
+  groups: PipelineGroup[];
+}
+
 export interface StalledHost {
   id: string;
   name: string;
@@ -125,6 +181,9 @@ export interface ServerUpdateSettings {
   // Read-only: the build running now, and when it replaced a different one.
   version?: string;
   updated_at?: string;
+  // Read-only: whether an updater watches this deployment. False means the
+  // channel is recorded and nothing acts on it.
+  managed?: boolean;
 }
 
 export interface Settings {
@@ -132,6 +191,8 @@ export interface Settings {
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
+  gitlab: ForgeSettings;
+  github: ForgeSettings;
   agent_update: AgentUpdateSettings;
   server_update: ServerUpdateSettings;
 }
@@ -142,6 +203,8 @@ export interface SettingsInput {
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;
+  gitlab?: ForgeInput;
+  github?: ForgeInput;
   agent_update?: AgentUpdateSettings;
   server_update?: ServerUpdateSettings;
 }
@@ -356,6 +419,7 @@ export interface AccessRequest {
   host_id: string;
   host_name: string;
   requester_id: string;
+  requester_name: string;
   status: 'pending' | 'approved' | 'denied';
   note: string;
   created_at: string;

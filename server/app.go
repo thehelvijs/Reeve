@@ -33,6 +33,11 @@ type config struct {
 	// AllowedOrigins are extra origins the same-origin check accepts, for a
 	// dev UI served from a different port than the API.
 	AllowedOrigins []string
+	// SelfUpdate says an updater sidecar is watching this deployment. The server
+	// has no Docker socket and cannot find out for itself, so the deploy that
+	// runs the updater declares it; without it the settings page would promise
+	// an update nothing performs.
+	SelfUpdate bool
 }
 
 // app wires the store, cipher, and config for the HTTP handlers.
@@ -166,6 +171,18 @@ func (a *app) routes() http.Handler {
 	mux.Handle("PUT /api/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleAddCollectionVisibility)))
 	mux.Handle("DELETE /api/collections/{id}/visibility/{ptype}/{pid}", authed(http.HandlerFunc(a.handleRemoveCollectionVisibility)))
 	mux.Handle("GET /api/principals", authed(http.HandlerFunc(a.handleListPrincipals)))
+
+	// Pipelines. Reading is open to any account, because the point is the whole
+	// team seeing what is red; the connection and the groups are an admin's.
+	mux.Handle("GET /api/pipelines", authed(http.HandlerFunc(a.handlePipelines)))
+	mux.Handle("GET /api/pipeline-groups", authed(http.HandlerFunc(a.handleListPipelineGroups)))
+	mux.Handle("GET /api/admin/repo-search", admin(http.HandlerFunc(a.handleSearchRepos)))
+	mux.Handle("DELETE /api/admin/forge/{provider}", admin(http.HandlerFunc(a.handleDisconnectForge)))
+	mux.Handle("POST /api/admin/pipeline-groups", admin(http.HandlerFunc(a.handleCreatePipelineGroup)))
+	mux.Handle("PATCH /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleRenamePipelineGroup)))
+	mux.Handle("DELETE /api/admin/pipeline-groups/{id}", admin(http.HandlerFunc(a.handleDeletePipelineGroup)))
+	mux.Handle("POST /api/admin/pipeline-groups/{id}/projects", admin(http.HandlerFunc(a.handleAddPipelineGroupProject)))
+	mux.Handle("DELETE /api/admin/pipeline-groups/{id}/projects", admin(http.HandlerFunc(a.handleRemovePipelineGroupProject)))
 
 	// Groups a moderator manages. The list is scoped to the caller, and every
 	// membership write is gated on admin-or-moderator-of-that-group inside the

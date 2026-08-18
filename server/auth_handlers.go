@@ -53,6 +53,7 @@ func (a *app) handleAuthStatus(w http.ResponseWriter, _ *http.Request) {
 		"signup_enabled":         a.db.GetBoolSetting(settingSignupEnabled, true),
 		"password_reset_enabled": mailReady,
 		"google_enabled":         googleReady,
+		"pipelines_enabled":      a.pipelinesConfigured(),
 	})
 }
 

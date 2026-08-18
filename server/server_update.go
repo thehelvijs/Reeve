@@ -84,6 +84,7 @@ func (a *app) serverUpdateView() serverUpdateView {
 		Channel:   a.serverUpdateChannel(),
 		Version:   a.cfg.Version,
 		UpdatedAt: at,
+		Managed:   a.cfg.SelfUpdate,
 	}
 }
 

@@ -353,6 +353,118 @@ sends. A stored channel the running build does not recognise reads back as
 `release`, so a downgrade cannot leave an instance chasing a tag nothing
 publishes.
 
+## Pipelines
+
+Reeve reads run status from two forges: **GitLab** (gitlab.com or an instance
+you host) and **GitHub** (github.com or an Enterprise Server). Either or both
+may be connected; only the URL tells a hosted instance from a self-managed one.
+
+### Settings: `gitlab` and `github`
+
+`GET/PUT /api/admin/settings` carries one block per forge, the same three
+fields each:
+
+```json
+{ "gitlab": {"enabled": true, "url": "https://gitlab.example.com", "token": "glpat-…"},
+  "github": {"enabled": true, "url": "", "token": "github_pat_…"} }
+```
+
+`token` is write-only: it is sealed with the master key and reads back as
+`token_set` only. An empty `url` means the hosted instance
+(`https://gitlab.com`, `https://api.github.com`) rather than an error, and
+reads back as that. An enabled block must carry an absolute `url` and a token
+(stored or supplied), otherwise `400 invalid_gitlab` / `400 invalid_github`; a
+disabled one is saved as written so it can be filled in over more than one
+visit.
+
+A GitLab token needs `read_api`. A GitHub token needs Actions and Metadata
+read, which is `repo` on a classic token. Nothing is ever written to either.
+
+### Pipeline groups
+
+A pipeline group is an operator's own named set of repo paths, so a dashboard
+does not depend on how the repos are arranged on the forge. The **provider is
+the group's**, not the instance's: firmware on GitLab and tooling on GitHub sit
+on one page.
+
+`GET /api/pipeline-groups` (any signed-in account) lists them as stored, with
+no call to a forge behind it:
+
+```json
+[{"id": "3f2a…", "name": "Firmware", "provider": "gitlab",
+  "projects": ["firmware/Powerboard5"]}]
+```
+
+The writes are admin-only:
+
+- `POST /api/admin/pipeline-groups` `{"name": "Firmware", "provider": "gitlab"}`
+  → `201` with the record. `provider` is `gitlab` or `github`, anything else is
+  `400 invalid_provider`. A name is unique; a repeat is `409 name_taken`.
+- `PATCH /api/admin/pipeline-groups/{id}` `{"name": "…"}` → `204`. A group's
+  provider is fixed at creation, since its stored paths belong to that forge.
+- `DELETE /api/admin/pipeline-groups/{id}` → `204`; membership cascades.
+- `POST|DELETE /api/admin/pipeline-groups/{id}/projects` `{"path": "group/repo"}`
+  → `204`. The path rides in the body because a repo path carries slashes of
+  its own. Adding is idempotent. A path with no slash is `400 invalid_path`, an
+  unknown group is `404`, and a group already holding 200 projects is
+  `400 group_full`.
+
+### `GET /api/admin/repo-search?provider=&q=`
+
+Admin only. Proxies the forge's own repo lookup so the group editor can offer
+repos by name instead of asking for a full path. Returns up to 20 as
+`{"name", "path", "url"}`, most recently active first, and an empty `q` is a
+valid "what is there" query.
+
+On GitLab this is project search. On GitHub it walks the token's own
+repositories (newest push first, up to 300) and filters locally, because
+GitHub's search spans all of GitHub rather than what a token can see.
+
+An unknown provider is `400 invalid_provider`, a provider with no connection is
+`412 forge_not_configured`, and a forge that refuses is `502 forge_failed`.
+
+### `GET /api/pipelines`
+
+Any signed-in account. Returns every group with the latest run of each member:
+
+```json
+{
+  "configured": true,
+  "groups": [{
+    "id": "3f2a…",
+    "name": "Firmware",
+    "provider": "gitlab",
+    "projects": [{
+      "name": "Powerboard5", "path": "firmware/Powerboard5",
+      "url": "https://gitlab.example.com/firmware/Powerboard5",
+      "status": "failed", "ref": "develop",
+      "updated_at": "2026-08-17T09:00:00Z",
+      "pipeline_url": "https://gitlab.example.com/firmware/Powerboard5/-/pipelines/9"
+    }]
+  }]
+}
+```
+
+`status` is lowercase and uses GitLab's vocabulary for **both** forges, so one
+word has one meaning and a client needs one colour map: `success`, `failed`,
+`running`, `pending`, `canceled`, `skipped`, `manual`, or empty for a repo that
+has never run anything. A GitHub run maps onto it by conclusion
+(`failure`/`timed_out`/`startup_failure` → `failed`, `cancelled` → `canceled`,
+`neutral`/`stale` → `skipped`, `action_required` → `manual`) and, while it has
+no conclusion yet, by status (`in_progress` → `running`, everything else
+→ `pending`).
+
+Projects come back failed-first, then by name. `configured` is false when no
+forge is connected at all, which is a `200` rather than an error so a client can
+prompt instead of failing. Each group reports its own trouble in `error` — its
+provider not connected, or the forge unreachable — while the other groups still
+render, and a single repo the forge will not answer for carries `error` on that
+project. An empty group costs no call at all.
+
+GitLab is read in one GraphQL request per group, each member project under its
+own alias. GitHub has no batch query for workflow runs, so it is one request per
+repo, at most 8 in flight.
+
 ## Notification channels (admin)
 
 `GET/POST /admin/webhooks`, `PATCH/DELETE /admin/webhooks/{id}`,
