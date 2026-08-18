@@ -89,6 +89,7 @@ export default function AdminSettings() {
         </div>
       </Section>
 
+      <HeartbeatSection settings={settings} onSave={save} />
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
       {FORGES.map((f) => (
@@ -341,6 +342,63 @@ function smtpDraft(s: Settings['smtp']): SMTPInput {
     tls: s.tls,
     password: '',
   };
+}
+
+// A dead-man's switch: the receiver alerts when the pings stop, which is the one
+// failure Reeve cannot report on its own.
+function HeartbeatSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
+  const [draft, setDraft] = useState(settings.heartbeat_url);
+  const [testing, setTesting] = useState('');
+  useEffect(() => setDraft(settings.heartbeat_url), [settings.heartbeat_url]);
+
+  const sendTest = async () => {
+    setTesting('pinging');
+    try {
+      await api.post('/api/admin/settings/test-heartbeat');
+      setTesting('ping delivered');
+    } catch (e) {
+      setTesting(e instanceof Error ? e.message : 'ping failed');
+    }
+  };
+
+  return (
+    <Section
+      title="Heartbeat"
+      description="Reeve pings this URL every minute while it is running. Point it at a free monitor such as healthchecks.io and you get told when the pings stop."
+      help={
+        <>
+          <p>
+            Create a check on healthchecks.io (or Better Stack, Cronitor, any service with a ping URL), set its period to 1
+            minute and its grace to a few, and paste the ping URL here. When this server, its host or its network goes down
+            the pings stop and the monitor alerts you — by email, Slack or its own webhook.
+          </p>
+          <p className="mt-2">
+            Leave it empty to send nothing. Anyone holding the URL can silence the alarm, so treat it as a secret.
+          </p>
+        </>
+      }
+      helpLabel="How to set this up"
+    >
+      <Form onSubmit={() => onSave({ heartbeat_url: draft.trim() })}>
+        <Field label="Ping URL" hint="Empty turns the heartbeat off.">
+          <Input
+            value={draft}
+            placeholder="https://hc-ping.com/your-uuid"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        </Field>
+        <div className="mt-4 flex items-center justify-end gap-3">
+          {testing && <span className="text-xs text-muted">{testing}</span>}
+          <Button variant="secondary" disabled={!settings.heartbeat_url} onClick={sendTest}>
+            Send test ping
+          </Button>
+          <Button type="submit" disabled={draft.trim() === settings.heartbeat_url}>
+            Save heartbeat
+          </Button>
+        </div>
+      </Form>
+    </Section>
+  );
 }
 
 function EmailSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {

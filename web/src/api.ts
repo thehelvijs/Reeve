@@ -188,6 +188,7 @@ export interface ServerUpdateSettings {
 
 export interface Settings {
   signup_enabled: boolean;
+  heartbeat_url: string;
   retention: Retention;
   smtp: SMTPSettings;
   google: GoogleSettings;
@@ -200,6 +201,7 @@ export interface Settings {
 // The write shape differs from the read shape: secrets are write-only.
 export interface SettingsInput {
   signup_enabled?: boolean;
+  heartbeat_url?: string;
   retention?: Retention;
   smtp?: SMTPInput;
   google?: GoogleInput;

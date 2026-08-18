@@ -244,6 +244,7 @@ func (a *app) routes() http.Handler {
 	mux.Handle("GET /api/admin/settings", admin(http.HandlerFunc(a.handleGetSettings)))
 	mux.Handle("PUT /api/admin/settings", admin(http.HandlerFunc(a.handlePutSettings)))
 	mux.Handle("POST /api/admin/settings/test-email", admin(http.HandlerFunc(a.handleTestEmail)))
+	mux.Handle("POST /api/admin/settings/test-heartbeat", admin(http.HandlerFunc(a.handleTestHeartbeat)))
 	mux.Handle("GET /api/admin/backup", admin(http.HandlerFunc(a.handleBackupDownload)))
 	mux.Handle("POST /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreUpload)))
 	mux.Handle("DELETE /api/admin/restore", admin(http.HandlerFunc(a.handleRestoreCancel)))

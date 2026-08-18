@@ -92,6 +92,7 @@ type serverUpdateView struct {
 
 type settingsView struct {
 	SignupEnabled bool             `json:"signup_enabled"`
+	HeartbeatURL  string           `json:"heartbeat_url"`
 	Retention     retentionView    `json:"retention"`
 	SMTP          smtpView         `json:"smtp"`
 	Google        googleAuthView   `json:"google"`
@@ -105,17 +106,19 @@ type settingsView struct {
 func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 	ret := a.db.EffectiveRetention()
 	au := a.agentUpdateConfig()
+	heartbeatURL, _ := a.db.GetSetting(settingHeartbeatURL)
 	writeJSON(w, http.StatusOK, settingsView{
 		SignupEnabled: a.db.GetBoolSetting(settingSignupEnabled, true),
+		HeartbeatURL:  heartbeatURL,
 		Retention: retentionView{
 			RawSecs:     int(ret.Raw.Seconds()),
 			FiveMinSecs: int(ret.FiveMin.Seconds()),
 			OneHourSecs: int(ret.OneHour.Seconds()),
 		},
-		SMTP:        a.smtpView(),
-		Google:      a.googleAuthView(),
-		GitLab:      a.gitlabView(),
-		GitHub:      a.githubView(),
+		SMTP:         a.smtpView(),
+		Google:       a.googleAuthView(),
+		GitLab:       a.gitlabView(),
+		GitHub:       a.githubView(),
 		AgentUpdate:  agentUpdateView{Enabled: au.Enabled, Concurrency: au.Concurrency, StallSecs: au.StallSecs},
 		ServerUpdate: a.serverUpdateView(),
 	})
@@ -125,7 +128,8 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 // as they are so one page section cannot clobber another.
 func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		SignupEnabled *bool `json:"signup_enabled"`
+		SignupEnabled *bool   `json:"signup_enabled"`
+		HeartbeatURL  *string `json:"heartbeat_url"`
 		Retention     *struct {
 			RawSecs     int `json:"raw_secs"`
 			FiveMinSecs int `json:"fivemin_secs"`
@@ -152,6 +156,17 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if in.SignupEnabled != nil {
 		if err := a.db.SetSetting(settingSignupEnabled, strconv.FormatBool(*in.SignupEnabled)); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "could not save signup setting")
+			return
+		}
+	}
+	if in.HeartbeatURL != nil {
+		if !validToolURL(*in.HeartbeatURL) {
+			writeError(w, http.StatusBadRequest, "invalid_heartbeat_url",
+				"heartbeat url must be an absolute http or https URL")
+			return
+		}
+		if err := a.db.SetSetting(settingHeartbeatURL, *in.HeartbeatURL); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not save heartbeat setting")
 			return
 		}
 	}

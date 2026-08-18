@@ -102,7 +102,7 @@ func run() error {
 	defer stop()
 
 	var loops sync.WaitGroup
-	for _, loop := range []func(context.Context){a.runRollupLoop, a.runAlertLoop, a.runDispatchLoop, a.runServerSampleLoop} {
+	for _, loop := range []func(context.Context){a.runRollupLoop, a.runAlertLoop, a.runDispatchLoop, a.runServerSampleLoop, a.runHeartbeatLoop} {
 		loops.Add(1)
 		go func(f func(context.Context)) {
 			defer loops.Done()
