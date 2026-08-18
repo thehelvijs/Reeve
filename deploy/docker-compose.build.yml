@@ -24,13 +24,6 @@ services:
       # nothing acts on it rather than promising a restart that never comes.
       REEVE_SELF_UPDATE: "false"
 
-  agent:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.agent
-    image: reeve-agent:source
-    pull_policy: build
-
   # No updater on this path. It recreates containers from the base file alone, so
   # leaving it running would replace this source build with a pulled image on its
   # next poll. A profile nothing enables is how compose leaves a service out.

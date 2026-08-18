@@ -17,35 +17,30 @@ from the compose file's directory.
 **Before the first release.** The default channel is `release`, which is the
 `:latest` tag, and only a `v*` tag publishes that. Until one is cut there is
 nothing to pull: either build from the checkout (below), or follow a branch by
-pinning both images in `.env` —
-`REEVE_IMAGE=ghcr.io/thehelvijs/reeve:develop` and
-`REEVE_AGENT_IMAGE=ghcr.io/thehelvijs/reeve-agent:develop` — and picking
-**Develop** in Settings so the updater keeps them there. A missing tag and a
-private package look identical from the client: both answer `unauthorized`.
+pinning the image in `.env` —
+`REEVE_IMAGE=ghcr.io/thehelvijs/reeve:develop` — and picking **Develop** in
+Settings so the updater keeps it there. A missing tag and a private package look
+identical from the client: both answer `unauthorized`.
 
-That is the whole product in one command: the server, an agent for the machine it
-runs on, and the updater that keeps both on the channel picked in the UI. The web
-UI is embedded in the server binary, so the SPA, the REST API, the agent
-installer and the agent binaries all come off the same port — there is no
-frontend container or dev server to run.
+That is the whole product in one command: the server, and the updater that keeps
+it on the channel picked in the UI. The web UI is embedded in the server binary,
+so the SPA, the REST API, the agent installer and the agent binaries all come off
+the same port — there is no frontend container or dev server to run.
 
-**The agent for this machine** is there because the machine running Reeve is a
-host like any other, and usually the one already running something worth
-watching. It enrols itself: the server writes an enrollment token for its own
-host row into the data volume and the agent reads it from there, so there is
-nothing to paste and no secret in `.env`. It appears as **Reeve server** in
-Hosts, with its containers and metrics like any other machine.
+**The machine running Reeve** is a host like any other, and usually the one
+already running something worth watching. It appears as **Reeve server** in
+Hosts, sampled by the server itself — CPU, memory and disk, nothing more.
 
-That agent is part of the deploy, not of the fleet rollout — it is replaced with
-the rest of the stack, so it runs with `REEVE_AUTO_UPDATE=false` and reads
-"updates off". In a container it sees Docker but not the host's systemd or
-journal; for those, install the agent on that machine the ordinary way (**Install
-command** on its host page) and it takes over the row — the server stops sampling
-itself as soon as an agent reports. Don't want it at all? `up -d server updater`
-starts the rest without it.
+Give it a real agent to get the rest: **Hosts → Reeve server → Show install
+command**, run on the machine as root. The agent takes the row over and the
+server stops sampling itself. Install it on the host rather than as a container
+beside the server: a containerised agent has no systemd, its own PID namespace
+and its own filesystem, so it reports no services, no cron, no processes and no
+logs, and can restart nothing. The token minted for that install replaces the one
+the server publishes for itself, so it survives every restart.
 
 **Server auto-update.** Every `REEVE_UPDATE_POLL_SECS` (default hourly) the
-updater re-runs `up -d server agent` with the current channel's tag: nothing
+updater re-runs `up -d server` with the current channel's tag: nothing
 happens when neither the digest nor the channel moved, which is the ordinary
 case. `schema.sql` is re-executed on every open, so there is nothing to migrate
 across a restart. Agents on other hosts follow afterwards through the paced
@@ -77,8 +72,8 @@ before you press the button. The tag list lives in two places by necessity, the
 `channelTags` map in `server/server_update.go` and the updater's own whitelist
 in the compose file; a test fails if they drift.
 
-Holding an instance still: pin `REEVE_IMAGE` (and `REEVE_AGENT_IMAGE`) to a
-version *and* leave the channel alone, or drop the `updater` service. There is
+Holding an instance still: pin `REEVE_IMAGE` to a version *and* leave the
+channel alone, or drop the `updater` service. There is
 deliberately no "arbitrary image" field in the UI — an admin session can choose
 among three published tags of one repository, and the repository itself
 (`REEVE_IMAGE_REPO`) is set here, not in the database.

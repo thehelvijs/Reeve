@@ -1,5 +1,5 @@
-# Reeve, whole. One `up -d` gives the server, an agent for the machine it runs
-# on, and the updater that keeps both on the channel picked in the UI.
+# Reeve, whole. One `up -d` gives the server and the updater that keeps it on the
+# channel picked in the UI.
 #
 # LAN-only: this listens on every interface, so keep it behind your firewall, or
 # narrow it with REEVE_BIND=192.168.1.10.
@@ -42,32 +42,12 @@ services:
       - reeve-data:/data
     restart: unless-stopped
 
-  # The machine running Reeve is a host like any other, so it gets an agent like
-  # any other. It enrols itself: the server writes a token for its own host row
-  # into the data volume, and this reads it from there, so there is nothing to
-  # paste and no secret in .env.
-  #
-  # Host networking to reach the server on the port it bound, and because the
-  # metrics it reports should be the machine's, not a bridge's.
-  agent:
-    image: ${REEVE_AGENT_IMAGE:-ghcr.io/thehelvijs/reeve-agent:latest}
-    pull_policy: always
-    network_mode: host
-    environment:
-      REEVE_SERVER_URL: http://127.0.0.1:${REEVE_PORT:-7338}
-      REEVE_AGENT_TOKEN_FILE: /state/self-agent-token
-      # This agent is part of the deploy, not of the fleet rollout: it is
-      # replaced by repulling or rebuilding its image, and a self-update would
-      # be undone by the next `up -d`.
-      REEVE_AUTO_UPDATE: "false"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Only for the token file; the rest of the volume is the database.
-      - reeve-data:/state:ro
-    depends_on:
-      server:
-        condition: service_healthy
-    restart: unless-stopped
+  # The machine running Reeve is a host like any other, but its agent belongs on
+  # the machine rather than in a container beside this one: a containerised agent
+  # has no systemd, its own PID namespace and its own filesystem, so it reports no
+  # services, no cron, no processes and no logs, and can restart nothing. Install
+  # it from Hosts -> Reeve server -> Show install command, which mints a token
+  # that outlives every restart.
 
   # Re-runs `up -d` on a timer with the channel's tag substituted in, so one loop
   # covers both jobs: a new digest on the current channel, and a channel an admin
@@ -113,12 +93,11 @@ services:
             latest|develop|main) ;;
             *) tag=latest ;;
           esac
-          REEVE_IMAGE="$$REEVE_IMAGE_REPO:$$tag" \
-          REEVE_AGENT_IMAGE="$$REEVE_IMAGE_REPO-agent:$$tag" docker compose \
+          REEVE_IMAGE="$$REEVE_IMAGE_REPO:$$tag" docker compose \
             --project-name "$$project" \
             --project-directory /deploy \
             -f /deploy/docker-compose.yml \
-            up -d server agent ||
+            up -d server ||
             echo "updater: up -d failed; staying on the running build" >&2
           sleep "$$REEVE_UPDATE_POLL_SECS"
         done
