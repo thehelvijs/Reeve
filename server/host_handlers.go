@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -168,7 +167,6 @@ func (a *app) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 		"host":            hostToView(h, time.Now().UTC(), a.updateContext()),
 		"enroll_token":    token,
 		"install_command": a.agentInstallCommand(r, token),
-		"run_command":     a.agentRunCommand(r, token),
 	})
 }
 
@@ -197,15 +195,8 @@ func (a *app) handleReissueEnrollToken(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "could not issue an enrollment token")
 		return
 	}
-	// The server publishes a token for its own machine on every start. Dropping
-	// that file hands this row over to whoever asked for this token, instead of
-	// having the next restart put the shipped agent's one back.
-	if id == store.ServerHostID {
-		os.Remove(a.selfAgentTokenPath())
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"install_command": a.agentInstallCommand(r, token),
-		"run_command":     a.agentRunCommand(r, token),
 	})
 }
 
@@ -384,8 +375,8 @@ func (a *app) handleHostInventory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// agentInstallCommand renders the one-line host installer (systemd, full
-// visibility). Mirrors agentRunCommand's URL resolution.
+// agentInstallCommand renders the one-line host installer. It puts a systemd
+// unit on the machine, which is the only way an agent sees the machine.
 func (a *app) agentInstallCommand(r *http.Request, token string) string {
 	url := strings.TrimSuffix(a.baseURL(r), "/")
 	return fmt.Sprintf(
@@ -394,13 +385,3 @@ func (a *app) agentInstallCommand(r *http.Request, token string) string {
 		url, url, token)
 }
 
-// agentRunCommand renders a copy-paste Docker command to enroll the agent.
-func (a *app) agentRunCommand(r *http.Request, token string) string {
-	url := strings.TrimSuffix(a.baseURL(r), "/")
-	return fmt.Sprintf(
-		"docker run -d --name reeve-agent --restart unless-stopped "+
-			"-v /var/run/docker.sock:/var/run/docker.sock:ro "+
-			"-e REEVE_SERVER_URL=%s -e REEVE_AGENT_TOKEN=%s "+
-			"ghcr.io/thehelvijs/reeve-agent:latest",
-		url, token)
-}

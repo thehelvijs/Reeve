@@ -76,7 +76,6 @@ func TestReissueEnrollTokenReplacesTheOldOne(t *testing.T) {
 	}
 	var out struct {
 		InstallCommand string `json:"install_command"`
-		RunCommand     string `json:"run_command"`
 	}
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatal(err)
@@ -84,9 +83,6 @@ func TestReissueEnrollTokenReplacesTheOldOne(t *testing.T) {
 	newToken := tokenFromCommand(t, out.InstallCommand)
 	if newToken == oldToken {
 		t.Fatal("re-issue returned the same token")
-	}
-	if !strings.Contains(out.RunCommand, newToken) {
-		t.Error("the docker command carries a different token than the installer")
 	}
 
 	push := samplePush()
@@ -128,19 +124,18 @@ func TestAgentInstallCommandShape(t *testing.T) {
 	}
 }
 
-// With no public URL configured the enroll commands use the address the admin's
+// With no public URL configured the install command uses the address the admin's
 // browser reached the UI on, which on a LAN is the server's LAN address.
 func TestAgentCommandsFallBackToRequestHost(t *testing.T) {
 	a := bareApp(t, config{Addr: "127.0.0.1:8080"})
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	r.Host = "192.168.1.50:8080"
-	for _, cmd := range []string{a.agentInstallCommand(r, "tok"), a.agentRunCommand(r, "tok")} {
-		if !strings.Contains(cmd, "REEVE_SERVER_URL=http://192.168.1.50:8080") {
-			t.Errorf("command did not use the request host: %s", cmd)
-		}
-		if strings.Contains(cmd, "127.0.0.1") {
-			t.Errorf("command leaked the bind address: %s", cmd)
-		}
+	cmd := a.agentInstallCommand(r, "tok")
+	if !strings.Contains(cmd, "REEVE_SERVER_URL=http://192.168.1.50:8080") {
+		t.Errorf("command did not use the request host: %s", cmd)
+	}
+	if strings.Contains(cmd, "127.0.0.1") {
+		t.Errorf("command leaked the bind address: %s", cmd)
 	}
 }
 

@@ -18,11 +18,10 @@ func enrollHost(t *testing.T, ts *testServer, admin *http.Client, name string) (
 	var out struct {
 		Host        hostView `json:"host"`
 		EnrollToken string   `json:"enroll_token"`
-		RunCommand  string   `json:"run_command"`
 	}
 	json.Unmarshal(data, &out)
-	if out.EnrollToken == "" || out.RunCommand == "" {
-		t.Fatalf("missing token or run command: %s", data)
+	if out.EnrollToken == "" {
+		t.Fatalf("missing enrollment token: %s", data)
 	}
 	return out.Host.ID, out.EnrollToken
 }

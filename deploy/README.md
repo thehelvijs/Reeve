@@ -301,11 +301,6 @@ sudo reeve-agent-uninstall
 Local teardown only; remove the host from the catalog in the UI separately.
 **Remove agent over SSH**, on the host's page, does the same thing remotely.
 
-### Docker (alternative)
-
-The UI also shows a `docker run` command. It sees Docker via the mounted socket
-but not host systemd/cron/journald.
-
 ## Master-key custody (read this)
 
 `REEVE_MASTER_KEY` encrypts every stored credential. It is **not** kept in

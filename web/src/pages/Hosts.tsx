@@ -263,7 +263,6 @@ interface EnrollResult {
   host: Host;
   enroll_token: string;
   install_command: string;
-  run_command: string;
 }
 
 function EnrollModal({
@@ -327,11 +326,10 @@ function EnrollModal({
         ) : (
           <div className="mt-4 space-y-3">
             <p className="text-sm text-content">
-              Host created. Let the server install the agent over SSH, or run one of these on the machine as root — the
+              Host created. Let the server install the agent over SSH, or run this on the machine as root — the
               enrollment token is shown only once. It turns online here within ~15s once the agent starts.
             </p>
             <CmdBlock label="Install (systemd)" cmd={result.install_command} />
-            <CmdBlock label="Or run in Docker" cmd={result.run_command} />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={onClose}>
                 Done

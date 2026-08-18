@@ -92,9 +92,6 @@ func run() error {
 	if err := db.EnsureServerHost(runtime.GOOS); err != nil {
 		return fmt.Errorf("startup: could not register self host: %w", err)
 	}
-	if err := a.syncSelfAgentToken(); err != nil {
-		return fmt.Errorf("startup: could not publish the self-agent token: %w", err)
-	}
 	a.syncChannelFile()
 	a.recordServerVersion()
 

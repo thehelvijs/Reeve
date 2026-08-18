@@ -8,7 +8,7 @@ import Modal from './Modal';
 // server itself runs on. The token is minted on demand rather than on open,
 // because minting it revokes whatever the machine is using now.
 export default function AgentInstallModal({ host, onClose }: { host: Host; onClose: () => void }) {
-  const [cmds, setCmds] = useState<{ install_command: string; run_command: string } | null>(null);
+  const [cmds, setCmds] = useState<{ install_command: string } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -50,10 +50,9 @@ export default function AgentInstallModal({ host, onClose }: { host: Host; onClo
       {cmds && (
         <div className="mt-4 space-y-3">
           <p className="text-sm text-content">
-            Run one of these on the machine as root — the token is shown only once.
+            Run this on the machine as root — the token is shown only once.
           </p>
           <CmdBlock label="Install (systemd)" cmd={cmds.install_command} />
-          <CmdBlock label="Or run in Docker" cmd={cmds.run_command} />
           <div className="flex justify-end">
             <Button variant="secondary" onClick={onClose}>
               Done

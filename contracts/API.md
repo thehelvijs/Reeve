@@ -598,8 +598,8 @@ description clears it, and `description` is omitted from a host that has none.
 
 ### `POST /admin/hosts/{id}/enroll-token`
 
-Mints a fresh enrollment token for a host that already exists and returns
-`install_command` and `run_command` for it. `POST /admin/hosts` shows a token
+Mints a fresh enrollment token for a host that already exists and returns the
+`install_command` for it. `POST /admin/hosts` shows a token
 once and never again, so this is the way to install an agent on a host created
 earlier — the server's own `__server__` row included. It revokes the previous
 token: an agent still using it stops reporting until the new command is run.
