@@ -57,16 +57,7 @@ function labelFor(containers: ContainerPoint[], id: string): string {
   return id.slice(0, 12);
 }
 
-// The ranges the server answers, and the window each one means. The chart draws
-// its x axis from the same number, so the timeline says what the button says.
-const RANGE_SECS: Record<string, number> = {
-  '1h': 3600,
-  '12h': 12 * 3600,
-  '24h': 24 * 3600,
-  '7d': 7 * 86400,
-  '30d': 30 * 86400,
-};
-const RANGES = Object.keys(RANGE_SECS);
+const RANGES = ['1h', '12h', '24h', '7d', '30d'];
 
 // Slots, not colors: --series-1..8 are set per theme in theme.css, each set
 // validated against its own canvas. A slot is assigned by position and never by
@@ -240,48 +231,48 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
             </p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+          <div key={range} className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
             <MetricCard title="CPU" value={fmtPct(latest(cpu))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={cpu} fmt={fmtPct} />
+              <Chart xs={xs} series={cpu} fmt={fmtPct} />
             </MetricCard>
             <MetricCard title="Memory" value={fmtBytes(latest(mem))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={mem} fmt={fmtBytes} />
+              <Chart xs={xs} series={mem} fmt={fmtBytes} />
             </MetricCard>
             <MetricCard title="Disk" value={fmtBytes(latest(disk))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={disk} fmt={fmtBytes} />
+              <Chart xs={xs} series={disk} fmt={fmtBytes} />
             </MetricCard>
             <MetricCard title="Disk I/O" value={fmtRate(latestTotal(diskio))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={diskio} fmt={fmtRate} />
+              <Chart xs={xs} series={diskio} fmt={fmtRate} />
             </MetricCard>
             <MetricCard title="Network" value={fmtRate(latestTotal(net))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={net} fmt={fmtRate} />
+              <Chart xs={xs} series={net} fmt={fmtRate} />
             </MetricCard>
             <MetricCard title="Load average" value={fmtLoad(latest(load))}>
-              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={load} fmt={fmtLoad} />
+              <Chart xs={xs} series={load} fmt={fmtLoad} />
             </MetricCard>
             {sensors.length > 0 && (
               <MetricCard title="Temperature" value={fmtTemp(latestPeak(temp))}>
-                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={temp} fmt={fmtTemp} />
+                <Chart xs={xs} series={temp} fmt={fmtTemp} />
               </MetricCard>
             )}
             {hasGPU && (
               <MetricCard title="GPU" value={fmtPct(latest(gpuUtil))}>
-                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={gpuUtil} fmt={fmtPct} />
+                <Chart xs={xs} series={gpuUtil} fmt={fmtPct} />
               </MetricCard>
             )}
             {hasGPU && (
               <MetricCard title="GPU memory" value={fmtBytes(latest(gpuMem))}>
-                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={gpuMem} fmt={fmtBytes} />
+                <Chart xs={xs} series={gpuMem} fmt={fmtBytes} />
               </MetricCard>
             )}
             {containerCpu.length > 0 && (
               <MetricCard title="Container CPU" value={fmtPct(latestTotal(containerCpu))}>
-                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={containerCpu} fmt={fmtPct} />
+                <Chart xs={xs} series={containerCpu} fmt={fmtPct} />
               </MetricCard>
             )}
             {containerMem.length > 0 && (
               <MetricCard title="Container memory" value={fmtBytes(latestTotal(containerMem))}>
-                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={containerMem} fmt={fmtBytes} />
+                <Chart xs={xs} series={containerMem} fmt={fmtBytes} />
               </MetricCard>
             )}
           </div>

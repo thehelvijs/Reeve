@@ -79,6 +79,28 @@ function hoverReadout(fmt?: (v: number) => string): uPlot.Plugin {
   };
 }
 
+// keepZoom records whether the reader has zoomed, so the poll can leave their
+// view alone. uPlot resets the scales on every setData unless told not to, which
+// spent a zoom the moment the next push arrived.
+function keepZoom(zoomed: { current: boolean }): uPlot.Plugin {
+  return {
+    hooks: {
+      init: (u: uPlot) => {
+        // uPlot's own double-click resets the scales; this only forgets the flag
+        // that was suppressing the reset.
+        u.over.addEventListener('dblclick', () => {
+          zoomed.current = false;
+        });
+      },
+      setSelect: (u: uPlot) => {
+        if (u.select.width > 0) {
+          zoomed.current = true;
+        }
+      },
+    },
+  };
+}
+
 // Chart renders a uPlot time-series sized to its container. uPlot is imperative,
 // so the plot is built once and fed with setData afterwards.
 //
@@ -94,22 +116,18 @@ export default function Chart({
   series,
   fmt,
   height = 160,
-  windowSecs,
 }: {
   xs: number[];
   series: Series[];
   fmt?: (v: number) => string;
   height?: number;
-  // The selected range, in seconds. The axis spans it even when the data does
-  // not, so switching range visibly changes the timeline; a host holding more
-  // history than the window widens it rather than losing points off the left.
-  windowSecs?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // uPlot paints to a canvas from color strings, so it cannot follow a variable
   // on its own: the theme is a dependency that forces a redraw.
   const theme = useTheme();
   const plotRef = useRef<uPlot | null>(null);
+  const zoomed = useRef(false);
   // Read by the effects, so neither has to list the arrays every render creates
   // fresh, which is exactly the churn that used to rebuild the plot.
   const live = useRef({ xs, series });
@@ -137,25 +155,11 @@ export default function Chart({
       // a lone series it sat under every chart showing "Time: -- CPU %: —", and
       // the card header carries that number now.
       legend: { show: s0.length > 1 },
-      plugins: [hoverReadout(fmt)],
-      scales: {
-        x: {
-          time: true,
-          range: (_u, dataMin, dataMax) => {
-            const now = Date.now() / 1000;
-            let lo = dataMin;
-            let hi = dataMax;
-            if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
-              lo = now - (windowSecs ?? 3600);
-              hi = now;
-            }
-            if (windowSecs) {
-              return [Math.min(lo, now - windowSecs), Math.max(hi, now)];
-            }
-            return [lo, hi];
-          },
-        },
-      },
+      plugins: [hoverReadout(fmt), keepZoom(zoomed)],
+      // The axis fits the data it was given: a range button says what was asked
+      // for, and padding the canvas out to a window a young host cannot fill
+      // draws hours of emptiness to say so.
+      scales: { x: { time: true } },
       // Axis labels wear the muted text token; the grid stays recessive.
       axes: [
         {
@@ -200,12 +204,13 @@ export default function Chart({
       plotRef.current = null;
       plot.destroy();
     };
-  }, [shape, fmt, height, theme, windowSecs]);
+  }, [shape, fmt, height, theme]);
 
   // Every render after that is new numbers on the same plot: the canvas redraws
-  // and the page keeps its height, so nothing moves under the reader.
+  // and the page keeps its height, so nothing moves under the reader. A reader
+  // who has zoomed keeps their window; everyone else follows the new data.
   useEffect(() => {
-    plotRef.current?.setData([xs, ...series.map((s) => s.data)]);
+    plotRef.current?.setData([xs, ...series.map((s) => s.data)], !zoomed.current);
   }, [xs, series]);
 
   return <div ref={ref} className="w-full" />;
