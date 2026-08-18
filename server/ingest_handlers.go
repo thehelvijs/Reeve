@@ -55,6 +55,7 @@ func (a *app) handleIngest(w http.ResponseWriter, r *http.Request) {
 	// charts, the catalog — sees one name for a container rather than each
 	// deciding for itself.
 	nameCoolifyContainers(push.Containers, a.coolifyResourceNames(r.Context()))
+	renameProcessContainers(push.Processes, push.Containers)
 
 	if err := a.storePush(host.ID, push); err != nil {
 		log.Printf("ingest: store failed for host %s: %v", host.ID, err)

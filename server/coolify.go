@@ -29,6 +29,9 @@ var coolifyPaths = []string{"/api/v1/applications", "/api/v1/services", "/api/v1
 // push its names, not the push.
 const coolifyTimeout = 5 * time.Second
 
+// coolifyMaxBody caps one response. Generous on purpose: see coolifyGet.
+const coolifyMaxBody = 64 << 20
+
 // coolifyTTL is how long a fetched name list stands. Deploy names change when
 // someone renames a resource, which is rare enough that a minute of staleness
 // costs nothing and saves a call per push.
@@ -164,14 +167,17 @@ func coolifyGet(ctx context.Context, base, token, path string, dst any) error {
 		return err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return errors.New("Coolify rejected the token")
 	}
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("Coolify returned %d for %s", resp.StatusCode, path)
 	}
-	return json.Unmarshal(body, dst)
+	// Streamed against a generous cap rather than read whole: one application
+	// carries its destination, its server and that server's entire proxy
+	// configuration, so a handful of them runs to megabytes, and a cap that
+	// truncated the JSON would fail the decode and quietly name nothing.
+	return json.NewDecoder(io.LimitReader(resp.Body, coolifyMaxBody)).Decode(dst)
 }
 
 // nameCoolifyContainers gives every container Coolify deployed the name Coolify
@@ -195,6 +201,30 @@ func nameCoolifyContainers(containers []contracts.ContainerState, names map[stri
 				containers[i].ManagedBy = "coolify"
 				break
 			}
+		}
+	}
+}
+
+// renameProcessContainers re-points each process at whatever its container ended
+// up called.
+//
+// The agent names a process's container from what docker told it, which is the
+// uuid-shaped name when only Coolify knows better. The containers have just been
+// renamed, so the processes have to follow or the two lists disagree about the
+// same container.
+func renameProcessContainers(procs []contracts.ProcessSample, containers []contracts.ContainerState) {
+	better := make(map[string]string, len(containers))
+	for _, c := range containers {
+		if c.DisplayName != "" && c.DisplayName != c.Name {
+			better[c.Name] = c.DisplayName
+		}
+	}
+	if len(better) == 0 {
+		return
+	}
+	for i := range procs {
+		if name, ok := better[procs[i].Container]; ok {
+			procs[i].Container = name
 		}
 	}
 }

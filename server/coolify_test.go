@@ -131,3 +131,28 @@ func TestTestCoolifyReportsARejectedToken(t *testing.T) {
 		t.Errorf("resources = %d, want 2", out.Resources)
 	}
 }
+
+// A process says which container it runs in, and the agent could only name that
+// container what docker called it. Renaming one list and not the other leaves two
+// names for one container on the same page.
+func TestRenameProcessContainersFollowsTheContainer(t *testing.T) {
+	containers := []contracts.ContainerState{
+		{ID: "c1", Name: "web-oy26vjo0k3r6yxdiu2fywqzt-112139724840", DisplayName: "Web app"},
+		{ID: "c2", Name: "coolify-db"},
+	}
+	procs := []contracts.ProcessSample{
+		{PID: 1, Command: "php-fpm", Container: "web-oy26vjo0k3r6yxdiu2fywqzt-112139724840"},
+		{PID: 2, Command: "postgres", Container: "coolify-db"},
+		{PID: 3, Command: "sshd"},
+	}
+	renameProcessContainers(procs, containers)
+	if procs[0].Container != "Web app" {
+		t.Errorf("renamed container = %q, want Web app", procs[0].Container)
+	}
+	if procs[1].Container != "coolify-db" {
+		t.Errorf("unrenamed container = %q, want coolify-db", procs[1].Container)
+	}
+	if procs[2].Container != "" {
+		t.Errorf("host process = %q, want empty", procs[2].Container)
+	}
+}
