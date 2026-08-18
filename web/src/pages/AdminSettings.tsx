@@ -89,6 +89,7 @@ export default function AdminSettings() {
         </div>
       </Section>
 
+      <AddressSection settings={settings} onSave={save} />
       <HeartbeatSection settings={settings} onSave={save} />
       <EmailSection settings={settings} onSave={save} />
       <GoogleSection settings={settings} onSave={save} />
@@ -344,6 +345,61 @@ function smtpDraft(s: Settings['smtp']): SMTPInput {
   };
 }
 
+// The public URL and the proxy flag decide what address this server hands out and
+// whose word it takes for a client IP. Both start from the REEVE_* variables the
+// server was launched with; saving here overrides them without a redeploy.
+function AddressSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
+  const [url, setUrl] = useState(settings.public_url);
+  const [proxy, setProxy] = useState(settings.trust_proxy);
+  useEffect(() => {
+    setUrl(settings.public_url);
+    setProxy(settings.trust_proxy);
+  }, [settings.public_url, settings.trust_proxy]);
+
+  const dirty = url.trim() !== settings.public_url || proxy !== settings.trust_proxy;
+
+  return (
+    <Section
+      title="Server address"
+      description="The URL people and agents reach this server on. Left empty, every link and enrolment uses the host each request arrived on, which is right on a LAN and wrong for Google sign-in."
+      help={
+        <>
+          <p>
+            Google matches its redirect URI exactly, so sign-in needs a fixed address rather than a per-request one.
+            Emailed password-reset links and the address agents push to come from here too.
+          </p>
+          <p className="mt-2">
+            Trust proxy headers only when a reverse proxy you control is the only way in: it makes the server read the
+            client address from X-Forwarded-For, which keys the login throttle and is recorded against every credential
+            reveal. With no such proxy, any caller could type that header.
+          </p>
+        </>
+      }
+      helpLabel="When to set these"
+    >
+      <Form onSubmit={() => onSave({ public_url: url.trim(), trust_proxy: proxy })}>
+        <Field label="Public URL" hint="Scheme, host and port. Empty falls back to the request host.">
+          <Input value={url} placeholder="http://192.168.1.10:7338" onChange={(e) => setUrl(e.target.value)} />
+        </Field>
+        <label className="mt-4 flex items-center gap-2 text-sm text-content">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-accent"
+            checked={proxy}
+            onChange={(e) => setProxy(e.target.checked)}
+          />
+          Read the client IP from X-Forwarded-For
+        </label>
+        <div className="mt-4 flex justify-end">
+          <Button type="submit" disabled={!dirty}>
+            Save server address
+          </Button>
+        </div>
+      </Form>
+    </Section>
+  );
+}
+
 // A dead-man's switch: the receiver alerts when the pings stop, which is the one
 // failure Reeve cannot report on its own.
 function HeartbeatSection({ settings, onSave }: { settings: Settings; onSave: (patch: SettingsInput) => Promise<void> }) {
@@ -508,7 +564,7 @@ function GoogleSection({ settings, onSave }: { settings: Settings; onSave: (patc
         </div>
       ) : (
         <p className="text-xs text-down">
-          Set REEVE_PUBLIC_URL on the server first — Google matches the redirect URI exactly, so it cannot be
+          Set the public URL under Server address first — Google matches the redirect URI exactly, so it cannot be
           derived per request.
         </p>
       )}

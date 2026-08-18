@@ -48,7 +48,7 @@ func decodeJSON(r *http.Request, dst any) error {
 // address. Honoring the header unconditionally would let any caller forge both
 // the login throttle key and the source IP recorded against a reveal.
 func (a *app) clientIP(r *http.Request) string {
-	if a.cfg.TrustProxyHeaders {
+	if a.trustProxyHeaders() {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			return strings.TrimSpace(strings.Split(xff, ",")[0])
 		}
@@ -97,7 +97,7 @@ func (a *app) originAllowed(r *http.Request) bool {
 	if origin == "" {
 		return false
 	}
-	if a.cfg.PublicURL != "" && origin == strings.TrimSuffix(a.cfg.PublicURL, "/") {
+	if u := a.publicURL(); u != "" && origin == u {
 		return true
 	}
 	for _, allowed := range a.cfg.AllowedOrigins {
@@ -163,11 +163,9 @@ func (a *app) resolvePrincipal(next http.Handler) http.Handler {
 // write, and this value ends up in a message operators are meant to trust.
 func (a *app) rememberOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a.cfg.PublicURL == "" {
-			if p, ok := rbac.FromContext(r.Context()); ok && p.IsAdmin() {
-				if origin := requestOrigin(r); reachableFromOtherHosts(origin) {
-					a.seenOrigin.Store(origin)
-				}
+		if p, ok := rbac.FromContext(r.Context()); ok && p.IsAdmin() && a.publicURL() == "" {
+			if origin := requestOrigin(r); reachableFromOtherHosts(origin) {
+				a.seenOrigin.Store(origin)
 			}
 		}
 		next.ServeHTTP(w, r)

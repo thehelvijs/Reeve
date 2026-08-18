@@ -35,8 +35,8 @@ func hashResetToken(token string) string {
 // baseURL is the origin to put in emailed links: the configured public URL when
 // set, otherwise whatever host the request arrived on.
 func (a *app) baseURL(r *http.Request) string {
-	if a.cfg.PublicURL != "" {
-		return strings.TrimSuffix(a.cfg.PublicURL, "/")
+	if u := a.publicURL(); u != "" {
+		return u
 	}
 	return requestOrigin(r)
 }
@@ -57,8 +57,8 @@ func requestOrigin(r *http.Request) string {
 // address an admin's browser actually reached this server on. Empty until one of
 // the two is known, and a message with no link beats one pointing at localhost.
 func (a *app) publicBase() string {
-	if a.cfg.PublicURL != "" {
-		return strings.TrimSuffix(a.cfg.PublicURL, "/")
+	if u := a.publicURL(); u != "" {
+		return u
 	}
 	origin, _ := a.seenOrigin.Load().(string)
 	return origin

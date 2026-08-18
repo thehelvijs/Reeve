@@ -98,7 +98,7 @@ func (a *app) googleConfig() (oauth.Config, bool) {
 	if !a.db.GetBoolSetting(settingGoogleEnabled, false) {
 		return oauth.Config{}, false
 	}
-	if a.cfg.PublicURL == "" {
+	if a.publicURL() == "" {
 		return oauth.Config{}, false
 	}
 	secret, _ := a.sealedSetting(settingGoogleSecret)
@@ -114,10 +114,11 @@ func (a *app) googleConfig() (oauth.Config, bool) {
 
 // googleRedirectURL is the callback an operator registers with Google.
 func (a *app) googleRedirectURL() string {
-	if a.cfg.PublicURL == "" {
+	base := a.publicURL()
+	if base == "" {
 		return ""
 	}
-	return strings.TrimSuffix(a.cfg.PublicURL, "/") + googleCallbackPath
+	return base + googleCallbackPath
 }
 
 // handleGoogleStart redirects to Google, pinning a random state in a cookie.

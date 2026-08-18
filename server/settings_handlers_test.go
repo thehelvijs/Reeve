@@ -188,3 +188,60 @@ func TestSealedSettingRoundTrip(t *testing.T) {
 		t.Error("sealedSetting accepted a value that was never sealed")
 	}
 }
+
+// The public URL is what Google's redirect URI is built from, and the reason it
+// moved into settings is that an operator should not have to redeploy to fix a
+// wrong one. So a saved value has to win over the environment the server
+// started with, and reach googleRedirectURL.
+func TestSettingsPublicURLOverridesEnv(t *testing.T) {
+	ts := newTestServer(t)
+	ts.app.cfg.PublicURL = "http://from-env:7338"
+	c := ts.client(t)
+	signup(t, ts, c, "boss@example.com", "password123")
+
+	_, v := getSettings(t, ts, c)
+	if v.PublicURL != "http://from-env:7338" {
+		t.Errorf("public_url with nothing saved = %q, want the env value", v.PublicURL)
+	}
+
+	resp, _ := putSettings(t, ts, c, map[string]any{"public_url": "nonsense"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("saving a junk public url = %d, want 400", resp.StatusCode)
+	}
+
+	resp, v = putSettings(t, ts, c, map[string]any{"public_url": "https://reeve.example.com/"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("save = %d, want 200", resp.StatusCode)
+	}
+	if v.PublicURL != "https://reeve.example.com" {
+		t.Errorf("public_url = %q, want the saved value without its trailing slash", v.PublicURL)
+	}
+	if got := ts.app.googleRedirectURL(); got != "https://reeve.example.com"+googleCallbackPath {
+		t.Errorf("google redirect = %q", got)
+	}
+}
+
+// The proxy flag decides whether a header can set the client IP, so a false
+// stored over a true environment has to actually turn it off.
+func TestSettingsTrustProxyOverridesEnv(t *testing.T) {
+	ts := newTestServer(t)
+	ts.app.cfg.TrustProxyHeaders = true
+	c := ts.client(t)
+	signup(t, ts, c, "boss@example.com", "password123")
+
+	if !ts.app.trustProxyHeaders() {
+		t.Error("trust_proxy with nothing saved ignores the env value")
+	}
+	if _, v := putSettings(t, ts, c, map[string]any{"trust_proxy": false}); v.TrustProxy {
+		t.Error("response still reports trust_proxy true")
+	}
+	if ts.app.trustProxyHeaders() {
+		t.Error("a stored false did not override the env value")
+	}
+	r, _ := http.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "10.0.0.9:5555"
+	r.Header.Set("X-Forwarded-For", "1.2.3.4")
+	if got := ts.app.clientIP(r); got != "10.0.0.9" {
+		t.Errorf("clientIP = %q, want the peer address once the header is untrusted", got)
+	}
+}

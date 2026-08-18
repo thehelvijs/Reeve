@@ -157,8 +157,9 @@ separately or the backup is unreadable.
 instance is reachable from the network immediately — keep it behind your
 firewall. Set `REEVE_BIND` to narrow it to one interface
 (`REEVE_BIND=192.168.1.10`, or `127.0.0.1` when a reverse proxy on the same box
-is the only thing that should reach it). Behind a proxy, also
-set `REEVE_TRUST_PROXY=true` so the login throttle and the credential-reveal
+is the only thing that should reach it). Behind a proxy, also turn on
+Settings -> Server address -> "Read the client IP from X-Forwarded-For" (or start
+with `REEVE_TRUST_PROXY=true`) so the login throttle and the credential-reveal
 audit see the real client address instead of the proxy's — and only then, since
 the header is forgeable by anyone who can reach the server directly.
 
@@ -180,8 +181,8 @@ outbound to the server, never the reverse.
 
 1. New Resource → Docker Compose → point at this repo, compose path
    `deploy/docker-compose.yml`.
-2. Set the `REEVE_MASTER_KEY` (and `REEVE_PUBLIC_URL`) environment
-   variables in Coolify's UI — do not commit them.
+2. Set the `REEVE_MASTER_KEY` environment variable in Coolify's UI — do not
+   commit it. The public URL is a setting, so it can wait for the first login.
 3. Attach a persistent volume for `/data`.
 4. Restrict the exposed domain/port to the LAN.
 
@@ -210,10 +211,10 @@ Delete, rather than in the list — both end a host, and neither belongs one cli
 away in a row you are scrolling past.
 
 The address the agent is told to push to defaults to whatever host you reached
-the UI on, so opening it at `http://<lan-ip>:7338` needs no configuration. Set
-`REEVE_PUBLIC_URL` when that differs from the address agents should use, or when
-you are working over `localhost` — a loopback origin is refused, since an agent
-on another machine cannot dial it.
+the UI on, so opening it at `http://<lan-ip>:7338` needs no configuration. Set the public URL under Settings -> Server
+address when that differs from the address agents should use, or when you are
+working over `localhost` — a loopback origin is refused, since an agent on
+another machine cannot dial it.
 
 The address is resolved by the server, not your browser. A `.local` name is
 answered by multicast, which no DNS server and no static Go binary can do, so

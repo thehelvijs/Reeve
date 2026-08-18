@@ -113,7 +113,7 @@ func tokenFromCommand(t *testing.T, cmd string) string {
 }
 
 func TestAgentInstallCommandShape(t *testing.T) {
-	a := &app{cfg: config{PublicURL: "http://10.0.0.2:8080"}}
+	a := bareApp(t, config{PublicURL: "http://10.0.0.2:8080"})
 	cmd := a.agentInstallCommand(httptest.NewRequest(http.MethodPost, "/", nil), "tok-123")
 	for _, want := range []string{
 		"curl -fsSL http://10.0.0.2:8080/install.sh",
@@ -128,10 +128,10 @@ func TestAgentInstallCommandShape(t *testing.T) {
 	}
 }
 
-// With no REEVE_PUBLIC_URL the enroll commands use the address the admin's
+// With no public URL configured the enroll commands use the address the admin's
 // browser reached the UI on, which on a LAN is the server's LAN address.
 func TestAgentCommandsFallBackToRequestHost(t *testing.T) {
-	a := &app{cfg: config{Addr: "127.0.0.1:8080"}}
+	a := bareApp(t, config{Addr: "127.0.0.1:8080"})
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	r.Host = "192.168.1.50:8080"
 	for _, cmd := range []string{a.agentInstallCommand(r, "tok"), a.agentRunCommand(r, "tok")} {

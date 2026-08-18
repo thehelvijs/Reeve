@@ -18,6 +18,27 @@ const (
 	maxRetentionSecs = 5 * 365 * 24 * 3600
 )
 
+// settingPublicURL and settingTrustProxy are the deploy-time knobs an admin can
+// change without touching the environment the server was started with. Each
+// falls back to its REEVE_* variable, so an instance configured that way keeps
+// working until someone saves a value here.
+const (
+	settingPublicURL  = "public_url"
+	settingTrustProxy = "trust_proxy"
+)
+
+// publicURL is the address this server hands out — for OAuth redirects, emailed
+// links and agent enrolment — with no trailing slash. Empty means nobody has
+// said, and the callers fall back to the host each request arrived on.
+func (a *app) publicURL() string {
+	return strings.TrimSuffix(a.settingOr(settingPublicURL, a.cfg.PublicURL), "/")
+}
+
+// trustProxyHeaders reports whether X-Forwarded-For may set the client IP.
+func (a *app) trustProxyHeaders() bool {
+	return a.db.GetBoolSetting(settingTrustProxy, a.cfg.TrustProxyHeaders)
+}
+
 // sealedPrefix marks a settings value as master-key ciphertext, stored as
 // "sealed:" + base64(nonce) + "." + base64(ciphertext).
 const sealedPrefix = "sealed:"
@@ -92,6 +113,8 @@ type serverUpdateView struct {
 
 type settingsView struct {
 	SignupEnabled bool             `json:"signup_enabled"`
+	PublicURL     string           `json:"public_url"`
+	TrustProxy    bool             `json:"trust_proxy"`
 	HeartbeatURL  string           `json:"heartbeat_url"`
 	Retention     retentionView    `json:"retention"`
 	SMTP          smtpView         `json:"smtp"`
@@ -109,6 +132,8 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 	heartbeatURL, _ := a.db.GetSetting(settingHeartbeatURL)
 	writeJSON(w, http.StatusOK, settingsView{
 		SignupEnabled: a.db.GetBoolSetting(settingSignupEnabled, true),
+		PublicURL:     a.publicURL(),
+		TrustProxy:    a.trustProxyHeaders(),
 		HeartbeatURL:  heartbeatURL,
 		Retention: retentionView{
 			RawSecs:     int(ret.Raw.Seconds()),
@@ -129,6 +154,8 @@ func (a *app) handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		SignupEnabled *bool   `json:"signup_enabled"`
+		PublicURL     *string `json:"public_url"`
+		TrustProxy    *bool   `json:"trust_proxy"`
 		HeartbeatURL  *string `json:"heartbeat_url"`
 		Retention     *struct {
 			RawSecs     int `json:"raw_secs"`
@@ -156,6 +183,23 @@ func (a *app) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if in.SignupEnabled != nil {
 		if err := a.db.SetSetting(settingSignupEnabled, strconv.FormatBool(*in.SignupEnabled)); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "could not save signup setting")
+			return
+		}
+	}
+	if in.PublicURL != nil {
+		if !validToolURL(*in.PublicURL) {
+			writeError(w, http.StatusBadRequest, "invalid_public_url",
+				"public url must be an absolute http or https URL")
+			return
+		}
+		if err := a.db.SetSetting(settingPublicURL, strings.TrimSuffix(*in.PublicURL, "/")); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not save the public url")
+			return
+		}
+	}
+	if in.TrustProxy != nil {
+		if err := a.db.SetSetting(settingTrustProxy, strconv.FormatBool(*in.TrustProxy)); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "could not save the proxy setting")
 			return
 		}
 	}

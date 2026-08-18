@@ -186,10 +186,10 @@ func (a *app) handleReissueEnrollToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	serverURL := a.baseURL(r)
-	if a.cfg.PublicURL == "" && !reachableFromOtherHosts(serverURL) {
+	if a.publicURL() == "" && !reachableFromOtherHosts(serverURL) {
 		writeError(w, http.StatusBadRequest, "unreachable_server_url",
 			"reach this UI by the server's LAN address instead of "+serverURL+
-				", or set REEVE_PUBLIC_URL, so the agent has an address it can push to")
+				", or set the public URL in Settings, so the agent has an address it can push to")
 		return
 	}
 	token, hash := auth.NewAgentToken()

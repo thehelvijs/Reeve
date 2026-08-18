@@ -145,7 +145,7 @@ func captureLog(t *testing.T) (*bytes.Buffer, func()) {
 func TestLogRequestsLogsApiNotStatic(t *testing.T) {
 	buf, restore := captureLog(t)
 	defer restore()
-	a := &app{cfg: config{LogRequests: true}}
+	a := bareApp(t, config{LogRequests: true})
 	h := a.logRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
@@ -166,7 +166,7 @@ func TestLogRequestsLogsApiNotStatic(t *testing.T) {
 func TestLogRequestsToggleOff(t *testing.T) {
 	buf, restore := captureLog(t)
 	defer restore()
-	a := &app{cfg: config{LogRequests: false}}
+	a := bareApp(t, config{LogRequests: false})
 	h := a.logRequests(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/tools", nil))
 	if buf.String() != "" {
@@ -174,17 +174,29 @@ func TestLogRequestsToggleOff(t *testing.T) {
 	}
 }
 
+// bareApp is an app with a real but empty database and no HTTP server, for the
+// helpers that read a setting before falling back to config.
+func bareApp(t *testing.T, cfg config) *app {
+	t.Helper()
+	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return &app{db: db, cfg: cfg}
+}
+
 func TestClientIPForwardedForOnlyWhenProxyTrusted(t *testing.T) {
 	spoofed := httptest.NewRequest(http.MethodGet, "/api/tools", nil)
 	spoofed.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.1")
 	spoofed.RemoteAddr = "192.168.1.5:54321"
 
-	untrusting := &app{cfg: config{}}
+	untrusting := bareApp(t, config{})
 	if got := untrusting.clientIP(spoofed); got != "192.168.1.5" {
 		t.Errorf("clientIP = %q, want the peer address 192.168.1.5 when no proxy is trusted", got)
 	}
 
-	trusting := &app{cfg: config{TrustProxyHeaders: true}}
+	trusting := bareApp(t, config{TrustProxyHeaders: true})
 	if got := trusting.clientIP(spoofed); got != "203.0.113.9" {
 		t.Errorf("clientIP = %q, want 203.0.113.9", got)
 	}
@@ -197,7 +209,7 @@ func TestClientIPForwardedForOnlyWhenProxyTrusted(t *testing.T) {
 }
 
 func TestRequireSameOriginRejectsCrossSiteCookieWrite(t *testing.T) {
-	a := &app{cfg: config{PublicURL: "http://reeve.lan:8080"}}
+	a := bareApp(t, config{PublicURL: "http://reeve.lan:8080"})
 	reached := false
 	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
 
@@ -237,7 +249,7 @@ func TestRequireSameOriginRejectsCrossSiteCookieWrite(t *testing.T) {
 // must stay reachable; only a session cookie brings the browser's ambient
 // credential into play.
 func TestRequireSameOriginLeavesTokenCallersAlone(t *testing.T) {
-	a := &app{cfg: config{}}
+	a := bareApp(t, config{})
 	reached := false
 	h := a.requireSameOrigin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) { reached = true }))
 	r := httptest.NewRequest(http.MethodPost, "/api/ingest", nil)

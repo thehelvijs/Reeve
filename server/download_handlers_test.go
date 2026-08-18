@@ -10,13 +10,15 @@ import (
 	"testing/fstest"
 )
 
-func newDownloadApp(agentFS, scriptFS fstest.MapFS) *app {
-	return &app{agentFS: agentFS, scriptFS: scriptFS}
+func newDownloadApp(t *testing.T, agentFS, scriptFS fstest.MapFS) *app {
+	a := bareApp(t, config{})
+	a.agentFS, a.scriptFS = agentFS, scriptFS
+	return a
 }
 
 func TestServeAgentBinaryKnownArch(t *testing.T) {
 	bin := []byte("FAKEELF-amd64")
-	a := newDownloadApp(
+	a := newDownloadApp(t,
 		fstest.MapFS{"agent-linux-amd64": {Data: bin}},
 		fstest.MapFS{},
 	)
@@ -33,7 +35,7 @@ func TestServeAgentBinaryKnownArch(t *testing.T) {
 }
 
 func TestServeAgentBinaryUnknownArch404(t *testing.T) {
-	a := newDownloadApp(fstest.MapFS{}, fstest.MapFS{})
+	a := newDownloadApp(t, fstest.MapFS{}, fstest.MapFS{})
 	req := httptest.NewRequest(http.MethodGet, "/dl/agent-linux-sparc", nil)
 	req.SetPathValue("arch", "sparc")
 	rr := httptest.NewRecorder()
@@ -46,7 +48,7 @@ func TestServeAgentBinaryUnknownArch404(t *testing.T) {
 func TestServeAgentChecksumMatchesBytes(t *testing.T) {
 	bin := []byte("FAKEELF-arm64")
 	sum := sha256.Sum256(bin)
-	a := newDownloadApp(
+	a := newDownloadApp(t,
 		fstest.MapFS{"agent-linux-arm64": {Data: bin}},
 		fstest.MapFS{},
 	)
@@ -67,7 +69,7 @@ func TestServeAgentChecksumMatchesBytes(t *testing.T) {
 
 func TestRoutesDownloadDispatch(t *testing.T) {
 	bin := []byte("FAKEELF-amd64")
-	a := newDownloadApp(
+	a := newDownloadApp(t,
 		fstest.MapFS{"agent-linux-amd64": {Data: bin}},
 		fstest.MapFS{"scripts/install.sh": {Data: []byte("#!/usr/bin/env bash\necho hi\n")}},
 	)
@@ -98,7 +100,7 @@ func TestRoutesDownloadDispatch(t *testing.T) {
 }
 
 func TestServeInstallScript(t *testing.T) {
-	a := newDownloadApp(fstest.MapFS{}, fstest.MapFS{
+	a := newDownloadApp(t, fstest.MapFS{}, fstest.MapFS{
 		"scripts/install.sh": {Data: []byte("#!/usr/bin/env bash\necho hi\n")},
 	})
 	req := httptest.NewRequest(http.MethodGet, "/install.sh", nil)
@@ -119,7 +121,7 @@ func TestServeInstallScript(t *testing.T) {
 // forgot to stage it must 404 rather than serve an empty file the remote shell
 // would happily execute.
 func TestServeUninstallScript(t *testing.T) {
-	a := newDownloadApp(fstest.MapFS{}, fstest.MapFS{
+	a := newDownloadApp(t, fstest.MapFS{}, fstest.MapFS{
 		"scripts/uninstall.sh": {Data: []byte("#!/usr/bin/env bash\nsystemctl stop reeve-agent\n")},
 	})
 	req := httptest.NewRequest(http.MethodGet, "/uninstall.sh", nil)
@@ -135,7 +137,7 @@ func TestServeUninstallScript(t *testing.T) {
 		t.Errorf("content-type = %q, want a shellscript type", ct)
 	}
 
-	missing := newDownloadApp(fstest.MapFS{}, fstest.MapFS{})
+	missing := newDownloadApp(t, fstest.MapFS{}, fstest.MapFS{})
 	rr = httptest.NewRecorder()
 	missing.handleUninstallScript(rr, req)
 	if rr.Code != http.StatusNotFound {
@@ -147,7 +149,7 @@ func TestServeUninstallScript(t *testing.T) {
 // update, so serving and 404ing both have to behave predictably.
 func TestServeAgentSignature(t *testing.T) {
 	sig := "untrusted comment: sig\nAAAA\ntrusted comment: version:1.2.3\nBBBB\n"
-	a := newDownloadApp(
+	a := newDownloadApp(t,
 		fstest.MapFS{
 			"agent-linux-amd64":         {Data: []byte("FAKEELF-amd64")},
 			"agent-linux-amd64.minisig": {Data: []byte(sig)},
