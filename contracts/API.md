@@ -570,6 +570,10 @@ receiver that answers badly is not an API failure: the response is `200` with
   reads under that name, with its own name joining the image in `detail`.
   `source_ref` is the container id either way: the name is cosmetic, and nothing
   links or acts on it.
+  A process in the metrics payload carries `container` when it runs inside one,
+  named as that container is listed, and omits it when it runs on the host. That
+  is what tells php-fpm belonging to one deployment from php-fpm belonging to
+  another on a machine hosting several.
 - `GET /hosts/{id}/process-usage?window=1h|12h|24h|7d|30d` answers the same
   question over time instead of at one instant: per command, `cpu_avg`,
   `cpu_max`, `mem_avg`, `mem_max` and the `samples` behind them, top 25 by each

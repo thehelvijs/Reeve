@@ -222,3 +222,57 @@ func TestProcSamplerSkipsNonPidEntries(t *testing.T) {
 		t.Errorf("sampled %d, want 1: /proc holds non-pid entries too", len(got))
 	}
 }
+
+// A machine hosting a PaaS reads as a flat list of php-fpm and postgres unless
+// each process says which deployment it belongs to. The id is the only thing the
+// cgroup spellings agree on.
+func TestParseCgroupContainerID(t *testing.T) {
+	const id = "3f4a1b2c9d8e7f60518293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8"
+	cases := map[string]string{
+		"0::/docker/" + id + "\n":                                  id[:12],
+		"0::/system.slice/docker-" + id + ".scope\n":               id[:12],
+		"12:pids:/docker/" + id + "\n11:cpu,cpuacct:/docker/" + id: id[:12],
+		"0::/kubepods/besteffort/pod123/" + id + "\n":              id[:12],
+		"0::/user.slice/user-1000.slice/session-3.scope\n":         "",
+		"0::/\n": "",
+		"":       "",
+		// Short hex runs are ids of nothing: a session or slice number must not
+		// be mistaken for a truncated container.
+		"0::/system.slice/deadbeef.scope\n": "",
+	}
+	for content, want := range cases {
+		if got := ParseCgroupContainerID(content); got != want {
+			t.Errorf("ParseCgroupContainerID(%q) = %q, want %q", content, got, want)
+		}
+	}
+}
+
+// The name attached is the one the container is listed under, so a label that
+// renamed the container in the inventory renames it here too.
+func TestAttachContainersNamesByLabelThenContainerName(t *testing.T) {
+	const id = "3f4a1b2c9d8e7f60518293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8"
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "42"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "42", "cgroup"), []byte("0::/docker/"+id+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "43"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "43", "cgroup"), []byte("0::/init.scope\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	procs := []contracts.ProcessSample{{PID: 42, Command: "php-fpm"}, {PID: 43, Command: "sshd"}}
+	NewProcSampler(root).AttachContainers(procs, []contracts.ContainerState{
+		{ID: id[:12], Name: "vgs4kw8-063455", DisplayName: "billing-api"},
+	})
+	if procs[0].Container != "billing-api" {
+		t.Errorf("containerised process = %q, want billing-api", procs[0].Container)
+	}
+	if procs[1].Container != "" {
+		t.Errorf("host process = %q, want empty", procs[1].Container)
+	}
+}

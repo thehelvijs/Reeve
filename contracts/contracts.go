@@ -219,6 +219,11 @@ type ProcessSample struct {
 	Command string  `json:"command"`
 	CPUPct  float64 `json:"cpu_pct"`
 	MemRSS  uint64  `json:"mem_rss"`
+	// Container is what the process runs inside, by the name its container is
+	// listed under, and empty for a process running on the host itself. A machine
+	// hosting a PaaS is otherwise a flat list of php-fpm and postgres with nothing
+	// saying which deployment each one belongs to.
+	Container string `json:"container,omitempty"`
 }
 
 // ContainerSample is a per-container resource sample.

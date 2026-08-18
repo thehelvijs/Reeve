@@ -4,6 +4,8 @@ export interface ProcessSample {
   command: string;
   cpu_pct: number;
   mem_rss: number;
+  // The container this runs inside, absent for a process on the host itself.
+  container?: string;
 }
 
 export type ProcessSort = 'cpu' | 'mem';

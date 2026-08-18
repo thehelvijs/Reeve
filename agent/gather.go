@@ -151,6 +151,10 @@ func gather(version string, cfg config) contracts.Push {
 	})
 	wg.Wait()
 
+	// Which container a process belongs to is a join across two collectors that
+	// ran in parallel, so it waits until both have landed.
+	procs.AttachContainers(processes, containers)
+
 	push.Services = services
 	push.Containers = containers
 	push.ContainerStats = stats

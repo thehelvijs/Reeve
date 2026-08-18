@@ -148,6 +148,35 @@ func rankBy[T cmp.Ordered](procs []contracts.ProcessSample, key func(*contracts.
 	return rank
 }
 
+// ParseCgroupContainerID reads the container a process belongs to from
+// /proc/[pid]/cgroup, empty when it belongs to none.
+//
+// The path spelling differs by cgroup version and by runtime driver
+// ("0::/docker/<id>", ".../docker-<id>.scope", "/kubepods/.../<id>"), and the one
+// thing they share is the 64-hex id, so that is what this looks for. The first 12
+// characters are what `docker ps` prints, which is what container rows are keyed
+// by.
+func ParseCgroupContainerID(content string) string {
+	const full = 64
+	const short = 12
+	run := 0
+	for i := 0; i <= len(content); i++ {
+		if i < len(content) && isHexDigit(content[i]) {
+			run++
+			continue
+		}
+		if run >= full {
+			return content[i-run : i-run+short]
+		}
+		run = 0
+	}
+	return ""
+}
+
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
 // ProcSampler reads per-process usage from a /proc tree, deriving CPU percent
 // from the jiffy delta between calls. The push loop provides the window, so no
 // sampling sleep is needed; a process first seen on this call reports 0%.
@@ -217,6 +246,35 @@ func (s *ProcSampler) Sample(now time.Time) []contracts.ProcessSample {
 	s.prev = cur
 	s.prevAt = now
 	return out
+}
+
+// AttachContainers names the container each process runs inside, for the
+// processes that will actually be reported.
+//
+// It runs after the ranking rather than inside Sample: one extra file read per
+// process is cheap, but a busy host has hundreds of them and reports fifty, and
+// the four hundred it discards would be read for nothing.
+func (s *ProcSampler) AttachContainers(procs []contracts.ProcessSample, containers []contracts.ContainerState) {
+	if len(procs) == 0 || len(containers) == 0 {
+		return
+	}
+	named := make(map[string]string, len(containers))
+	for _, c := range containers {
+		name := c.Name
+		if c.DisplayName != "" {
+			name = c.DisplayName
+		}
+		named[c.ID] = name
+	}
+	for i := range procs {
+		raw, err := os.ReadFile(filepath.Join(s.root, strconv.Itoa(procs[i].PID), "cgroup"))
+		if err != nil {
+			continue
+		}
+		if id := ParseCgroupContainerID(string(raw)); id != "" {
+			procs[i].Container = named[id]
+		}
+	}
 }
 
 // passwdUsers maps uid to username, reparsed only when /etc/passwd changes.

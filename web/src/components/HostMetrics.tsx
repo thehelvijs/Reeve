@@ -372,7 +372,10 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
     );
   };
 
-  const rows = sortProcesses(procs, by).filter((p) => matchesQuery(search, p.command, p.user, String(p.pid)));
+  const rows = sortProcesses(procs, by).filter((p) =>
+    matchesQuery(search, p.command, p.user, String(p.pid), p.container),
+  );
+  const anyContainer = procs.some((p) => p.container);
   const usageRows = sortUsage(usage, by).filter((u) => matchesQuery(search, u.command));
   let empty = usageRows.length === 0;
   if (window === 'last') {
@@ -422,6 +425,7 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
               {window === 'last' && <Th>PID</Th>}
               {window === 'last' && <Th>User</Th>}
               <Th>Command</Th>
+              {window === 'last' && anyContainer && <Th>Container</Th>}
               {sortable(window === 'last' ? 'CPU' : 'CPU avg', 'cpu')}
               {window !== 'last' && <Th className="text-right">CPU peak</Th>}
               {sortable(window === 'last' ? 'Memory' : 'Memory avg', 'mem')}
@@ -437,6 +441,7 @@ function ProcessTable({ procs, path }: { procs: ProcessSample[]; path: string })
                 <Td className="max-w-md truncate font-mono text-xs text-content" title={p.command}>
                   {p.command}
                 </Td>
+                {anyContainer && <Td className="truncate text-xs text-muted">{p.container ?? '—'}</Td>}
                 <Td className="text-right tabular-nums text-content">{p.cpu_pct.toFixed(1)}%</Td>
                 <Td className="text-right tabular-nums text-content">{fmtBytes(p.mem_rss)}</Td>
               </Tr>
