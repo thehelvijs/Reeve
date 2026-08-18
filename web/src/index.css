@@ -43,6 +43,34 @@
   color: var(--text);
 }
 
+/* The value under the cursor, placed inside uPlot's over-rect by the chart's
+   readout plugin. Never under the pointer: it would take the hover it exists to
+   report on. */
+.reeve-chart-tip {
+  position: absolute;
+  z-index: 2;
+  display: none;
+  pointer-events: none;
+  white-space: pre;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-button);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+
+/* uPlot paints its drag-to-zoom selection with 7% black, which is invisible on a
+   dark canvas — the drag worked and looked like it had not. Grey at this alpha
+   reads on both themes. */
+.u-select {
+  background: rgb(127 127 127 / 0.28);
+  border: 1px solid var(--border-strong);
+}
+
 /* Leaflet, themed to match the surface ladder. */
 .leaflet-container {
   background: var(--surface-2);

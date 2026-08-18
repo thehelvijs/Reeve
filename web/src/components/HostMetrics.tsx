@@ -57,7 +57,16 @@ function labelFor(containers: ContainerPoint[], id: string): string {
   return id.slice(0, 12);
 }
 
-const RANGES = ['1h', '12h', '24h', '7d', '30d'];
+// The ranges the server answers, and the window each one means. The chart draws
+// its x axis from the same number, so the timeline says what the button says.
+const RANGE_SECS: Record<string, number> = {
+  '1h': 3600,
+  '12h': 12 * 3600,
+  '24h': 24 * 3600,
+  '7d': 7 * 86400,
+  '30d': 30 * 86400,
+};
+const RANGES = Object.keys(RANGE_SECS);
 
 // Slots, not colors: --series-1..8 are set per theme in theme.css, each set
 // validated against its own canvas. A slot is assigned by position and never by
@@ -226,53 +235,53 @@ export default function HostMetrics({ path, action }: { path: string; action?: R
           <Card className="p-4">
             <p className="text-sm text-muted">
               {points.length === 0
-                ? 'No sample in this range yet. The agent pushes one every ~15s.'
-                : 'Only one sample in this range so far. A line needs two — try a longer range.'}
+                ? 'No sample reported yet. The agent pushes one every ~15s.'
+                : 'One sample so far — a line needs two, so the chart appears on the next push (~15s).'}
             </p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
             <MetricCard title="CPU" value={fmtPct(latest(cpu))}>
-              <Chart xs={xs} series={cpu} fmt={fmtPct} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={cpu} fmt={fmtPct} />
             </MetricCard>
             <MetricCard title="Memory" value={fmtBytes(latest(mem))}>
-              <Chart xs={xs} series={mem} fmt={fmtBytes} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={mem} fmt={fmtBytes} />
             </MetricCard>
             <MetricCard title="Disk" value={fmtBytes(latest(disk))}>
-              <Chart xs={xs} series={disk} fmt={fmtBytes} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={disk} fmt={fmtBytes} />
             </MetricCard>
             <MetricCard title="Disk I/O" value={fmtRate(latestTotal(diskio))}>
-              <Chart xs={xs} series={diskio} fmt={fmtRate} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={diskio} fmt={fmtRate} />
             </MetricCard>
             <MetricCard title="Network" value={fmtRate(latestTotal(net))}>
-              <Chart xs={xs} series={net} fmt={fmtRate} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={net} fmt={fmtRate} />
             </MetricCard>
             <MetricCard title="Load average" value={fmtLoad(latest(load))}>
-              <Chart xs={xs} series={load} fmt={fmtLoad} />
+              <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={load} fmt={fmtLoad} />
             </MetricCard>
             {sensors.length > 0 && (
               <MetricCard title="Temperature" value={fmtTemp(latestPeak(temp))}>
-                <Chart xs={xs} series={temp} fmt={fmtTemp} />
+                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={temp} fmt={fmtTemp} />
               </MetricCard>
             )}
             {hasGPU && (
               <MetricCard title="GPU" value={fmtPct(latest(gpuUtil))}>
-                <Chart xs={xs} series={gpuUtil} fmt={fmtPct} />
+                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={gpuUtil} fmt={fmtPct} />
               </MetricCard>
             )}
             {hasGPU && (
               <MetricCard title="GPU memory" value={fmtBytes(latest(gpuMem))}>
-                <Chart xs={xs} series={gpuMem} fmt={fmtBytes} />
+                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={gpuMem} fmt={fmtBytes} />
               </MetricCard>
             )}
             {containerCpu.length > 0 && (
               <MetricCard title="Container CPU" value={fmtPct(latestTotal(containerCpu))}>
-                <Chart xs={xs} series={containerCpu} fmt={fmtPct} />
+                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={containerCpu} fmt={fmtPct} />
               </MetricCard>
             )}
             {containerMem.length > 0 && (
               <MetricCard title="Container memory" value={fmtBytes(latestTotal(containerMem))}>
-                <Chart xs={xs} series={containerMem} fmt={fmtBytes} />
+                <Chart windowSecs={RANGE_SECS[range]} xs={xs} series={containerMem} fmt={fmtBytes} />
               </MetricCard>
             )}
           </div>
